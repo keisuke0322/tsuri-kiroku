@@ -1,7 +1,8 @@
 import {getDb,parseCatch} from './db';
-import {authenticate,ensureProfile,json,apiError} from '../access';
+import {authenticate,correctOwnerDisplayName,ensureProfile,json,apiError} from '../access';
 export async function GET(req:Request){try{
  const user=await authenticate(req),db=getDb();
+ await correctOwnerDisplayName();
  const r=await db.prepare(`SELECT c.*,p.display_name AS authorName,
  (SELECT COUNT(*) FROM catch_likes l WHERE l.catch_id=c.id) AS likeCount,
  EXISTS(SELECT 1 FROM catch_likes l WHERE l.catch_id=c.id AND l.user_id=?) AS liked

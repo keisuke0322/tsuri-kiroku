@@ -5,6 +5,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from 
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import {Tabs,TabsList,TabsTrigger} from '@/components/ui/tabs';
+import {updateLikeOptimistically} from './optimistic-like';
 import ProfileDialog,{Avatar,type Profile} from './profile-dialog';
 import { toast, Toaster } from 'sonner';
 type Entry = { id:number; date:string; location:string; species:string; count:number; length:number|null; method:string; memo:string; created_at:string; photoIds:number[]; owner_id:string; authorName:string; likeCount:number; liked:boolean };
@@ -29,14 +30,25 @@ export default function FishingLog({userId,initialName,signOutPath,signInPath}:{
  async function showProfile(id:string){try{const r=await apiFetch('/api/profiles/'+encodeURIComponent(id));if(!r.ok)throw Error();const p=await r.json() as Profile;if(!leaving.current)setViewProfile(p)}catch{toast.error('プロフィールを読み込めませんでした。')}}
  async function saveProfile(displayName:string,bio:string){const r=await apiFetch('/api/profile',{method:'PUT',headers:{'Content-Type':'application/json'},body:JSON.stringify({displayName,bio})});const value=await r.json() as Profile&{error?:string};if(!r.ok)throw Error(value.error||'保存できませんでした。');setProfile(value);setItems(current=>current.map(x=>x.owner_id===userId?{...x,authorName:value.displayName}:x));toast.success('プロフィールを保存しました')}
  async function like(x:Entry){
-  if(likeLocks.current.has(x.id))return;likeLocks.current.add(x.id);setBusyLikes(new Set(likeLocks.current));
-  try{const r=await apiFetch(`/api/catches/${x.id}/like`,{method:x.liked?'DELETE':'PUT'});if(!r.ok)throw Error();const state=await r.json() as {liked:boolean;likeCount:number};refreshVersion.current++;setItems(current=>current.map(item=>item.id===x.id?{...item,...state}:item))}
-  catch{toast.error('いいねを更新できませんでした。最新の状態を確認します。');await refresh()}
-  finally{likeLocks.current.delete(x.id);setBusyLikes(new Set(likeLocks.current))}
+  if(likeLocks.current.has(x.id)||leaving.current)return;
+  likeLocks.current.add(x.id);setBusyLikes(new Set(likeLocks.current));refreshVersion.current++;
+  const publish=(state:{liked:boolean;likeCount:number})=>{
+   refreshVersion.current++;
+   if(!leaving.current)setItems(current=>current.map(item=>item.id===x.id?{...item,...state}:item));
+  };
+  try{
+   await updateLikeOptimistically({liked:x.liked,likeCount:x.likeCount},publish,async liked=>{
+    const r=await apiFetch(`/api/catches/${x.id}/like`,{method:liked?'PUT':'DELETE'});
+    if(!r.ok)throw Error('いいねを保存できませんでした。');
+    return await r.json() as {liked:boolean;likeCount:number};
+   });
+  }catch{
+   if(!leaving.current){toast.error('いいねを保存できなかったため、表示を戻しました。');likeLocks.current.delete(x.id);await refresh()}
+  }finally{likeLocks.current.delete(x.id);setBusyLikes(new Set(likeLocks.current))}
  }
 
  const [items,setItems]=useState<Entry[]>([]),[loading,setLoading]=useState(true),[error,setError]=useState(''),[open,setOpen]=useState(false),[editing,setEditing]=useState<number|null>(null),[form,setForm]=useState(empty),[query,setQuery]=useState(''),[speciesFilter,setSpeciesFilter]=useState('すべて'),[saving,setSaving]=useState(false),[files,setFiles]=useState<File[]>([]);
- async function refresh(){const version=++refreshVersion.current;try{const r=await apiFetch('/api/catches');if(!r.ok)throw Error();const rows=await r.json() as Entry[];if(!leaving.current&&version===refreshVersion.current){setItems(rows);setError('')}}catch{setError('記録を読み込めませんでした。時間をおいて再試行してください。')}finally{setLoading(false)}}
+ async function refresh(){const version=++refreshVersion.current;try{const r=await apiFetch('/api/catches');if(!r.ok)throw Error();const rows=await r.json() as Entry[];if(!leaving.current&&version===refreshVersion.current){setItems(current=>rows.map(row=>likeLocks.current.has(row.id)?{...row,liked:current.find(x=>x.id===row.id)?.liked??row.liked,likeCount:current.find(x=>x.id===row.id)?.likeCount??row.likeCount}:row));setError('')}}catch{setError('記録を読み込めませんでした。時間をおいて再試行してください。')}finally{setLoading(false)}}
  useEffect(()=>{refresh()},[]);
  useEffect(()=>{const context=(document as Document & {modelContext?:{registerTool:(tool:unknown, options:{signal:AbortSignal})=>Promise<void>|void}}).modelContext;if(!context?.registerTool)return;const lifecycle=new AbortController();Promise.resolve(context.registerTool({name:'create_catch_record',title:'釣果を記録',description:'釣行日、場所、魚種、匹数を保存して一覧を更新します。',inputSchema:{type:'object',properties:{date:{type:'string'},location:{type:'string'},species:{type:'string'},count:{type:'integer'},length:{type:'number'},method:{type:'string'},memo:{type:'string'}},required:['date','location','species','count'],additionalProperties:false},annotations:{readOnlyHint:false,untrustedContentHint:false},execute:async(input:unknown)=>{const v=input as Record<string,unknown>;const response=await apiFetch('/api/catches',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(v)});if(!response.ok)throw Error(((await response.json()) as {error?:string}).error||'保存できませんでした');await refresh();return {saved:true,id:((await response.json()) as {id:number}).id}}},{signal:lifecycle.signal})).catch(console.error);return()=>lifecycle.abort()},[]);
  const scoped=useMemo(()=>scope==='mine'?items.filter(x=>x.owner_id===userId):items,[scope,items,userId]);
