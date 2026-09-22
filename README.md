@@ -1,3 +1,23 @@
+# 釣果ノート
+
+ChatGPTログイン後に釣果と写真を共有できる釣行記録サイトです。プロフィールの表示名・自己紹介を編集でき、各釣果にいいねを付けたり取り消したりできます。記録・写真の変更は投稿者本人のみ可能です。
+
+## 認証と既存データの移行
+
+Sitesが検証して転送するユーザーIDを使います。APIは未ログインを401、他人の記録の変更を403で拒否します。変更リクエストには同一オリジンのOriginヘッダーが必要です。メールアドレスは公開プロフィールに保存しません。
+
+`0002`のマイグレーションは既存の釣果・写真を保持したまま、プロフィール・所有者・いいねを追加します。所有者限定でデプロイ後、指定済みの所有者がログインすると、認証されたサイト固有IDで未移行の釣果を一度だけ引き継ぎます。`data_migrations`の所有者ID、`catches.owner_id`、既存の件数・内容を照合してから公開範囲を変更します。Sitesの共有設定にあるアカウントIDを所有者IDとして代用しないでください。
+
+## 検証
+
+- `node --experimental-vm-modules tests/api.test.mjs`：生成SQLと実際のAPIハンドラーをSQLiteで検証。Sites認証ヘッダーとR2はテスト用の代替実装です。
+- `node node_modules/typescript/bin/tsc --noEmit --incremental false`：型チェック。
+- `pnpm build`：本番ビルド。
+
+以下は基盤の開発用ドキュメントです。
+
+---
+
 # vinext-starter
 
 A clean full-stack starter running on [vinext](https://github.com/cloudflare/vinext), with optional Cloudflare D1 and Drizzle support.
