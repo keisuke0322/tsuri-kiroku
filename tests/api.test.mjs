@@ -82,3 +82,17 @@ await profile.PUT(request('profile','PUT',{displayName:'好きな表示名',bio:
 await catches.GET(request('catches'));
 assert.equal((await (await profile.GET(request('profile'))).json()).displayName,'好きな表示名','A later manual edit must survive the one-time name correction');
 console.log(`${checks} route checks passed: auth, CSRF, profiles, ownership, legacy migration, photos, idempotent likes, cascade cleanup.`);
+const demo=await route('demo-data');
+const realBefore=sqlite.prepare("SELECT * FROM catches ORDER BY id").all();
+identity=new Headers();await status(demo.POST(request('demo-data','POST')),401);await status(demo.DELETE(request('demo-data','DELETE')),401);
+user('other');await status(demo.POST(request('demo-data','POST')),403);await status(demo.DELETE(request('demo-data','DELETE')),403);
+user('owner','keisuke0322@gmail.com');await status(demo.POST(request('demo-data','POST',undefined,'https://evil.example')),403);
+for(let i=0;i<2;i++)assert.equal((await (await status(demo.POST(request('demo-data','POST')),200)).json()).count,12);
+const dummy=sqlite.prepare("SELECT id FROM catches WHERE owner_id LIKE 'demo-%'").get();
+await status(likes.PUT(request(`catches/${dummy.id}/like`,'PUT'),params(String(dummy.id))),200);
+const removed=await (await status(demo.DELETE(request('demo-data','DELETE')),200)).json();assert.equal(removed.deleted,12);assert.equal(removed.count,0);
+assert.deepEqual(sqlite.prepare('SELECT * FROM catches ORDER BY id').all(),realBefore);
+assert.equal(sqlite.prepare("SELECT COUNT(*) n FROM profiles WHERE user_id LIKE 'demo-%'").get().n,0);
+assert.equal((await (await demo.DELETE(request('demo-data','DELETE'))).json()).deleted,0);
+assert.equal((await (await demo.POST(request('demo-data','POST'))).json()).count,0,'Deletion must not auto-reseed');
+console.log('Demo checks passed: owner-only, CSRF, atomic idempotent seed, usable likes, complete cleanup, real records preserved, no reseeding.');
