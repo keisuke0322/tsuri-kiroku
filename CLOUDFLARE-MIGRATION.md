@@ -9,6 +9,11 @@ Googleの署名・issuer・audience・有効期限・nonceを検証し、Google�
 
 新規写真はブラウザーで長辺最大1,600px・JPEG品質80%へ圧縮します。元画像はアップロードしません。閲覧にもログインが必要です。
 
+確認済みテスト環境（利用者から提供）:
+- URL: https://tsuri-kiroku-staging.keisuke0322.workers.dev
+- D1 Database ID: bd5eb98e-edc9-4c26-8d2b-f1fd8e825ba5
+- GoogleのリダイレクトURI: https://tsuri-kiroku-staging.keisuke0322.workers.dev/api/auth/google/callback
+
 ## 1. テスト環境を作る
 
 Cloudflareのダッシュボードで以下を作成します。まずstagingだけで構いません。

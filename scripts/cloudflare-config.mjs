@@ -4,6 +4,7 @@ if(!['staging','production'].includes(stage))throw Error('Choose staging or prod
 const envFile=`cloudflare/environments/${stage}.json`;
 const saved=existsSync(envFile)?JSON.parse(readFileSync(envFile,'utf8')):{};
 if(!process.env.D1_DATABASE_ID && saved.database_id)process.env.D1_DATABASE_ID=saved.database_id;
+if(!process.env.APP_ORIGIN && saved.app_origin)process.env.APP_ORIGIN=saved.app_origin;
 const required=['CLOUDFLARE_ACCOUNT_ID','D1_DATABASE_ID','APP_ORIGIN','GOOGLE_CLIENT_ID'];
 for(const name of required)if(!process.env[name])throw Error(`Missing ${name}`);
 if(!/^[a-f0-9]{32}$/.test(process.env.CLOUDFLARE_ACCOUNT_ID))throw Error('Invalid account ID');
