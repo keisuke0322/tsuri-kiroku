@@ -1,9 +1,10 @@
+import {env} from 'cloudflare:workers';
 import {authenticate,apiError,ApiError,json} from '../access';
 import {getDb} from '../catches/db';
 const batchName='demo-catches-20260923';
 const owners=['demo-20260923-umi','demo-20260923-nagi','demo-20260923-sora'];
 const selection=`owner_id IN (${owners.map(()=>'?').join(',')})`;
-export async function canManageDemo(userId:string){return !!await getDb().prepare("SELECT name FROM data_migrations WHERE name='legacy-catches' AND owner_id=?").bind(userId).first()}
+export async function canManageDemo(userId:string){return userId===(env as unknown as {DEMO_OWNER_ID?:string}).DEMO_OWNER_ID}
 async function check(req:Request){const user=await authenticate(req);if(!await canManageDemo(user.userId))throw new ApiError(403,'サイト所有者だけが操作できます。');return user}
 async function summary(){const db=getDb();return {count:(await db.prepare(`SELECT COUNT(*) AS count FROM catches WHERE ${selection}`).bind(...owners).first<{count:number}>())!.count,initialized:!!await db.prepare('SELECT name FROM data_migrations WHERE name=?').bind(batchName).first()}}
 export async function GET(req:Request){try{await check(req);return json(await summary())}catch(e){return apiError(e)}}

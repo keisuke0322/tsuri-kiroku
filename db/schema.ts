@@ -13,3 +13,6 @@ export const catchPhotos=sqliteTable('catch_photos',{
 },table=>[index('idx_catch_photos_catch_id').on(table.catchId)]);
 
 export const catchLikes=sqliteTable('catch_likes',{catchId:integer('catch_id').notNull().references(()=>catches.id,{onDelete:'cascade'}),userId:text('user_id').notNull().references(()=>profiles.userId,{onDelete:'cascade'})},table=>[primaryKey({columns:[table.catchId,table.userId]})]);
+
+export const authSessions=sqliteTable('auth_sessions',{tokenHash:text('token_hash').primaryKey(),userId:text('user_id').notNull().references(()=>profiles.userId,{onDelete:'cascade'}),expiresAt:integer('expires_at').notNull()},table=>[index('idx_auth_sessions_expires').on(table.expiresAt)]);
+export const oauthTransactions=sqliteTable('oauth_transactions',{stateHash:text('state_hash').primaryKey(),verifier:text('verifier').notNull(),nonce:text('nonce').notNull(),expiresAt:integer('expires_at').notNull()},table=>[index('idx_oauth_transactions_expires').on(table.expiresAt)]);

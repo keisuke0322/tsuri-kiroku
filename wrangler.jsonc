@@ -1,0 +1,12 @@
+{
+  "$schema": "node_modules/wrangler/config-schema.json",
+  "name": "tsuri-kiroku-local",
+  "main": "vinext/server/fetch-handler",
+  "compatibility_date": "2026-09-01",
+  "compatibility_flags": ["nodejs_compat"],
+  "workers_dev": true,
+  "preview_urls": false,
+  "d1_databases": [{"binding":"DB","database_name":"tsuri-kiroku-local","database_id":"00000000-0000-4000-8000-000000000000","migrations_dir":"drizzle"}],
+  "r2_buckets": [{"binding":"BUCKET","bucket_name":"tsuri-kiroku-photos-local"}],
+  "vars": {"APP_ORIGIN":"http://localhost:5173"}
+}
