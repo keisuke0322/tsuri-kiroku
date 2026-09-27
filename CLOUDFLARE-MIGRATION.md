@@ -42,6 +42,8 @@ Google Cloudプロジェクトtsuri-kirokuのGoogle Auth Platformで、Branding�
 
 Testingのユーザー以外へ公開する前にGoogle側の公開設定・必要な審査や同意画面情報を確認してください。
 
+Googleのクライアントシークレットは、各WorkerのSettings → Variables and Secretsで、種類Secret・名前`GOOGLE_CLIENT_SECRET`として登録します。GitHubにはコピーしません。通常のWranglerデプロイでは登録済みSecretが保持されます。テスト環境については2026-09-28に利用者から登録完了の申告を受けています（実接続は未検証）。
+
 ## 3. GitHub Actionsを設定する
 
 リポジトリSettings → Environmentsにstaging / productionを作ります。productionには利用可能ならRequired reviewersを設定します。リポジトリのプランによって保護機能は異なります。
@@ -55,12 +57,11 @@ Variables:
 - GOOGLE_CLIENT_ID
 
 Secrets:
-- GOOGLE_CLIENT_SECRET
 - CLOUDFLARE_API_TOKEN（対象アカウントでWorkersのデプロイ、D1マイグレーション、R2バインディングの構成に必要な権限だけを付与）
 
 Workflowは手動実行です。初回はworkflowファイルがGitHubのデフォルトブランチにある必要があります。移行ブランチのレビュー完了後にmainへ取り込んでから、Actions → Deploy Cloudflare → Run workflowでstagingを選びます。単にpushしただけでは公開しません。
 
-実行順: 固定バージョンの依存パッケージ取得 → 型チェック・テスト → 環境設定 → ビルド → WorkerのSecret登録 → 対象DBのマイグレーション → デプロイ → 未ログイン画面・APIの確認。
+実行順: 固定バージョンの依存パッケージ取得 → 型チェック・テスト → 環境設定 → ビルド → 対象DBのマイグレーション → デプロイ → 未ログイン画面・APIの確認。
 
 stagingでGoogleログイン、ログアウト、写真投稿・閲覧、いいね、2アカウント間の権限を実機確認後、同じコミットでproductionを実行します。Workflowも同一コミットのstaging成功を確認します。これは手動の実機確認を代替しません。
 
