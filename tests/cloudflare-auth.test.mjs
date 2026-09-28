@@ -49,11 +49,19 @@ const forgedParts=(await sign('n')).split('.');forgedParts[2]=(forgedParts[2][0]
 const record=await catches.POST(request('/api/catches','POST',valid,owner));assert.equal(record.status,201);const {id}=await record.json();
 assert.equal((await photoPost.POST(request(`/api/catches/${id}/photos`,'POST',undefined,other),params(id))).status,403);
 const form=new FormData();form.append('photo',new File([new Uint8Array([255,216,255,224])],'test.jpg',{type:'image/jpeg'}));
+form.append('species','シロギス');form.append('featured','true');
 const uploaded=await photoPost.POST(new Request(env.APP_ORIGIN+`/api/catches/${id}/photos`,{method:'POST',headers:{Origin:env.APP_ORIGIN,Cookie:owner},body:form}),params(id));assert.equal(uploaded.status,201);
 const photoId=(await uploaded.json()).id;
+assert.equal(sql.prepare('SELECT featured_photo_id FROM catches WHERE id=?').get(id).featured_photo_id,photoId);
 const image=await photoGet.GET(request('/api/photos/'+photoId,'GET',undefined,other),params(photoId));assert.equal(image.status,200);assert.match(image.headers.get('cache-control'),/private, no-store/);
 assert.equal((await photoGet.GET(request('/api/photos/'+photoId),params(photoId))).status,401);
 assert.equal((await photoDelete.DELETE(request(`/api/catches/${id}/photos/${photoId}`,'DELETE',undefined,other),{params:Promise.resolve({id:String(id),photoId:String(photoId)})})).status,403);
+const multi={date:'2026-09-28',location:'港',fish:[{species:'アジ',count:3,length:18},{species:'サバ',count:2,length:24}],method:'サビキ',memo:''};
+const multiCreated=await catches.POST(request('/api/catches','POST',multi,owner));assert.equal(multiCreated.status,201);const multiId=(await multiCreated.json()).id;
+const listed=await (await catches.GET(request('/api/catches','GET',undefined,owner))).json(),multiRow=listed.find(x=>x.id===multiId);assert.deepEqual(multiRow.fish.map(x=>[x.species,x.count]),[['アジ',3],['サバ',2]]);
+async function uploadFishPhoto(species,featured=false){const data=new FormData();data.append('photo',new File([new Uint8Array([255,216,255,224])],species+'.jpg',{type:'image/jpeg'}));data.append('species',species);data.append('featured',String(featured));return photoPost.POST(new Request(env.APP_ORIGIN+`/api/catches/${multiId}/photos`,{method:'POST',headers:{Origin:env.APP_ORIGIN,Cookie:owner},body:data}),params(multiId))}
+const ajiPhoto=await (await uploadFishPhoto('アジ')).json(),sabaPhoto=await (await uploadFishPhoto('サバ',true)).json();assert.equal(sql.prepare('SELECT featured_photo_id FROM catches WHERE id=?').get(multiId).featured_photo_id,sabaPhoto.id);
+const changed={...multi,photoAssignments:[{photoId:ajiPhoto.id,species:'サバ'},{photoId:sabaPhoto.id,species:'アジ'}],featuredPhotoId:ajiPhoto.id};assert.equal((await entry.PUT(request('/api/catches/'+multiId,'PUT',changed,owner),params(multiId))).status,200);assert.equal(sql.prepare('SELECT featured_photo_id FROM catches WHERE id=?').get(multiId).featured_photo_id,ajiPhoto.id);assert.equal(sql.prepare('SELECT species FROM catch_photos WHERE id=?').get(ajiPhoto.id).species,'サバ');
 for(const method of ['PUT','DELETE'])assert.equal((await entry[method](request('/api/catches/'+id,method,method==='PUT'?valid:undefined,other),params(id))).status,403);
 assert.equal((await catches.POST(request('/api/catches','POST',valid,owner,'https://evil.example'))).status,403);
 for(let i=0;i<2;i++)assert.equal((await likes.PUT(request(`/api/catches/${id}/like`,'PUT',undefined,other),params(id))).status,200);

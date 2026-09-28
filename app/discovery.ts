@@ -1,4 +1,5 @@
-export type DiscoveryEntry = {id:number; date:string; created_at:string; species:string; count:number; likeCount:number};
+export type DiscoveryFish={species:string;count:number;length:number|null};
+export type DiscoveryEntry = {id:number; date:string; created_at:string; fish:DiscoveryFish[]; likeCount:number};
 export type Period = 7 | 30;
 const DAY=86_400_000, JST=9*60*60*1000;
 export function japanDate(now:Date){return new Date(now.getTime()+JST).toISOString().slice(0,10)}
@@ -8,8 +9,7 @@ export function aggregateDiscovery<T extends DiscoveryEntry>(items:T[],days:Peri
  const startDate=japanDate(start), species=new Map<string,{species:string;records:number;fish:number}>();
  for(const item of items){
   if(item.date<startDate||item.date>today)continue;
-  const row=species.get(item.species)??{species:item.species,records:0,fish:0};
-  row.records++;row.fish+=item.count;species.set(item.species,row);
+  for(const caught of item.fish){const row=species.get(caught.species)??{species:caught.species,records:0,fish:0};row.records++;row.fish+=caught.count;species.set(caught.species,row)}
  }
  const fish=[...species.values()].sort((a,b)=>b.records-a.records||b.fish-a.fish||a.species.localeCompare(b.species,'ja')).slice(0,3);
  const recent=items.filter(item=>{const time=Date.parse(item.created_at);return time>=start.getTime()&&time<=now.getTime()});

@@ -22,6 +22,7 @@ export async function POST(req:Request){try{
   const date=new Date(Date.parse(today+'T00:00:00Z')-days*86400000).toISOString().slice(0,10);
   const posted=new Date(now.getTime()-days*86400000).toISOString();
   statements.push(db.prepare(`INSERT INTO catches(date,location,species,count,length,method,memo,created_at,owner_id) SELECT ?,?,?,?,NULL,?,?,?,? WHERE NOT EXISTS(SELECT 1 FROM data_migrations WHERE name=?)`).bind(date,location,species,count,species==='シロギス'?'ちょい投げ':'堤防釣り','【ダミーデータ】表示確認用の架空の釣果です。実際の釣況ではありません。',posted,owners[i%3],batchName));
+  statements.push(db.prepare(`INSERT INTO catch_fish(catch_id,species,count,length,sort_order) SELECT id,species,count,length,0 FROM catches WHERE created_at=? AND owner_id=? AND NOT EXISTS(SELECT 1 FROM catch_fish WHERE catch_id=catches.id)`).bind(posted,owners[i%3]));
   for(let j=0;j<likes;j++)statements.push(db.prepare(`INSERT INTO catch_likes(catch_id,user_id) SELECT id,? FROM catches WHERE created_at=? AND owner_id=? AND NOT EXISTS(SELECT 1 FROM data_migrations WHERE name=?) ON CONFLICT DO NOTHING`).bind(owners[j],posted,owners[i%3],batchName));
  });
  statements.push(db.prepare('INSERT INTO data_migrations(name,owner_id) VALUES (?,?) ON CONFLICT(name) DO NOTHING').bind(batchName,user.userId));
