@@ -19,7 +19,7 @@ concurrency:
 jobs:
   deploy:
     runs-on: ubuntu-latest
-    environment: ${{ inputs.environment == 'production' && 'production' || 'tsuri-kiroku' }}
+    environment: ${{ inputs.environment || 'staging' }}
     steps:
       - uses: actions/checkout@v4
       - name: Require this commit to have passed staging
@@ -28,7 +28,7 @@ jobs:
         with:
           script: |
             const deployments = await github.paginate(github.rest.repos.listDeployments, {
-              ...context.repo, sha: context.sha, environment: 'tsuri-kiroku', per_page: 100
+              ...context.repo, sha: context.sha, environment: 'staging', per_page: 100
             });
             for (const deployment of deployments) {
               const {data: statuses} = await github.rest.repos.listDeploymentStatuses({
