@@ -1,5 +1,7 @@
 name: Deploy Cloudflare
 on:
+  push:
+    branches: [cloudflare-migration]
   workflow_dispatch:
     inputs:
       environment:
@@ -12,12 +14,12 @@ permissions:
   contents: read
   deployments: read
 concurrency:
-  group: cloudflare-${{ inputs.environment }}
+  group: cloudflare-${{ inputs.environment || 'staging' }}
   cancel-in-progress: false
 jobs:
   deploy:
     runs-on: ubuntu-latest
-    environment: ${{ inputs.environment }}
+    environment: ${{ inputs.environment || 'staging' }}
     steps:
       - uses: actions/checkout@v4
       - name: Require this commit to have passed staging
@@ -45,7 +47,7 @@ jobs:
       - name: Configure target
         run: node scripts/cloudflare-config.mjs "$TARGET_ENV"
         env:
-          TARGET_ENV: ${{ inputs.environment }}
+          TARGET_ENV: ${{ inputs.environment || 'staging' }}
           CLOUDFLARE_ACCOUNT_ID: ${{ vars.CLOUDFLARE_ACCOUNT_ID }}
           D1_DATABASE_ID: ${{ vars.D1_DATABASE_ID }}
           APP_ORIGIN: ${{ vars.APP_ORIGIN }}

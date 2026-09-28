@@ -59,7 +59,7 @@ Variables:
 Secrets:
 - CLOUDFLARE_API_TOKEN（対象アカウントでWorkersのデプロイ、D1マイグレーション、R2バインディングの構成に必要な権限だけを付与）
 
-Workflowは手動実行です。初回はworkflowファイルがGitHubのデフォルトブランチにある必要があります。移行ブランチのレビュー完了後にmainへ取り込んでから、Actions → Deploy Cloudflare → Run workflowでstagingを選びます。単にpushしただけでは公開しません。
+移行ブランチ`cloudflare-migration`へのpushはstagingへ自動デプロイします。本番は手動実行です。初回はworkflowファイルがGitHubのデフォルトブランチにある必要があります。移行ブランチのレビュー完了後にmainへ取り込んでから、Actions → Deploy Cloudflare → Run workflowでstagingを選びます。mainへのpushだけでは公開しません。移行ブランチのpushはstagingのみが対象です。
 
 実行順: 固定バージョンの依存パッケージ取得 → 型チェック・テスト → 環境設定 → ビルド → 対象DBのマイグレーション → デプロイ → 未ログイン画面・APIの確認。
 

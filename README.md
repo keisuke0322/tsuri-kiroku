@@ -18,4 +18,4 @@ corepack pnpm dev
 
 検証: `corepack pnpm run typecheck` / `corepack pnpm test` / `corepack pnpm build`
 
-Sitesの既存データは取り込みません。テスト・本番は別のWorker、D1、R2を使用します。GitHub Actionsは手動実行で、pushだけでは公開しません。
+Sitesの既存データは取り込みません。テスト・本番は別のWorker、D1、R2を使用します。移行ブランチのpushはstagingへ自動デプロイします。本番は手動実行です。
