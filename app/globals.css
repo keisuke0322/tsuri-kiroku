@@ -47,6 +47,7 @@ body,.app-shell{background:#f4f8fa}
 .login-night{--login-background:#03172d;color:#f5f9ff}.login-pending{background:#e5eef3}
 .login-composition{position:relative;width:min(100%,177.3svh);aspect-ratio:1670/942}
 .login-art-frame{position:absolute;inset:0;isolation:isolate;pointer-events:none}
+.login-art-frame::before{content:"";position:absolute;inset:0 0 auto;height:clamp(20px,8%,30px);z-index:1;background:linear-gradient(to bottom,var(--login-background),transparent);pointer-events:none}
 .login-art-frame::after{content:"";position:absolute;inset:auto 0 0;height:min(18%,60px);background:linear-gradient(to bottom,transparent,var(--login-background));pointer-events:none}
 .login-art{position:absolute;inset:0;display:block;width:100%;height:100%;object-fit:contain}
 .google-login-card{z-index:1;position:absolute;right:5%;top:36%;width:34%;padding:clamp(24px,3vw,48px);border-radius:20px;background:rgba(245,251,255,.83);border:1px solid #ffffffa6;box-shadow:0 12px 40px #08294226;backdrop-filter:blur(12px);-webkit-backdrop-filter:blur(12px);text-align:center}
