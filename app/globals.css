@@ -43,15 +43,17 @@ body,.app-shell{background:#f4f8fa}
 @media(max-width:700px){.seasonal-hero-actions{position:relative;left:auto;top:auto;max-width:none;padding:14px 16px 18px;gap:10px;background:#f4f8fa}.seasonal-hero-actions button{height:46px;min-width:0;padding:0 14px;font-size:14px}.seasonal-hero-actions .hero-record{flex:1}.seasonal-hero-actions .hero-view{flex:1;background:#243c49}.seasonal-hero+.container{padding-top:24px}}
 
 /* Login artwork is kept intact and separate from the authentication controls. */
-.login-scene{min-height:100svh;display:grid;place-items:center;background:#a9d9ee;color:#123552;overflow-x:clip}
-.login-night{background:#03172d;color:#f5f9ff}.login-pending{background:#e5eef3}
+.login-scene{--login-background:#a9d9ee;min-height:100svh;display:grid;place-items:center;background:var(--login-background);color:#123552;overflow-x:clip}
+.login-night{--login-background:#03172d;color:#f5f9ff}.login-pending{background:#e5eef3}
 .login-composition{position:relative;width:min(100%,177.3svh);aspect-ratio:1670/942}
+.login-art-frame{position:absolute;inset:0;isolation:isolate;pointer-events:none}
+.login-art-frame::after{content:"";position:absolute;inset:auto 0 0;height:min(18%,60px);background:linear-gradient(to bottom,transparent,var(--login-background));pointer-events:none}
 .login-art{position:absolute;inset:0;display:block;width:100%;height:100%;object-fit:contain}
-.google-login-card{position:absolute;right:5%;top:36%;width:34%;padding:clamp(24px,3vw,48px);border-radius:20px;background:rgba(245,251,255,.83);border:1px solid #ffffffa6;box-shadow:0 12px 40px #08294226;backdrop-filter:blur(12px);-webkit-backdrop-filter:blur(12px);text-align:center}
+.google-login-card{z-index:1;position:absolute;right:5%;top:36%;width:34%;padding:clamp(24px,3vw,48px);border-radius:20px;background:rgba(245,251,255,.83);border:1px solid #ffffffa6;box-shadow:0 12px 40px #08294226;backdrop-filter:blur(12px);-webkit-backdrop-filter:blur(12px);text-align:center}
 .login-night .google-login-card{background:rgba(4,18,35,.8);border-color:#d1e7ff38;box-shadow:0 12px 40px #0004}
 .google-login-card h1{display:flex;align-items:center;justify-content:center;gap:10px;font-size:clamp(24px,2.3vw,36px);letter-spacing:.04em;line-height:1.4;margin:0 0 22px}
 .google-login-card h1 svg{width:28px;height:28px}.google-login-card>p{font-size:clamp(14px,1.15vw,18px);line-height:1.7;margin:0 0 24px}
 .google-login-button{display:flex;align-items:center;justify-content:center;gap:12px;width:100%;min-height:54px;padding:12px 14px;border:1px solid #b8c6d1;border-radius:10px;background:#fff;color:#243447;text-decoration:none;font-size:16px;font-weight:600;transition:background .15s,box-shadow .15s}
 .google-login-button svg{width:22px;height:22px;flex-shrink:0}.google-login-button:hover{background:#f1f6fc;box-shadow:0 3px 12px #102d4920}.google-login-button:focus-visible{outline:3px solid #1686ed;outline-offset:5px}
 .google-login-card .google-login-error{margin:20px 0 0;font-size:14px;color:inherit}
-@media(max-width:750px){.login-scene{display:block;min-height:100svh;padding:8svh 0 36px}.login-composition{width:100%;aspect-ratio:auto;min-height:84svh;display:flex;flex-direction:column;align-items:center}.login-art{position:relative;width:100%;height:auto;object-fit:contain}.google-login-card{position:relative;inset:auto;width:calc(100% - 40px);max-width:420px;margin:32px auto 0;padding:30px 24px}.google-login-card h1{font-size:28px}.google-login-card>p{font-size:15px}.google-login-button{min-height:54px}}
+@media(max-width:750px){.login-scene{display:block;min-height:100svh;padding:8svh 0 36px}.login-composition{width:100%;aspect-ratio:auto;min-height:84svh;display:flex;flex-direction:column;align-items:center}.login-art-frame{position:relative;width:100%;flex-shrink:0}.login-art{position:relative;width:100%;height:auto;object-fit:contain}.google-login-card{position:relative;inset:auto;width:calc(100% - 40px);max-width:420px;margin:32px auto 0;padding:30px 24px}.google-login-card h1{font-size:28px}.google-login-card>p{font-size:15px}.google-login-button{min-height:54px}}
