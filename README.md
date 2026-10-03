@@ -2,6 +2,17 @@
 
 Googleログインで釣果・プロフィール・写真・いいねを共有するアプリです。
 
+## サイトを開く
+
+| 環境 | URL |
+| --- | --- |
+| 本番（production） | [本番サイトを開く](https://tsuri-kiroku-production.keisuke0322.workers.dev) |
+| 動作確認用（staging） | [stagingサイトを開く](https://tsuri-kiroku-staging.keisuke0322.workers.dev) |
+
+どちらもGoogleアカウントでログインします。本番とstagingのデータは別々です。
+
+## 技術構成と開発
+
 - React / TypeScript / Vinext
 - Cloudflare Workers / D1 / R2
 - Google OpenID Connect、サーバー管理セッション
