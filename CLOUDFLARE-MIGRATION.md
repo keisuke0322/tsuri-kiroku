@@ -1,6 +1,6 @@
 # Cloudflareへの移行
 
-このブランチは単独のCloudflareアカウント向けです。Sites版mainと既存データは変更しません。新しいD1・R2を空の状態から使い、Sitesからのインポートや最初のログイン者への所有者付与は行いません。
+このブランチは単独のCloudflareアカウント向けです。初回PRでmainもCloudflare版へ移行します。Sitesで公開中のサイトと既存データは変更しません。新しいD1・R2を空の状態から使い、Sitesからのインポートや最初のログイン者への所有者付与は行いません。
 
 ## 構成
 
@@ -46,7 +46,7 @@ Googleのクライアントシークレットは、各WorkerのSettings → Vari
 
 ## 3. GitHub Actionsを設定する
 
-リポジトリSettings → Environmentsにstaging / productionを作ります。productionには利用可能ならRequired reviewersを設定します。リポジトリのプランによって保護機能は異なります。
+リポジトリSettings → Environmentsにstaging / productionを作ります。1人運用のため、productionのRequired reviewersは設定しません。公開の判断はPRのマージ時に行います。
 
 各Environmentに以下を保存します。
 
@@ -59,11 +59,32 @@ Variables:
 Secrets:
 - CLOUDFLARE_API_TOKEN（対象アカウントでWorkersのデプロイ、D1マイグレーション、R2バインディングの構成に必要な権限だけを付与）
 
-移行ブランチ`cloudflare-migration`へのpushはstagingへ自動デプロイします。本番は手動実行です。初回はworkflowファイルがGitHubのデフォルトブランチにある必要があります。移行ブランチのレビュー完了後にmainへ取り込んでから、Actions → Deploy Cloudflare → Run workflowでstagingを選びます。mainへのpushだけでは公開しません。移行ブランチのpushはstagingのみが対象です。
+### 日々の開発と本番公開（1人運用）
 
-実行順: 固定バージョンの依存パッケージ取得 → 型チェック・テスト → 環境設定 → ビルド → 対象DBのマイグレーション → デプロイ → 未ログイン画面・APIの確認。
+1. `cloudflare-migration`へpushするとstagingへ自動デプロイします。
+2. stagingでGoogleログイン、ログアウト、写真投稿・閲覧、いいね等を実機確認します。
+3. `cloudflare-migration`から`main`へPRを作成します。`PR checks`が型チェック・テスト・マージ結果のビルドと、PR先端コミットのstaging成功を確認します。
+4. 動作を確認して、ご自身でPRをマージします。承認レビューは不要です。継続利用する開発ブランチなので、**Create a merge commit**を使用し、マージ後も`cloudflare-migration`を削除しません。
+5. mainへのpushでproductionに自動デプロイします。本番コードはmainのコミットです。関連するマージ済みPRの先端コミットがstagingで成功済みかを確認してから、本番D1マイグレーション・デプロイ・未認証アクセス確認を実行します。
+6. 次の開発前にmainを開発ブランチへ取り込みます（`git fetch github` → `git switch cloudflare-migration` → `git merge github/main`）。
 
-stagingでGoogleログイン、ログアウト、写真投稿・閲覧、いいね、2アカウント間の権限を実機確認後、同じコミットでproductionを実行します。Workflowも同一コミットのstaging成功を確認します。これは手動の実機確認を代替しません。
+stagingのデータを本番へコピーする処理はありません。PRチェックは実機確認の代わりにはなりません。mainへの直接pushは本番デプロイの検証で拒否します。
+
+手動再実行はActions → Deploy Cloudflare → Run workflowを使えます。環境選択は廃止し、**Branch: mainは本番、cloudflare-migrationはstaging**に固定しました。ほかのブランチではデプロイしません。失敗した本番ジョブの再実行は同じコミットを使用します。
+
+### GitHub側で設定するmainの保護
+
+Settings → Branches → Add classic branch protection ruleでmainを対象にします（すでにルールがある場合は編集）。
+- Require a pull request before merging: ON
+- Require approvals: OFF（自分のPRを自分で承認できないため）
+- Require status checks to pass before merging: ON、`PR checks`を指定（PRで一度実行してから選択）
+- Require branches to be up to date before merging: ON
+- Do not allow bypassing the above settings: ON（管理者も対象）
+- Allow force pushes / Allow deletions: OFF
+
+production EnvironmentのDeployment branches and tagsはSelected branches and tagsでmainのみ、stagingはcloudflare-migrationのみを許可します。GitHub側の設定はワークフローファイルの変更だけでは適用されません。
+
+初回PRはSites版mainへCloudflare版全体を取り込むため、以後の機能PRより差分が大きくなります。この初回PRをマージすると上記の運用が有効になります。
 
 ## 4. ローカル検証
 
