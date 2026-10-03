@@ -1,1 +1,70 @@
 
+name: Deploy Cloudflare
+on:
+  push:
+    branches: [cloudflare-migration]
+  workflow_dispatch:
+    inputs:
+      environment:
+        description: Deploy staging first; production requires successful staging of the same commit
+        type: choice
+        options: [staging, production]
+        default: staging
+        required: true
+permissions:
+  contents: read
+  deployments: read
+concurrency:
+  group: cloudflare-${{ inputs.environment || 'staging' }}
+  cancel-in-progress: false
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    environment: ${{ inputs.environment || 'staging' }}
+    steps:
+      - uses: actions/checkout@v4
+      - name: Require this commit to have passed staging
+        if: inputs.environment == 'production'
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const deployments = await github.paginate(github.rest.repos.listDeployments, {
+              ...context.repo, sha: context.sha, environment: 'staging', per_page: 100
+            });
+            for (const deployment of deployments) {
+              const {data: statuses} = await github.rest.repos.listDeploymentStatuses({
+                ...context.repo, deployment_id: deployment.id, per_page: 100
+              });
+              if (statuses.some(s => s.state === 'success')) return;
+            }
+            core.setFailed('Deploy and verify this exact commit in staging first.');
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+      - run: corepack enable
+      - run: corepack pnpm install --frozen-lockfile
+      - run: corepack pnpm run typecheck
+      - run: corepack pnpm test
+      - name: Configure target
+        run: node scripts/cloudflare-config.mjs "$TARGET_ENV"
+        env:
+          TARGET_ENV: ${{ inputs.environment || 'staging' }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ vars.CLOUDFLARE_ACCOUNT_ID }}
+          D1_DATABASE_ID: ${{ vars.D1_DATABASE_ID }}
+          APP_ORIGIN: ${{ vars.APP_ORIGIN }}
+          GOOGLE_CLIENT_ID: ${{ vars.GOOGLE_CLIENT_ID }}
+      - run: corepack pnpm build
+        env:
+          CF_CONFIG: wrangler.deploy.json
+      - name: Apply this environment's migrations
+        run: corepack pnpm exec wrangler d1 migrations apply DB --remote --config wrangler.deploy.json
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+      - name: Deploy tested build
+        run: corepack pnpm exec wrangler deploy --config dist/server/wrangler.json
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+      - name: Verify unauthenticated access
+        run: node scripts/cloudflare-smoke.mjs
+        env:
+          APP_ORIGIN: ${{ vars.APP_ORIGIN }}
