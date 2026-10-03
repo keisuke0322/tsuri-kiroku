@@ -44,3 +44,10 @@ next-env.d.ts
 /.codex/
 /outputs/
 /work/
+
+# Standalone Cloudflare credentials and generated configuration
+.dev.vars*
+wrangler.deploy.json
+*.tsbuildinfo
+
+!.dev.vars.example

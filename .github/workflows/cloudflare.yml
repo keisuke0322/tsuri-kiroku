@@ -1,43 +1,54 @@
-
 name: Deploy Cloudflare
 on:
   push:
-    branches: [cloudflare-migration]
+    branches: [cloudflare-migration, main]
+  pull_request:
+    branches: [main]
   workflow_dispatch:
-    inputs:
-      environment:
-        description: Deploy staging first; production requires successful staging of the same commit
-        type: choice
-        options: [staging, production]
-        default: staging
-        required: true
 permissions:
   contents: read
   deployments: read
+  pull-requests: read
 concurrency:
-  group: cloudflare-${{ inputs.environment || 'staging' }}
+  group: cloudflare-${{ github.event_name == 'pull_request' && format('pr-{0}', github.event.pull_request.number) || github.ref_name }}
   cancel-in-progress: false
 jobs:
-  deploy:
+  pr-checks:
+    name: PR checks
+    if: github.event_name == 'pull_request'
     runs-on: ubuntu-latest
-    environment: ${{ inputs.environment || 'staging' }}
+    timeout-minutes: 20
     steps:
       - uses: actions/checkout@v4
-      - name: Require this commit to have passed staging
-        if: inputs.environment == 'production'
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+      - run: corepack enable
+      - run: corepack pnpm install --frozen-lockfile
+      - run: corepack pnpm run typecheck
+      - run: corepack pnpm test
+      - run: corepack pnpm build
+      - name: Require PR head to have passed staging
         uses: actions/github-script@v7
         with:
           script: |
-            const deployments = await github.paginate(github.rest.repos.listDeployments, {
-              ...context.repo, sha: context.sha, environment: 'staging', per_page: 100
-            });
-            for (const deployment of deployments) {
-              const {data: statuses} = await github.rest.repos.listDeploymentStatuses({
-                ...context.repo, deployment_id: deployment.id, per_page: 100
-              });
-              if (statuses.some(s => s.state === 'success')) return;
-            }
-            core.setFailed('Deploy and verify this exact commit in staging first.');
+            const { checkPullRequest } = require('./scripts/deployment-policy.cjs');
+            await checkPullRequest({ github, context, log: core.info });
+  deploy:
+    name: Deploy
+    if: github.event_name != 'pull_request' && (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/cloudflare-migration')
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    environment: ${{ github.ref == 'refs/heads/main' && 'production' || 'staging' }}
+    steps:
+      - uses: actions/checkout@v4
+      - name: Require a merged PR with successful staging
+        if: github.ref == 'refs/heads/main'
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const { checkProduction } = require('./scripts/deployment-policy.cjs');
+            await checkProduction({ github, context, log: core.info });
       - uses: actions/setup-node@v4
         with:
           node-version: '24'
@@ -48,7 +59,7 @@ jobs:
       - name: Configure target
         run: node scripts/cloudflare-config.mjs "$TARGET_ENV"
         env:
-          TARGET_ENV: ${{ inputs.environment || 'staging' }}
+          TARGET_ENV: ${{ github.ref == 'refs/heads/main' && 'production' || 'staging' }}
           CLOUDFLARE_ACCOUNT_ID: ${{ vars.CLOUDFLARE_ACCOUNT_ID }}
           D1_DATABASE_ID: ${{ vars.D1_DATABASE_ID }}
           APP_ORIGIN: ${{ vars.APP_ORIGIN }}

@@ -2,8 +2,7 @@ import {authenticate,ensureProfile,json,apiError} from '../access';
 import {getDb} from '../catches/db';
 export async function GET(req:Request){try{
  const user=await authenticate(req),profile=await ensureProfile(user);
- const pending=user.email.toLowerCase()==='keisuke0322@gmail.com'?await getDb().prepare('SELECT COUNT(*) AS n FROM catches WHERE owner_id IS NULL').first<{n:number}>():null;
- return json({...profile,legacyClaimRequired:!!pending?.n});
+ return json(profile);
 }catch(e){return apiError(e)}}
 export async function PUT(req:Request){try{
  const user=await authenticate(req),value=await req.json() as {displayName?:unknown;bio?:unknown};

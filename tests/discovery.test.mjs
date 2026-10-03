@@ -7,7 +7,7 @@ const {updateLikeOptimistically}=await module('app/optimistic-like.ts');
 const now=new Date('2026-09-23T15:00:00Z'); // Sep 24 midnight in Japan.
 assert.equal(japanDate(now),'2026-09-24');
 assert.equal(japanDate(new Date(now-1)),'2026-09-23');
-const entry=(id,overrides={})=>({id,date:'2026-09-24',created_at:'2026-09-24T00:00:00+09:00',species:'アジ',count:1,likeCount:0,...overrides});
+const entry=(id,overrides={})=>{const {species='アジ',count=1,fish,...rest}=overrides;return {id,date:'2026-09-24',created_at:'2026-09-24T00:00:00+09:00',fish:fish??[{species,count,length:null}],likeCount:0,...rest}};
 const edges=[entry(1,{date:'2026-09-18',created_at:'2026-09-17T15:00:00Z'}),entry(2,{date:'2026-09-17',created_at:'2026-09-17T14:59:59Z'}),entry(3,{date:'2026-09-25',created_at:'2026-09-24T00:00:01+09:00'}),entry(4,{date:'2026-08-26',created_at:'2026-08-25T15:00:00Z'}),entry(5,{date:'2026-08-25',created_at:'2026-08-25T14:59:59Z'})];
 assert.equal(aggregateDiscovery(edges,7,now).fish[0].records,1);
 assert.deepEqual(aggregateDiscovery(edges,7,now).featured.map(x=>x.id),[1]);
@@ -15,6 +15,8 @@ assert.equal(aggregateDiscovery(edges,30,now).fish[0].records,3);
 assert.deepEqual(aggregateDiscovery(edges,30,now).featured.map(x=>x.id),[1,2,4]);
 const rows=[entry(1,{count:3}),entry(2,{count:2}),entry(3,{species:'イワシ',count:20}),entry(4,{species:'カサゴ',count:6}),entry(5,{species:'カサゴ',count:4}),entry(6,{species:'イワシ',count:1}),entry(7,{species:'エソ',count:21}),entry(8,{species:'エソ',count:0})];
 assert.deepEqual(aggregateDiscovery(rows,7,now).fish,[{species:'イワシ',records:2,fish:21},{species:'エソ',records:2,fish:21},{species:'カサゴ',records:2,fish:10}]);
+const mixed=[entry(20,{fish:[{species:'アジ',count:3,length:null},{species:'サバ',count:2,length:20}]}),entry(21,{fish:[{species:'アジ',count:4,length:null}]})];
+assert.deepEqual(aggregateDiscovery(mixed,7,now).fish,[{species:'アジ',records:2,fish:7},{species:'サバ',records:1,fish:2}]);
 const posts=[entry(1,{likeCount:2,created_at:'2026-09-20T00:00:00Z'}),entry(2,{likeCount:2,created_at:'2026-09-21T00:00:00Z'}),entry(3,{likeCount:5}),entry(4)];
 assert.deepEqual(aggregateDiscovery(posts,7,now).featured.map(x=>x.id),[3,2,1]);
 assert.equal(aggregateDiscovery(posts,7,now).hasLikes,true);

@@ -1,0 +1,3 @@
+# Copy to .dev.vars and set values locally. Never commit .dev.vars.
+GOOGLE_CLIENT_ID=""
+GOOGLE_CLIENT_SECRET=""
