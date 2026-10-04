@@ -1,0 +1,158 @@
+name: Update Project from issue labels
+on:
+  issues:
+    types: [labeled]
+  # Bootstrap labels and verify #14 without changing its existing field values.
+  push:
+    branches: [cloudflare-migration]
+    paths: [.github/workflows/project-update.yml]
+  workflow_dispatch:
+permissions:
+  contents: read
+  issues: write
+concurrency:
+  group: project-7-issue-${{ github.event.issue.number || 14 }}
+  cancel-in-progress: false
+jobs:
+  update:
+    if: >-
+      github.event_name != 'issues' ||
+      contains(fromJSON('["project:検討中","project:開発待ち","project:開発中","priority:高","priority:中","priority:低"]'), github.event.label.name)
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Resolve fields, update, verify and remove command labels
+        uses: actions/github-script@60a0d83039c74a4aee543508d2ffcb1c3799cdea
+        with:
+          github-token: ${{ secrets.PROJECT_TOKEN }}
+          script: |
+            const commands = {
+              'project:検討中': ['Status', '検討中'],
+              'project:開発待ち': ['Status', '開発待ち'],
+              'project:開発中': ['Status', '開発中'],
+              'priority:高': ['優先度', '高'],
+              'priority:中': ['優先度', '中'],
+              'priority:低': ['優先度', '低'],
+            };
+            const verify = context.eventName === 'push' || context.eventName === 'workflow_dispatch';
+            const issueNumber = verify ? 14 : context.issue.number;
+            const repo = context.repo;
+            const permission = await github.rest.repos.getCollaboratorPermissionLevel({
+              ...repo, username: context.actor,
+            });
+            if (!['admin', 'maintain', 'write'].includes(permission.data.permission)) {
+              throw new Error('Project commands require repository write permission.');
+            }
+            const projectResult = await github.graphql(`
+              query($login: String!, $number: Int!) {
+                user(login: $login) { projectV2(number: $number) { id } }
+              }`, { login: 'keisuke0322', number: 7 });
+            const projectId = projectResult.user?.projectV2?.id;
+            if (!projectId) throw new Error('Project #7 not found.');
+            const fields = [];
+            let after = null;
+            do {
+              const result = await github.graphql(`
+                query($id: ID!, $after: String) {
+                  node(id: $id) { ... on ProjectV2 {
+                    fields(first: 100, after: $after) {
+                      nodes { ... on ProjectV2SingleSelectField { id name options { id name } } }
+                      pageInfo { hasNextPage endCursor }
+                    }
+                  } }
+                }`, { id: projectId, after });
+              const connection = result.node.fields;
+              fields.push(...connection.nodes.filter(f => f.id));
+              after = connection.pageInfo.hasNextPage ? connection.pageInfo.endCursor : null;
+            } while (after);
+            for (const [name, [fieldName, optionName]] of Object.entries(commands)) {
+              const field = fields.find(f => f.name === fieldName);
+              if (!field?.options.some(o => o.name === optionName)) {
+                throw new Error(`Missing single-select option: ${fieldName} / ${optionName}`);
+              }
+              if (verify) {
+                try {
+                  await github.rest.issues.createLabel({
+                    ...repo, name, color: name.startsWith('project:') ? '1D76DB' : 'D93F0B',
+                    description: 'Project #7 update command; removed after successful update',
+                  });
+                } catch (error) {
+                  if (error.status !== 422) throw error;
+                  await github.rest.issues.getLabel({ ...repo, name });
+                }
+              }
+            }
+            let item;
+            after = null;
+            do {
+              const result = await github.graphql(`
+                query($owner: String!, $repo: String!, $number: Int!, $after: String) {
+                  repository(owner: $owner, name: $repo) {
+                    issue(number: $number) {
+                      projectItems(first: 100, after: $after) {
+                        nodes { id project { id } }
+                        pageInfo { hasNextPage endCursor }
+                      }
+                    }
+                  }
+                }`, { owner: repo.owner, repo: repo.repo, number: issueNumber, after });
+              const connection = result.repository.issue?.projectItems;
+              if (!connection) throw new Error('Issue not found.');
+              item = connection.nodes.find(i => i.project.id === projectId);
+              after = connection.pageInfo.hasNextPage ? connection.pageInfo.endCursor : null;
+            } while (!item && after);
+            if (!item) throw new Error(`Issue #${issueNumber} is not in Project #7; add it first.`);
+            const readValue = async name => {
+              const result = await github.graphql(`
+                query($id: ID!, $name: String!) {
+                  node(id: $id) { ... on ProjectV2Item {
+                    fieldValueByName(name: $name) {
+                      ... on ProjectV2ItemFieldSingleSelectValue { name optionId }
+                    }
+                  } }
+                }`, { id: item.id, name });
+              return result.node.fieldValueByName;
+            };
+            let labels;
+            if (verify) {
+              labels = [];
+              for (const fieldName of ['Status', '優先度']) {
+                const current = await readValue(fieldName);
+                const label = Object.keys(commands).find(name =>
+                  commands[name][0] === fieldName && commands[name][1] === current?.name);
+                if (!label) throw new Error(`Issue #14 has no supported current value for ${fieldName}; verification stopped without changing it.`);
+                labels.push(label);
+              }
+            } else {
+              labels = [context.payload.label.name];
+            }
+            const issue = await github.rest.issues.get({ ...repo, issue_number: issueNumber });
+            if (verify && issue.data.labels.some(l => commands[typeof l === 'string' ? l : l.name])) {
+              throw new Error('Issue #14 already has a command label; verification stopped.');
+            }
+            if (verify) {
+              await github.rest.issues.addLabels({ ...repo, issue_number: issueNumber, labels });
+            }
+            for (const label of labels) {
+              // A queued event whose label has already been consumed should do nothing.
+              const live = await github.rest.issues.get({ ...repo, issue_number: issueNumber });
+              if (!live.data.labels.some(l => (typeof l === 'string' ? l : l.name) === label)) continue;
+              const [fieldName, optionName] = commands[label];
+              const field = fields.find(f => f.name === fieldName);
+              const option = field.options.find(o => o.name === optionName);
+              await github.graphql(`
+                mutation($project: ID!, $item: ID!, $field: ID!, $option: String!) {
+                  updateProjectV2ItemFieldValue(input: {
+                    projectId: $project, itemId: $item, fieldId: $field,
+                    value: { singleSelectOptionId: $option }
+                  }) { projectV2Item { id } }
+                }`, { project: projectId, item: item.id, field: field.id, option: option.id });
+              const actual = await readValue(fieldName);
+              if (actual?.optionId !== option.id) throw new Error('Project update readback did not match; command label retained.');
+              await github.rest.issues.removeLabel({ ...repo, issue_number: issueNumber, name: label });
+              core.info(`Issue #${issueNumber}: ${fieldName} = ${optionName}; command label removed.`);
+            }
+            await core.summary.addHeading(verify ? 'Project #7 same-value verification' : 'Project #7 update')
+              .addRaw(`Issue #${issueNumber}: processed ${labels.join(', ')}. Updates read back successfully and labels removed.`)
+              .write();
+            
