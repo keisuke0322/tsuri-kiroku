@@ -63,3 +63,6 @@ body,.app-shell{background:#f4f8fa}
 
 .field-error{display:block;color:#b42318;font-size:.8rem;font-weight:400;line-height:1.5;margin-top:.25rem}
 .entry-form [aria-invalid="true"]{border-color:#b42318}
+
+.required-field-label{white-space:nowrap}
+.required-note{margin:0;color:#607980;font-size:14px;line-height:1.5}
