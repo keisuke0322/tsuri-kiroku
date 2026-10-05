@@ -66,3 +66,7 @@ body,.app-shell{background:#f4f8fa}
 
 .required-field-label{white-space:nowrap}
 .required-note{margin:0;color:#607980;font-size:14px;line-height:1.5}
+
+.date-badge{flex-shrink:0;padding-inline:6px}
+.date-badge span{white-space:nowrap}
+@media(max-width:650px){.date-badge{min-width:80px}}
