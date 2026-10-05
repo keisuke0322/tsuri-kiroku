@@ -5,6 +5,7 @@ import {resolve,dirname} from 'node:path';
 import vm from 'node:vm';
 import ts from 'typescript';
 import * as jose from 'jose';
+import * as valibot from 'valibot';
 const sql=new DatabaseSync(':memory:');sql.exec('PRAGMA foreign_keys=ON');
 for(const f of (await readdir('drizzle')).filter(f=>f.endsWith('.sql')).sort())sql.exec(await readFile('drizzle/'+f,'utf8'));
 const db={prepare(query){let args=[];const s={bind(...v){args=v;return s},async first(){return sql.prepare(query).get(...args)||null},async all(){return {results:sql.prepare(query).all(...args)}},async run(){const r=sql.prepare(query).run(...args);return {meta:{changes:Number(r.changes),last_row_id:Number(r.lastInsertRowid)}}}};return s},async batch(statements){sql.exec('BEGIN');try{const results=[];for(const s of statements)results.push(await s.run());sql.exec('COMMIT');return results}catch(e){sql.exec('ROLLBACK');throw e}}};
@@ -17,6 +18,7 @@ const objects=new Map();env.BUCKET={async put(k,b){objects.set(k,new Uint8Array(
 const context=vm.createContext({console,Response,Request,Headers,URL,URLSearchParams,File,FormData,crypto,Uint8Array,TextEncoder,AbortSignal,btoa,fetch:async(url,init)=>{assert.equal(url,'https://oauth2.googleapis.com/token');assert.equal(init.method,'POST');assert.ok(init.body.get('code_verifier'));exchangeRequests++;return Response.json(failExchange?{error:'invalid_grant'}:{id_token:idToken},{status:failExchange?400:200})}});
 const modules=new Map();
 function synthetic(id,exports){const m=new vm.SyntheticModule(Object.keys(exports),function(){for(const [k,v] of Object.entries(exports))this.setExport(k,v)},{context,identifier:id});modules.set(id,m);}
+synthetic('valibot',valibot);
 synthetic('next/headers',{headers:async()=>incoming});synthetic('cloudflare:workers',{env});synthetic('jose',{...jose,createRemoteJWKSet:()=>localKeys});
 async function load(file){if(modules.has(file))return modules.get(file);const code=ts.transpileModule(await readFile(file,'utf8'),{compilerOptions:{module:ts.ModuleKind.ESNext,target:ts.ScriptTarget.ES2022}}).outputText;const m=new vm.SourceTextModule(code,{context,identifier:file});modules.set(file,m);await m.link((spec,ref)=>modules.get(spec)||load(resolve(dirname(ref.identifier),spec+'.ts')));return m;}
 async function module(path){const m=await load(resolve(path));if(m.status==='linked')await m.evaluate();return m.namespace;}
@@ -46,7 +48,29 @@ assert.ok(!sql.prepare('SELECT token_hash FROM auth_sessions WHERE token_hash=?'
 const expired=await new jose.SignJWT({nonce:'n',email_verified:true}).setProtectedHeader({alg:'RS256',kid:'test'}).setIssuer('https://accounts.google.com').setAudience('test-client').setSubject('owner').setIssuedAt(1).setExpirationTime(2).sign(privateKey);
 await assert.rejects(auth.verifyGoogleIdToken(expired,'n'));
 const forgedParts=(await sign('n')).split('.');forgedParts[2]=(forgedParts[2][0]==='A'?'B':'A')+forgedParts[2].slice(1);await assert.rejects(auth.verifyGoogleIdToken(forgedParts.join('.'),'n'));
+// Invalid direct POST/PUT requests must leave stored catches, fish and photos unchanged.
+const badInputs = [
+ {...valid,date:'2026-02-30'}, {...valid,date:'2026-9-01'}, {...valid,date:''},
+ {...valid,location:'   '}, {...valid,location:'海'.repeat(121)}, {...valid,species:' '}, {...valid,species:'魚'.repeat(81)},
+ ...['',null,0,-1,1.5,10000,'abc'].map(count=>({...valid,count})),
+ ...[-1,1000,'abc','Infinity'].map(length=>({...valid,length})),
+ {...valid,method:'竿'.repeat(201)}, {...valid,memo:'海'.repeat(2001)},
+ {...valid,fish:[]}, {...valid,fish:Array.from({length:21},(_,i)=>({species:String(i),count:1}))},
+ {...valid,fish:[{species:'アジ',count:1},{species:' アジ ',count:2}]},
+];
+for(const input of badInputs){
+ const before=sql.prepare('SELECT COUNT(*) n FROM catches').get().n;
+ assert.equal((await catches.POST(request('/api/catches','POST',input,owner))).status,400);
+ assert.equal(sql.prepare('SELECT COUNT(*) n FROM catches').get().n,before);
+}
 const record=await catches.POST(request('/api/catches','POST',valid,owner));assert.equal(record.status,201);const {id}=await record.json();
+for(const input of badInputs){
+ const before=JSON.stringify({catches:sql.prepare('SELECT * FROM catches').all(),fish:sql.prepare('SELECT * FROM catch_fish').all()});
+ assert.equal((await entry.PUT(request('/api/catches/'+id,'PUT',input,owner),params(id))).status,400);
+ assert.equal(JSON.stringify({catches:sql.prepare('SELECT * FROM catches').all(),fish:sql.prepare('SELECT * FROM catch_fish').all()}),before);
+}
+assert.equal((await entry.PUT(request('/api/catches/'+id,'PUT',{...valid,count:'3',length:0,location:' 海岸 '},owner),params(id))).status,200);
+assert.equal(sql.prepare('SELECT length FROM catches WHERE id=?').get(id).length,0);
 assert.equal((await photoPost.POST(request(`/api/catches/${id}/photos`,'POST',undefined,other),params(id))).status,403);
 const form=new FormData();form.append('photo',new File([new Uint8Array([255,216,255,224])],'test.jpg',{type:'image/jpeg'}));
 form.append('species','シロギス');form.append('featured','true');
