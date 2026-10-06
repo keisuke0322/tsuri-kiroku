@@ -67,8 +67,8 @@ body,.app-shell{background:#f4f8fa}
 .required-field-label{white-space:nowrap}
 .required-note{margin:0;color:#607980;font-size:14px;line-height:1.5}
 
-.date-badge{flex-shrink:0;padding-inline:6px}
-.date-badge span{white-space:nowrap}
-@media(max-width:650px){.date-badge{min-width:80px}}
+.date-badge{flex-shrink:0;padding:6px;height:86px;align-self:flex-start}
+.date-badge span{white-space:nowrap;margin-top:3px;line-height:1.2}
+@media(max-width:650px){.date-badge{min-width:56px;height:76px}}
 
 @media(max-width:650px){.card-main{flex:1}.catch-info{flex:1}.card-photos{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));width:100%;max-width:168px}.card-photos a{width:100%;height:auto;aspect-ratio:1}}
