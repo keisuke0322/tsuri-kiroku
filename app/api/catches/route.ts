@@ -1,7 +1,11 @@
 import {getDb,parseCatch} from './db';
-import {authenticate,ensureProfile,json,apiError} from '../access';
+import {authenticate,ensureProfile,json,apiError,ApiError} from '../access';
+import {initializePhotoStorage} from './photo-storage';
 export async function GET(req:Request){try{
  const user=await authenticate(req),db=getDb();
+ // Advance the first inventory on normal visits, without blocking viewing on
+ // maintenance, incomplete inventory, or R2 availability.
+ try{await initializePhotoStorage()}catch(error){if(!(error instanceof ApiError))console.error('Photo inventory will resume on the next request',error)}
  const r=await db.prepare(`SELECT c.*,p.display_name AS authorName,
  (SELECT COUNT(*) FROM catch_likes l WHERE l.catch_id=c.id) AS likeCount,
  EXISTS(SELECT 1 FROM catch_likes l WHERE l.catch_id=c.id AND l.user_id=?) AS liked

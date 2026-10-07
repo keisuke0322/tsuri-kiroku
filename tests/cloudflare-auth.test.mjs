@@ -14,14 +14,18 @@ const jwk=await jose.exportJWK(publicKey);jwk.kid='test';jwk.alg='RS256';
 const localKeys=jose.createLocalJWKSet({keys:[jwk]});
 let incoming=new Headers(),idToken='',exchangeRequests=0,failExchange=false;
 const env={DB:db,APP_ORIGIN:'https://test.example',GOOGLE_CLIENT_ID:'test-client',GOOGLE_CLIENT_SECRET:'test-secret'};
-const objects=new Map();env.BUCKET={async put(k,b){objects.set(k,new Uint8Array(b))},async get(k){return objects.has(k)?{body:objects.get(k)}:null},async delete(keys){for(const k of Array.isArray(keys)?keys:[keys])objects.delete(k)}};
+const objects=new Map();env.BUCKET={async list(){return {objects:[...objects].map(([key,b])=>({key,size:b.length})),truncated:false}},async head(k){return objects.has(k)?{size:objects.get(k).length}:null},async put(k,b){objects.set(k,new Uint8Array(b))},async get(k){return objects.has(k)?{body:objects.get(k)}:null},async delete(keys){for(const k of Array.isArray(keys)?keys:[keys])objects.delete(k)}};
 const context=vm.createContext({console,Response,Request,Headers,URL,URLSearchParams,File,FormData,crypto,Uint8Array,TextEncoder,AbortSignal,btoa,fetch:async(url,init)=>{assert.equal(url,'https://oauth2.googleapis.com/token');assert.equal(init.method,'POST');assert.ok(init.body.get('code_verifier'));exchangeRequests++;return Response.json(failExchange?{error:'invalid_grant'}:{id_token:idToken},{status:failExchange?400:200})}});
 const modules=new Map();
 function synthetic(id,exports){const m=new vm.SyntheticModule(Object.keys(exports),function(){for(const [k,v] of Object.entries(exports))this.setExport(k,v)},{context,identifier:id});modules.set(id,m);}
 synthetic('valibot',valibot);
 synthetic('next/headers',{headers:async()=>incoming});synthetic('cloudflare:workers',{env});synthetic('jose',{...jose,createRemoteJWKSet:()=>localKeys});
-async function load(file){if(modules.has(file))return modules.get(file);const code=ts.transpileModule(await readFile(file,'utf8'),{compilerOptions:{module:ts.ModuleKind.ESNext,target:ts.ScriptTarget.ES2022}}).outputText;const m=new vm.SourceTextModule(code,{context,identifier:file});modules.set(file,m);await m.link((spec,ref)=>modules.get(spec)||load(resolve(dirname(ref.identifier),spec+'.ts')));return m;}
-async function module(path){const m=await load(resolve(path));if(m.status==='linked')await m.evaluate();return m.namespace;}
+async function load(file){
+ if(modules.has(file))return modules.get(file);
+ const pending=(async()=>{const code=ts.transpileModule(await readFile(file,'utf8'),{compilerOptions:{module:ts.ModuleKind.ESNext,target:ts.ScriptTarget.ES2022}}).outputText;return new vm.SourceTextModule(code,{context,identifier:file})})();
+ modules.set(file,pending);return pending;
+}
+async function module(path){const m=await load(resolve(path));if(m.status==='unlinked')await m.link((spec,ref)=>modules.get(spec)||load(resolve(dirname(ref.identifier),spec+'.ts')));if(m.status==='linked')await m.evaluate();return m.namespace;}
 const auth=await module('app/auth.ts'),start=await module('app/api/auth/google/route.ts'),callback=await module('app/api/auth/google/callback/route.ts'),logout=await module('app/api/auth/logout/route.ts');
 const catches=await module('app/api/catches/route.ts'),entry=await module('app/api/catches/[id]/route.ts'),likes=await module('app/api/catches/[id]/like/route.ts'),profile=await module('app/api/profile/route.ts'),publicProfile=await module('app/api/profiles/[userId]/route.ts');
 function request(path,method='GET',body,session='',origin=env.APP_ORIGIN){return new Request(env.APP_ORIGIN+path,{method,headers:{...(method!=='GET'?{Origin:origin}:{}),Cookie:session,...(body?{'Content-Type':'application/json'}:{})},body:body?JSON.stringify(body):undefined});}

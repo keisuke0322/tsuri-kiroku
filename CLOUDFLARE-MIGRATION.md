@@ -55,6 +55,8 @@ Variables:
 - D1_DATABASE_ID（環境ごとに別）
 - APP_ORIGIN（Workerのhttps URL、末尾スラッシュなし）
 - GOOGLE_CLIENT_ID
+- PHOTO_STORAGE_GLOBAL_LIMIT_BYTES（任意、バイト単位。未設定時8000000000）
+- PHOTO_STORAGE_USER_LIMIT_BYTES（任意、バイト単位。未設定時100000000）
 
 Secrets:
 - CLOUDFLARE_API_TOKEN（対象アカウントでWorkersのデプロイ、D1マイグレーション、R2バインディングの構成に必要な権限だけを付与）
@@ -111,7 +113,7 @@ DB変更はWorkerのロールバックでは戻りません。既存データが
 
 Workers・D1・R2の無料枠はアカウント内の他用途とも共有されます。R2の超過課金と、GitHub Actionsの非公開リポジトリの利用枠は別です。常時無料を保証する設定ではありません。使用量をダッシュボードで確認し、一般公開前にアップロード量やアクセス頻度に応じた制限を検討します。
 
-写真圧縮・既存の6枚/記録・8MB/入力制限はありますが、アカウント全体のR2課金上限を強制するものではありません。
+写真は6枚/記録・8MiB/入力に加え、環境ごとに全体8,000,000,000バイト・ユーザー100,000,000バイトをサーバー側で制限します。既存画像の初期集計、上限変更、失敗時の回収は [PHOTO-STORAGE.md](PHOTO-STORAGE.md) を参照してください。staging・production・他バケットの合計やR2操作回数による課金を制限するものではありません。
 
 参照:
 - https://developers.cloudflare.com/d1/get-started/

@@ -1,6 +1,7 @@
-const { test } = require('node:test');
-const assert = require('node:assert/strict');
-const { checkPullRequest, checkProduction, requireStaging } = require('../scripts/deployment-policy.cjs');
+import { test } from 'node:test';
+import assert from 'node:assert/strict';
+import policy from '../scripts/deployment-policy.cjs';
+const { checkPullRequest, checkProduction, requireStaging } = policy;
 const repository = 'keisuke0322/tsuri-kiroku';
 function fixture({ state = 'success', prs, sha = 'source', environment = 'staging' } = {}) {
   const pr = { base: { ref: 'main', repo: { full_name: repository } },

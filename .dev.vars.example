@@ -1,3 +1,6 @@
 # Copy to .dev.vars and set values locally. Never commit .dev.vars.
 GOOGLE_CLIENT_ID=""
 GOOGLE_CLIENT_SECRET=""
+# Optional byte limits; omitted values default to 8GB / 100MB.
+PHOTO_STORAGE_GLOBAL_LIMIT_BYTES="8000000000"
+PHOTO_STORAGE_USER_LIMIT_BYTES="100000000"
