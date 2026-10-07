@@ -64,6 +64,8 @@ jobs:
           D1_DATABASE_ID: ${{ vars.D1_DATABASE_ID }}
           APP_ORIGIN: ${{ vars.APP_ORIGIN }}
           GOOGLE_CLIENT_ID: ${{ vars.GOOGLE_CLIENT_ID }}
+          PHOTO_STORAGE_GLOBAL_LIMIT_BYTES: ${{ vars.PHOTO_STORAGE_GLOBAL_LIMIT_BYTES }}
+          PHOTO_STORAGE_USER_LIMIT_BYTES: ${{ vars.PHOTO_STORAGE_USER_LIMIT_BYTES }}
       - run: corepack pnpm build
         env:
           CF_CONFIG: wrangler.deploy.json

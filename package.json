@@ -13,7 +13,7 @@
     "lint": "eslint . --ignore-pattern dist --ignore-pattern .next",
     "db:generate": "drizzle-kit generate",
     "typecheck": "tsc --noEmit",
-    "test": "node --test tests/deployment-policy.test.cjs && node tests/multiple-fish-migration.test.mjs && node --experimental-vm-modules tests/cloudflare-auth.test.mjs && node tests/optimistic-like.test.mjs && node tests/discovery.test.mjs"
+    "test": "node --experimental-vm-modules tests/photo-storage.test.mjs && node tests/catch-validation.test.mjs && node --test tests/deployment-policy.test.mjs && node tests/multiple-fish-migration.test.mjs && node --experimental-vm-modules tests/cloudflare-auth.test.mjs && node tests/optimistic-like.test.mjs && node tests/discovery.test.mjs"
   },
   "dependencies": {
     "@base-ui/react": "^1.7.0",
@@ -39,8 +39,8 @@
     "recharts": "^3.8.0",
     "sonner": "^2.0.8",
     "tailwind-merge": "3.6.0",
-    "vaul": "^1.1.2",
-    "zod": "^3.25.76"
+    "valibot": "^1.5.0",
+    "vaul": "^1.1.2"
   },
   "devDependencies": {
     "@cloudflare/vite-plugin": "1.37.1",

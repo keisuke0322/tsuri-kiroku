@@ -1,11 +1,19 @@
 'use client';
-import {useEffect,useState} from 'react';
+import {useEffect,useEffectEvent,useState} from 'react';
 import {Button} from '@/components/ui/button';
 import {toast} from 'sonner';
+type DemoState={count:number;initialized:boolean};
+async function fetchDemoState(){
+ const r=await fetch('/api/demo-data',{cache:'no-store'});if(!r.ok)throw Error();let value=await r.json() as DemoState;const seeded=!value.initialized;
+ if(seeded){const r=await fetch('/api/demo-data',{method:'POST',cache:'no-store'});if(!r.ok)throw Error();value=await r.json() as DemoState}
+ return {value,seeded};
+}
 export default function DemoControls({onChange}:{onChange:()=>Promise<void>}){
  const [state,setState]=useState<{count:number;initialized:boolean}|null>(null),[busy,setBusy]=useState(false),[error,setError]=useState(false);
- async function load(){try{const r=await fetch('/api/demo-data',{cache:'no-store'});if(!r.ok)throw Error();let value=await r.json() as {count:number;initialized:boolean};if(!value.initialized){const seeded=await fetch('/api/demo-data',{method:'POST',cache:'no-store'});if(!seeded.ok)throw Error();value=await seeded.json() as {count:number;initialized:boolean};await onChange()}setState(value);setError(false)}catch{setError(true)}}
- useEffect(()=>{load()},[]);
+ const applyLoaded=useEffectEvent(async({value,seeded}:Awaited<ReturnType<typeof fetchDemoState>>)=>{if(seeded)await onChange();setState(value);setError(false)});
+ const reportLoadError=useEffectEvent(()=>setError(true));
+ async function load(){try{const {value,seeded}=await fetchDemoState();if(seeded)await onChange();setState(value);setError(false)}catch{setError(true)}}
+ useEffect(()=>{let active=true;void fetchDemoState().then(result=>{if(active)return applyLoaded(result)}).catch(()=>{if(active)reportLoadError()});return()=>{active=false}},[]);
  async function change(method:'POST'|'DELETE'){
   if(method==='DELETE'&&!confirm('ダミー釣果と関連するいいねをすべて削除します。実際の釣果は残ります。削除しますか？'))return;
   setBusy(true);try{const r=await fetch('/api/demo-data',{method,cache:'no-store'});if(!r.ok)throw Error();const next=await r.json() as {count:number;initialized:boolean};setState(next);await onChange();toast.success(method==='DELETE'?'ダミーデータを削除しました':'ダミー釣果12件を追加しました')}catch{toast.error('操作を完了できませんでした。再度お試しください。');await load()}finally{setBusy(false)}

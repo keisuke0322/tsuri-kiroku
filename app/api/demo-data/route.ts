@@ -1,6 +1,7 @@
 import {env} from 'cloudflare:workers';
 import {authenticate,apiError,ApiError,json} from '../access';
 import {getDb} from '../catches/db';
+import {deleteCatchPhotos} from '../catches/photo-storage';
 const batchName='demo-catches-20260923';
 const owners=['demo-20260923-umi','demo-20260923-nagi','demo-20260923-sora'];
 const selection=`owner_id IN (${owners.map(()=>'?').join(',')})`;
@@ -30,6 +31,8 @@ export async function POST(req:Request){try{
 }catch(e){return apiError(e)}}
 export async function DELETE(req:Request){try{
  const user=await check(req),db=getDb();
+ const records=await db.prepare(`SELECT id FROM catches WHERE ${selection}`).bind(...owners).all<{id:number}>();
+ for(const record of records.results)await deleteCatchPhotos(record.id);
  // Exact dedicated demo identities: real user records are never selected.
  const result=await db.batch([
   db.prepare(`DELETE FROM catch_likes WHERE catch_id IN (SELECT id FROM catches WHERE ${selection})`).bind(...owners),

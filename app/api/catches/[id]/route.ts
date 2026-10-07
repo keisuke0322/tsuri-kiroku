@@ -1,5 +1,6 @@
 import {getDb,parseCatch} from '../db';
-import {getBucket,validId} from '../photos';
+import {validId} from '../photos';
+import {deleteCatchPhotos,retryPhotoCleanup} from '../photo-storage';
 import {authenticate,ownedCatch,json,apiError} from '../../access';
 export async function PUT(req:Request,ctx:{params:Promise<{id:string}>}){try{
  const user=await authenticate(req),id=validId((await ctx.params).id);if(!id)return json({error:'記録が見つかりません。'},400);
@@ -16,8 +17,8 @@ export async function PUT(req:Request,ctx:{params:Promise<{id:string}>}){try{
 }catch(e){return apiError(e)}}
 export async function DELETE(req:Request,ctx:{params:Promise<{id:string}>}){try{
  const user=await authenticate(req),id=validId((await ctx.params).id);if(!id)return json({error:'記録が見つかりません。'},400);await ownedCatch(id,user.userId);
- const db=getDb(),photos=await db.prepare('SELECT object_key FROM catch_photos WHERE catch_id=?').bind(id).all<{object_key:string}>();
- if(photos.results.length)await getBucket().delete(photos.results.map(p=>p.object_key));
+ const db=getDb();
+ await deleteCatchPhotos(id);
  await db.batch([db.prepare('DELETE FROM catch_likes WHERE catch_id=?').bind(id),db.prepare('DELETE FROM catch_photos WHERE catch_id=?').bind(id),db.prepare('DELETE FROM catches WHERE id=? AND owner_id=?').bind(id,user.userId)]);
- return json({ok:true});
+ await retryPhotoCleanup();return json({ok:true});
 }catch(e){return apiError(e)}}
