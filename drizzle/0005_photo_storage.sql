@@ -47,24 +47,18 @@ INSERT INTO photo_storage_objects (object_key,owner_id,catch_id,byte_size,state,
 CREATE TRIGGER photo_storage_reserve BEFORE INSERT ON photo_storage_objects
  WHEN NEW.state='reserved'
  BEGIN
- SELECT CASE WHEN (SELECT initialized FROM photo_storage_settings WHERE id=1) != 1 OR (SELECT maintenance FROM photo_storage_settings WHERE id=1) != 0
- THEN RAISE(ABORT,'photo_storage_not_ready') END;
- SELECT CASE WHEN NOT EXISTS (SELECT 1 FROM catches WHERE id=NEW.catch_id AND owner_id=NEW.owner_id AND photos_deleting=0)
- THEN RAISE(ABORT,'photo_catch_unavailable') END;
- SELECT CASE WHEN (SELECT used_bytes FROM photo_storage_settings WHERE id=1)+NEW.byte_size >
- (SELECT global_limit_bytes FROM photo_storage_settings WHERE id=1)
- THEN RAISE(ABORT,'photo_global_limit') END;
- SELECT CASE WHEN (SELECT COALESCE((SELECT used_bytes FROM photo_storage_users WHERE owner_id=NEW.owner_id),0))+NEW.byte_size >
- (SELECT user_limit_bytes FROM photo_storage_settings WHERE id=1)
- THEN RAISE(ABORT,'photo_user_limit') END;
- SELECT CASE WHEN (SELECT COUNT(*) FROM catch_photos WHERE catch_id=NEW.catch_id)+
- (SELECT COUNT(*) FROM photo_storage_objects WHERE catch_id=NEW.catch_id AND state='reserved') >= 6
- THEN RAISE(ABORT,'photo_count_limit') END;
+ SELECT RAISE(ABORT,'photo_storage_not_ready') WHERE (SELECT initialized FROM photo_storage_settings WHERE id=1) != 1 OR (SELECT maintenance FROM photo_storage_settings WHERE id=1) != 0;
+ SELECT RAISE(ABORT,'photo_catch_unavailable') WHERE NOT EXISTS (SELECT 1 FROM catches WHERE id=NEW.catch_id AND owner_id=NEW.owner_id AND photos_deleting=0);
+ SELECT RAISE(ABORT,'photo_global_limit') WHERE (SELECT used_bytes FROM photo_storage_settings WHERE id=1)+NEW.byte_size >
+ (SELECT global_limit_bytes FROM photo_storage_settings WHERE id=1);
+ SELECT RAISE(ABORT,'photo_user_limit') WHERE (SELECT COALESCE((SELECT used_bytes FROM photo_storage_users WHERE owner_id=NEW.owner_id),0))+NEW.byte_size >
+ (SELECT user_limit_bytes FROM photo_storage_settings WHERE id=1);
+ SELECT RAISE(ABORT,'photo_count_limit') WHERE (SELECT COUNT(*) FROM catch_photos WHERE catch_id=NEW.catch_id)+
+ (SELECT COUNT(*) FROM photo_storage_objects WHERE catch_id=NEW.catch_id AND state='reserved') >= 6;
  END;
 CREATE TRIGGER photo_storage_attach BEFORE INSERT ON catch_photos
  BEGIN
- SELECT CASE WHEN NOT EXISTS (
+ SELECT RAISE(ABORT,'photo_catch_unavailable') WHERE NOT EXISTS (
  SELECT 1 FROM photo_storage_objects s JOIN catches c ON c.id=s.catch_id
- WHERE s.object_key=NEW.object_key AND s.catch_id=NEW.catch_id AND s.state='reserved' AND c.photos_deleting=0)
- THEN RAISE(ABORT,'photo_catch_unavailable') END;
+ WHERE s.object_key=NEW.object_key AND s.catch_id=NEW.catch_id AND s.state='reserved' AND c.photos_deleting=0);
  END;
