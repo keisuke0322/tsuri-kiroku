@@ -77,12 +77,23 @@ body,.app-shell{background:#f4f8fa}
 .photo-thumbnail,button.featured-photo{padding:0;cursor:pointer}
 button.featured-photo{width:100%;border:0}
 .photo-thumbnail:focus-visible{outline:2px solid #087b87;outline-offset:3px}
-.photo-viewer{width:calc(100% - 32px);max-width:960px;height:min(86dvh,820px);max-height:calc(100dvh - 32px);padding:16px;gap:12px;grid-template-rows:auto minmax(0,1fr) auto}
+.photo-viewer{width:calc(100% - 32px);max-width:960px;height:min(86dvh,820px);max-height:calc(100dvh - 32px);padding:16px;gap:12px;grid-template-rows:auto minmax(0,1fr) auto auto}
 .photo-viewer-header{display:flex;align-items:center;justify-content:space-between;gap:12px;min-width:0}
 .photo-viewer-title{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:18px;line-height:1.4}
 .photo-viewer-close{width:44px;height:44px;flex-shrink:0;padding:0}
-.photo-viewer-stage{display:grid;place-items:center;min-width:0;min-height:0;overflow:hidden;border-radius:10px;background:#102e3a}
+.photo-viewer-stage{display:grid;place-items:center;min-width:0;min-height:0;overflow:hidden;border-radius:10px;background:#102e3a;touch-action:pan-y pinch-zoom}
 .photo-viewer-stage img{width:100%;height:100%;min-height:0;object-fit:contain}
 .photo-viewer-stage p{padding:16px;color:#fff;line-height:1.7;overflow-wrap:anywhere}
-.photo-viewer-footer{display:flex;justify-content:flex-end}
+.photo-viewer-footer{display:flex;align-items:center;justify-content:space-between;gap:12px}
 .photo-viewer-footer button{min-height:44px}
+
+.photo-viewer-navigation{display:flex;align-items:center;gap:8px;min-width:0}
+.photo-viewer-arrow{width:44px;min-width:44px;padding:0}
+.photo-viewer-count{font-size:14px;color:#365a64;white-space:nowrap;font-variant-numeric:tabular-nums}
+
+.photo-viewer-details{min-width:0;max-height:24dvh;overflow:auto;overflow-wrap:anywhere}
+.photo-viewer-fish,.photo-viewer-location{display:flex;align-items:baseline;flex-wrap:wrap;gap:6px 12px;margin:0;line-height:1.5}
+.photo-viewer-fish{font-size:15px;color:#163b48}
+.photo-viewer-fish strong{min-width:0}
+.photo-viewer-fish span{white-space:nowrap}
+.photo-viewer-location{margin-top:4px;font-size:13px;color:#607980}
