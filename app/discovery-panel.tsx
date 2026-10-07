@@ -1,6 +1,7 @@
 import {Fish,Heart,MapPin,CalendarDays} from 'lucide-react';
 import {Tabs,TabsList,TabsTrigger} from '@/components/ui/tabs';
 import {Avatar} from './profile-dialog';
+import PhotoViewer from './photo-viewer';
 import {aggregateDiscovery,type DiscoveryEntry,type Period} from './discovery';
 type Entry=DiscoveryEntry&{photos:{id:number;species:string}[];featured_photo_id:number|null;owner_id:string;authorName:string;location:string;liked:boolean};
 export default function DiscoveryPanel<T extends Entry>({items,days,onDays,now,onSpecies,onProfile,onLike,busyLikes}:{items:T[];days:Period;onDays:(days:Period)=>void;now:Date;onSpecies:(species:string)=>void;onProfile:(id:string)=>void;onLike:(item:T)=>void;busyLikes:Set<number>}){
@@ -12,7 +13,7 @@ export default function DiscoveryPanel<T extends Entry>({items,days,onDays,now,o
   </section>
   <section aria-labelledby="featured-title"><div className="discovery-title"><h2 id="featured-title">{hasLikes?'注目の釣果':'最近の釣果'}</h2><p>過去{days}日間の投稿{hasLikes?' · いいね順':' · 新着順'}</p></div>
    {featured.length?<div className="featured-grid">{featured.map(item=>{const photo=item.photos.find(p=>p.id===item.featured_photo_id),representative=photo?.species||item.fish[0]?.species||'釣果',others=Math.max(0,item.fish.length-1);return <article className="featured-card" key={item.id}>
-    {photo?<a className="featured-photo" href={`/api/photos/${photo.id}`} target="_blank" rel="noopener noreferrer" aria-label={`${representative}の写真を開く`}><img src={`/api/photos/${photo.id}`} alt={`${representative}の釣果写真`} loading="lazy"/></a>:<div className="featured-photo photo-fallback" role="img" aria-label="写真なし"><Fish size={48}/></div>}
+    {photo?<PhotoViewer className="featured-photo" photoId={photo.id} species={representative}><img src={`/api/photos/${photo.id}`} alt={`${representative}の釣果写真`} loading="lazy"/></PhotoViewer>:<div className="featured-photo photo-fallback" role="img" aria-label="写真なし"><Fish size={48}/></div>}
     <div className="featured-info"><div className="featured-heading"><h3>{representative}{others>0&&<small> ほか{others}種</small>}</h3><div className="card-actions"><button className={`like-button ${item.liked?'is-liked':''}`} aria-label={item.liked?'いいねを取り消す':'いいね'} aria-pressed={item.liked} disabled={busyLikes.has(item.id)} onClick={()=>onLike(item)}><Heart size={19} fill={item.liked?'currentColor':'none'}/><span>{item.likeCount}</span></button></div></div>
      <button className="author-button" onClick={()=>onProfile(item.owner_id)}><Avatar name={item.authorName}/><span>{item.authorName}</span></button>
      <p className="featured-date"><CalendarDays size={15}/><time dateTime={item.date}>{item.date.replaceAll('-','/')}</time></p><p className="place"><MapPin size={16}/>{item.location}</p>
