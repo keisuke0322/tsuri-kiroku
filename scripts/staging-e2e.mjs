@@ -1,7 +1,7 @@
 import {readFile, writeFile, mkdtemp, rm} from 'node:fs/promises';
 import {tmpdir} from 'node:os';
 import {join} from 'node:path';
-import {spawn} from 'node:child_process';
+import {command} from './e2e-command.mjs';
 import {validateTarget, createSession, createRunMarker, cleanupQuery} from './e2e-policy.mjs';
 
 const config = JSON.parse(await readFile('wrangler.deploy.json', 'utf8'));
@@ -13,19 +13,10 @@ const directory = await mkdtemp(join(tmpdir(), 'tsuri-e2e-'));
 let sequence = 0;
 let failed = false;
 
-function command(args, {env = process.env, quiet = false} = {}) {
-  return new Promise((resolve, reject) => {
-    const child = spawn('corepack', ['pnpm', ...args], {env, stdio: quiet ? ['ignore', 'pipe', 'pipe'] : 'inherit'});
-    let output = '';
-    if (quiet) { child.stdout.on('data', chunk => {output += chunk;}); child.stderr.resume(); }
-    child.on('error', () => reject(Error('Could not start E2E command.')));
-    child.on('close', code => code === 0 ? resolve(output) : reject(Error('E2E command failed; no credential-bearing output is printed.')));
-  });
-}
 async function sql(statement) {
   const file = join(directory, `${sequence++}.sql`);
   await writeFile(file, statement + ';\n', {mode: 0o600});
-  const output = await command(['exec', 'wrangler', 'd1', 'execute', 'DB', '--remote', '--config', 'wrangler.deploy.json', '--file', file, '--json'], {quiet: true});
+  const output = await command(['node_modules/wrangler/bin/wrangler.js', 'd1', 'execute', 'DB', '--remote', '--config', 'wrangler.deploy.json', '--file', file, '--json'], {quiet: true});
   const result = JSON.parse(output);
   if (!Array.isArray(result) || result.some(item => item.success !== true)) throw Error('Staging D1 query failed.');
   return result.flatMap(item => item.results || []);
@@ -45,7 +36,7 @@ try {
   if (sessions.length === 1) console.log('Other-user write protection E2E: NOT VERIFIED (E2E_OTHER_USER_ID is unset).');
   if (process.env.GITHUB_STEP_SUMMARY) await writeFile(process.env.GITHUB_STEP_SUMMARY,
     `\n### Staging E2E\n- Google OAuth screen flow: not covered by E2E; covered by existing auth tests.\n- Other-user write protection: ${sessions.length === 2 ? 'included' : 'NOT VERIFIED (E2E_OTHER_USER_ID unset)'}\n`, {flag: 'a'});
-  await command(['exec', 'cypress', 'run', '--browser', 'electron'], {env: {...process.env,
+  await command(['node_modules/cypress/bin/cypress', 'run', '--browser', 'electron'], {env: {...process.env,
     E2E_BASE_URL: origin, E2E_RUN_MARKER: marker, E2E_SESSION_TOKEN: sessions[0].token,
     E2E_OTHER_SESSION_TOKEN: sessions[1]?.token || '',
   }});

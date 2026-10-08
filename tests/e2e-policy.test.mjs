@@ -2,6 +2,10 @@ import {test} from 'node:test';
 import assert from 'node:assert/strict';
 import {DatabaseSync} from 'node:sqlite';
 import {createHash} from 'node:crypto';
+import {mkdtemp, rm} from 'node:fs/promises';
+import {tmpdir} from 'node:os';
+import {join} from 'node:path';
+import {command} from '../scripts/e2e-command.mjs';
 import {validateTarget, createSession, createRunMarker, cleanupQuery} from '../scripts/e2e-policy.mjs';
 const config = {name: 'tsuri-kiroku-staging', vars: {APP_ORIGIN: 'https://tsuri-kiroku-staging.keisuke0322.workers.dev'},
   d1_databases: [{database_name: 'tsuri-kiroku-staging', database_id: 'bd5eb98e-edc9-4c26-8d2b-f1fd8e825ba5'}]};
@@ -32,4 +36,18 @@ test('temporary sessions are random, hashed and expire within an hour', () => {
   assert.equal(session.hash, createHash('sha256').update(session.token).digest('hex'));
   assert.notEqual(session.token, createSession('google:123').token);
   assert.ok(session.expires <= Math.floor(Date.now()/1000) + 3600);
+});
+test('D1 CLI JSON remains parseable without pnpm policy output', async () => {
+  const directory = await mkdtemp(join(tmpdir(), 'tsuri-cli-test-'));
+  try {
+    const output = await command(['node_modules/wrangler/bin/wrangler.js', 'd1', 'execute', 'DB',
+      '--local', '--config', 'wrangler.jsonc', '--persist-to', directory, '--command', 'SELECT 1 AS n', '--json'], {quiet: true});
+    const result = JSON.parse(output);
+    assert.equal(result[0].success, true);
+    assert.equal(result[0].results[0].n, 1);
+  } finally { await rm(directory, {recursive: true, force: true}); }
+});
+test('command errors do not expose captured credential-bearing output', async () => {
+  await assert.rejects(command(['--eval', 'console.log("fake-secret"); console.error("fake-secret"); process.exit(1)'], {quiet: true}),
+    error => !error.message.includes('fake-secret'));
 });
