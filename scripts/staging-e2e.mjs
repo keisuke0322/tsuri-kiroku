@@ -1,6 +1,4 @@
-import {readFile, writeFile, mkdtemp, rm} from 'node:fs/promises';
-import {tmpdir} from 'node:os';
-import {join} from 'node:path';
+import {readFile, writeFile} from 'node:fs/promises';
 import {command} from './e2e-command.mjs';
 import {validateTarget, createSession, createRunMarker, cleanupQuery} from './e2e-policy.mjs';
 
@@ -9,14 +7,12 @@ const origin = validateTarget(config, process.env.E2E_USER_ID, process.env.E2E_O
 const sessions = [createSession(process.env.E2E_USER_ID)];
 if (process.env.E2E_OTHER_USER_ID) sessions.push(createSession(process.env.E2E_OTHER_USER_ID));
 const marker = createRunMarker();
-const directory = await mkdtemp(join(tmpdir(), 'tsuri-e2e-'));
-let sequence = 0;
 let failed = false;
 
 async function sql(statement) {
-  const file = join(directory, `${sequence++}.sql`);
-  await writeFile(file, statement + ';\n', {mode: 0o600});
-  const output = await command(['node_modules/wrangler/bin/wrangler.js', 'd1', 'execute', 'DB', '--remote', '--config', 'wrangler.deploy.json', '--file', file, '--json'], {quiet: true});
+  // Remote --file is a bulk import: it emits progress and returns an import
+  // summary rather than SELECT rows. Use the query endpoint for small statements.
+  const output = await command(['node_modules/wrangler/bin/wrangler.js', 'd1', 'execute', 'DB', '--remote', '--config', 'wrangler.deploy.json', '--command', statement, '--json'], {quiet: true});
   const result = JSON.parse(output);
   if (!Array.isArray(result) || result.some(item => item.success !== true)) throw Error('Staging D1 query failed.');
   return result.flatMap(item => item.results || []);
@@ -58,6 +54,5 @@ try {
     try { await sql(`DELETE FROM auth_sessions WHERE token_hash='${session.hash}' AND user_id='${session.userId}'`); }
     catch { console.error('Temporary session cleanup failed; it expires within one hour.'); failed = true; }
   }
-  await rm(directory, {recursive: true, force: true});
 }
 process.exitCode = failed ? 1 : 0;

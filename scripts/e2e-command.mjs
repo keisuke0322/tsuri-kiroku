@@ -1,7 +1,6 @@
 import {spawn} from 'node:child_process';
 
-// Invoke installed Node CLIs directly: pnpm can prepend policy checks to stdout,
-// which makes Wrangler's otherwise valid --json output unreadable.
+// Invoke installed Node CLIs directly and keep captured command output private.
 export function command(args, {env = process.env, quiet = false} = {}) {
   return new Promise((resolve, reject) => {
     const child = spawn(process.execPath, args, {env, stdio: quiet ? ['ignore', 'pipe', 'pipe'] : 'inherit'});

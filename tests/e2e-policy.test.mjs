@@ -37,7 +37,7 @@ test('temporary sessions are random, hashed and expire within an hour', () => {
   assert.notEqual(session.token, createSession('google:123').token);
   assert.ok(session.expires <= Math.floor(Date.now()/1000) + 3600);
 });
-test('D1 CLI JSON remains parseable without pnpm policy output', async () => {
+test('D1 query mode returns parseable JSON containing actual SELECT rows', async () => {
   const directory = await mkdtemp(join(tmpdir(), 'tsuri-cli-test-'));
   try {
     const output = await command(['node_modules/wrangler/bin/wrangler.js', 'd1', 'execute', 'DB',
