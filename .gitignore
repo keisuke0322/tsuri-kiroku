@@ -51,3 +51,7 @@ wrangler.deploy.json
 *.tsbuildinfo
 
 !.dev.vars.example
+
+# Cypress generated artifacts
+/cypress/screenshots/
+/cypress/videos/

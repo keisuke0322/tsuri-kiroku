@@ -38,7 +38,7 @@ jobs:
     name: Deploy
     if: github.event_name != 'pull_request' && (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/cloudflare-migration')
     runs-on: ubuntu-latest
-    timeout-minutes: 20
+    timeout-minutes: 35
     environment: ${{ github.ref == 'refs/heads/main' && 'production' || 'staging' }}
     steps:
       - uses: actions/checkout@v4
@@ -81,3 +81,21 @@ jobs:
         run: node scripts/cloudflare-smoke.mjs
         env:
           APP_ORIGIN: ${{ vars.APP_ORIGIN }}
+      - name: Install Cypress browser
+        if: github.ref == 'refs/heads/cloudflare-migration'
+        run: corepack pnpm exec cypress install
+      - name: Run authenticated staging E2E
+        if: github.ref == 'refs/heads/cloudflare-migration'
+        run: corepack pnpm run e2e:staging
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          E2E_USER_ID: ${{ secrets.E2E_USER_ID }}
+          E2E_OTHER_USER_ID: ${{ secrets.E2E_OTHER_USER_ID }}
+      - name: Save E2E failure screenshots
+        if: failure() && github.ref == 'refs/heads/cloudflare-migration'
+        uses: actions/upload-artifact@v4
+        with:
+          name: staging-e2e-screenshots-${{ github.sha }}
+          path: cypress/screenshots
+          if-no-files-found: ignore
+          retention-days: 7

@@ -20,5 +20,5 @@ export default function SeasonalHero({onRecord,onView}:{onRecord:()=>void;onView
  const season=useSyncExternalStore<ReturnType<typeof seasonForDate>|null>(subscribeToClock,currentSeason,serverSeason);
  return <section className="seasonal-hero" aria-label="季節の釣り"><div className="seasonal-hero-art">
  {season&&<img src={`/images/hero/hero-${season}.webp`} alt={descriptions[season]} width={1671} height={941} fetchPriority="high"/>}
- </div><div className="seasonal-hero-actions"><button type="button" className="hero-record" onClick={onRecord}><Plus aria-hidden="true"/>釣果を記録する</button><button type="button" className="hero-view" onClick={onView}>釣果を見る<ChevronRight aria-hidden="true"/></button></div></section>;
+ </div><div className="seasonal-hero-actions"><button data-cy="record-catch" type="button" className="hero-record" onClick={onRecord}><Plus aria-hidden="true"/>釣果を記録する</button><button type="button" className="hero-view" onClick={onView}>釣果を見る<ChevronRight aria-hidden="true"/></button></div></section>;
 }
