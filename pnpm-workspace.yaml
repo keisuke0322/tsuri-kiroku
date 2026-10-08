@@ -4,6 +4,8 @@ minimumReleaseAgeIgnoreMissingTime: false
 trustLockfile: false
 strictDepBuilds: true
 allowBuilds:
+  # Browser installation is explicit in CI.
+  cypress: false
   esbuild: true
   fsevents: true
   sharp: true

@@ -13,7 +13,8 @@
     "lint": "eslint . --ignore-pattern dist --ignore-pattern .next",
     "db:generate": "drizzle-kit generate",
     "typecheck": "tsc --noEmit",
-    "test": "node --experimental-vm-modules tests/photo-storage.test.mjs && node tests/catch-validation.test.mjs && node --test tests/deployment-policy.test.mjs && node tests/multiple-fish-migration.test.mjs && node --experimental-vm-modules tests/cloudflare-auth.test.mjs && node tests/optimistic-like.test.mjs && node tests/discovery.test.mjs"
+    "test": "node --experimental-vm-modules tests/photo-storage.test.mjs && node tests/catch-validation.test.mjs && node --test tests/deployment-policy.test.mjs && node tests/multiple-fish-migration.test.mjs && node --experimental-vm-modules tests/cloudflare-auth.test.mjs && node tests/optimistic-like.test.mjs && node tests/discovery.test.mjs && node --test tests/e2e-policy.test.mjs",
+    "e2e:staging": "node scripts/staging-e2e.mjs"
   },
   "dependencies": {
     "@base-ui/react": "^1.7.0",
@@ -51,6 +52,7 @@
     "@types/react-dom": "19.2.3",
     "@vitejs/plugin-react": "6.0.2",
     "@vitejs/plugin-rsc": "0.5.26",
+    "cypress": "15.12.0",
     "drizzle-kit": "0.31.10",
     "eslint": "9.39.4",
     "eslint-config-next": "16.3.4",
