@@ -74,8 +74,8 @@ describe('釣果の主要操作', () => {
     cy.intercept('POST', '/api/catches', req => {requests++;}).as('save');
     cy.get(by('record-catch')).click();
     cy.get(by('save-catch')).click();
-    cy.contains('場所を入力してください。').should('be.visible');
-    cy.contains('魚種を入力してください。').should('be.visible');
+    cy.get('[id="catch-error-location"]').scrollIntoView().should('be.visible').and('contain','場所を入力してください。');
+    cy.get('[id="catch-error-fish.0.species"]').scrollIntoView().should('be.visible').and('contain','魚種を入力してください。');
     cy.then(() => {expect(requests).to.equal(0);});
     cy.get(by('catch-location')).type(`${marker}-validation`);
     cy.get(by('fish-species')).type('シロギス');
