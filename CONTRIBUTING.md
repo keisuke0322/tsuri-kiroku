@@ -4,7 +4,7 @@
 
 ## 要望・不具合をIssueに投稿する
 
-GitHubアカウントでログインし、[既存Issue](https://github.com/keisuke0322/tsuri-kiroku/issues)を確認してから「New issue」で投稿してください。fork・clone・push・PRは不要です。
+GitHubアカウントでログインし、[既存Issue](https://github.com/keisuke0322/tsuri-kiroku/issues)を確認してから「New issue」で「機能要望」または「不具合報告」のフォームを選び、投稿してください。fork・clone・push・PRは不要です。
 
 - **要望**：困っていること、目的、希望する動作、利用場面。代替案があれば併記してください。
 - **不具合**：再現手順、期待する動作、実際の動作、端末・ブラウザ。必要に応じてスクリーンショットを添えてください。
@@ -96,8 +96,24 @@ PRには、変更の目的、変更後の動作、関連Issue、検証結果、�
 
 外部Issue・PRには「外部提案」の分類ラベルが付き、Projectの初期Statusも「外部提案」になります。確認後にStatusが進んでも分類ラベルは残ります。write・maintain・admin権限を持つ投稿者とBotは外部分類から除外します。
 
-管理者が外部PRをレビューして `cloudflare-migration` へ取り込み、stagingのデプロイ・テスト・操作を確認します。その後、元リポジトリの `cloudflare-migration → main` の公開PRをマージして本番へ反映します。外部開発者が元サイトへ直接デプロイする必要はありません。
+### 外部PRの自動チェック
 
-共有stagingのE2Eは管理者が実行します。外部PRを提出しただけでは、共有stagingへのデプロイや本番公開は起動しません。main向けの公開用PRチェックを、そのまま外部PRの合格条件としないでください。Secretsなしの外部PR用CI・Issueテンプレート・取り込みとクローズの詳細運用は[Issue #26](https://github.com/keisuke0322/tsuri-kiroku/issues/26)で継続して整備します。
+`cloudflare-migration` 宛てのPRを作成・更新すると、`Contribution checks` がNode.js 24で型チェック・単体／結合テスト・ビルドを実行します。通常の `pull_request` イベントを使い、Cloudflare・Project等のSecrets、デプロイ環境、認証付きE2Eにはアクセスしません。checkoutの認証情報は作業ディレクトリに保持しません。
+
+初回のfork投稿などでは、GitHubが管理者によるActions実行承認を求めることがあります。管理者は変更内容を確認して承認してください。チェック失敗時はログを確認し、同じ作業ブランチで修正してpushします。main宛ての公開用 `PR checks` とは別のチェックです。
+
+### 取り込みから本番公開まで
+
+1. 管理者が変更内容・関連Issue・`Contribution checks` の成功を確認し、必要な修正を依頼します。
+2. 管理者が外部PRを `Create a merge commit` で元リポジトリの `cloudflare-migration` へマージします。作者情報とコミット履歴を保持し、外部PRはこの時点で自動的に閉じます。
+3. マージ画面のコミットメッセージに、管理者が確認した関連Issueを独立した行で `Refs #123` として記載します（複数は `Refs #123, #124`）。自動クローズする `Closes`・`Fixes`・`Resolves` が混入していないか、PR本文・コミットメッセージを事前に確認してください。
+4. マージによるpushでstagingへデプロイし、起動確認・認証付きE2E・ユーザーによる操作確認を行います。成功後、関連Issueは「staging確認待ち」になります。失敗時は関連Issueを開いたまま修正を追跡します。
+5. 管理者が `cloudflare-migration → main` の公開PRを作成し、本番へ反映する全関連Issueを独立した行の `Refs` で記載します。関連Issueは「本番反映待ち」になります。
+6. `PR checks` の成功とユーザー確認後、ユーザーが `Create a merge commit` でmainへマージします。継続利用する `cloudflare-migration` は削除しません。
+7. 本番デプロイ・起動確認の成功後、既存Actionsが関連Issueを閉じ、Project Statusを「完了」にします。
+
+**外部PRのクローズは「変更の受け入れ」、関連Issueのクローズは「本番反映の成功」を意味します。** 外部PRを取り込んだだけで、関連Issueや外部PRのProject Statusを「完了」にしません。PR自体のStatusは管理者がProject画面で管理し、進捗は関連Issueで追跡します。分類ラベル「外部提案」は保持します。
+
+共有stagingのE2Eは管理者が実行します。外部PRを提出しただけでは共有stagingへのデプロイや本番公開は起動しません。外部開発者が元サイトへ直接デプロイする必要はありません。
 
 管理者向けの通知設定と受付確認は[外部提案の管理](docs/external-proposals.md)を参照してください。

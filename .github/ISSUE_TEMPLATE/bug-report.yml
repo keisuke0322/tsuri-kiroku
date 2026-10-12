@@ -1,0 +1,39 @@
+name: 不具合報告
+description: 想定と異なる動作を報告する
+title: "[不具合] "
+body:
+  - type: markdown
+    attributes:
+      value: |
+        投稿前に既存のIssueをご確認ください。
+        パスワード、APIキー、セッション情報、個人情報は記載しないでください。画像にも写り込んでいないことをご確認ください。
+  - type: textarea
+    id: steps
+    attributes:
+      label: 再現手順
+      description: 不具合が起きるまでの操作を順番に記載してください。
+    validations:
+      required: true
+  - type: textarea
+    id: expected
+    attributes:
+      label: 期待する動作
+    validations:
+      required: true
+  - type: textarea
+    id: actual
+    attributes:
+      label: 実際の動作
+      description: エラーメッセージがある場合は、秘密情報を除いて記載してください。
+    validations:
+      required: true
+  - type: input
+    id: environment
+    attributes:
+      label: 端末・ブラウザ
+      placeholder: "例：iPhone / Safari、Windows / Chrome"
+  - type: textarea
+    id: screenshots
+    attributes:
+      label: スクリーンショット・補足
+      description: 必要に応じて画像を添付してください（任意）。

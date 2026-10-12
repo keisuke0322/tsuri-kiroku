@@ -18,7 +18,7 @@
 
 ## 要望・不具合報告
 
-GitHubアカウントでログインし、[既存のIssue](https://github.com/keisuke0322/tsuri-kiroku/issues)を確認してから「New issue」で投稿してください。**要望や不具合の報告だけなら、forkやコード変更は不要です。**
+GitHubアカウントでログインし、[既存のIssue](https://github.com/keisuke0322/tsuri-kiroku/issues)を確認してから「New issue」で「機能要望」または「不具合報告」のフォームを選び、投稿してください。**要望や不具合の報告だけなら、forkやコード変更は不要です。**
 
 - 要望：困っていること、希望する動作、利用場面。
 - 不具合：再現手順、期待する動作、実際の動作、端末・ブラウザ。
