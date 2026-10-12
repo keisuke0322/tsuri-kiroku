@@ -1,6 +1,6 @@
 'use client';
 
-import {useId, useState} from 'react';
+import {useId, useRef, useState} from 'react';
 import {Popover, PopoverContent, PopoverTrigger} from '@/components/ui/popover';
 import {recipeLinks} from './recipe-links';
 
@@ -16,6 +16,7 @@ function RecipeIcon() {
 export default function RecipeMenu({fishName}: {fishName: string}) {
   const [open, setOpen] = useState(false);
   const titleId = useId();
+  const firstLink = useRef<HTMLAnchorElement>(null);
   const name = fishName.trim();
   if (!name) return null;
   return <Popover open={open} onOpenChange={setOpen}>
@@ -24,10 +25,13 @@ export default function RecipeMenu({fishName}: {fishName: string}) {
         <RecipeIcon/><span>レシピ</span>
       </button>
     </PopoverTrigger>
-    <PopoverContent className="recipe-popover" align="start" collisionPadding={12} aria-labelledby={titleId} data-cy="recipe-popover">
+    <PopoverContent className="recipe-popover" align="start" collisionPadding={12} aria-labelledby={titleId} data-cy="recipe-popover" onOpenAutoFocus={event => {
+      event.preventDefault();
+      firstLink.current?.focus();
+    }}>
       <p id={titleId} className="recipe-heading">{name}のレシピ</p>
       <p className="recipe-hint">「釣り {name}」で検索 · 新しいタブで開きます</p>
-      {recipeLinks(name).map(link => <a key={link.label} data-cy="recipe-link" href={link.href} target="_blank" rel="noopener noreferrer" onClick={() => setOpen(false)}>{link.label}</a>)}
+      {recipeLinks(name).map((link, index) => <a key={link.label} ref={index === 0 ? firstLink : undefined} data-cy="recipe-link" href={link.href} target="_blank" rel="noopener noreferrer" onClick={() => setOpen(false)}>{link.label}</a>)}
       <button type="button" data-cy="recipe-close" className="recipe-close" onClick={() => setOpen(false)}>閉じる</button>
     </PopoverContent>
   </Popover>;
