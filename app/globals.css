@@ -146,6 +146,7 @@ button.featured-photo{width:100%;border:0}
   .catch-card>.card-main{width:100%}
   .catch-card>.card-actions{flex-direction:row;align-items:center;justify-content:flex-end;border-top:1px solid #e7eff0;padding-top:8px}
   .catch-card>.card-actions button{min-width:44px;min-height:44px}
+  .catch-card>.card-actions .like-button{margin-right:auto}
   .catch-fish-list .catch-title{display:grid;grid-template-columns:minmax(0,1fr) auto 44px;column-gap:6px;row-gap:0;margin-bottom:8px}
   .catch-fish-list .catch-title h3{grid-column:1;grid-row:1;margin:0;line-height:1.4}
   .catch-fish-list .count-badge{grid-column:2;grid-row:1;justify-self:end;white-space:nowrap}

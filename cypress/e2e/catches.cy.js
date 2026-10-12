@@ -86,6 +86,10 @@ describe('釣果の主要操作', () => {
         const main = $card[0].querySelector('.card-main').getBoundingClientRect();
         const actions = $card[0].querySelector('.card-actions').getBoundingClientRect();
         expect(actions.top).to.be.at.least(main.bottom);
+        const like = $card[0].querySelector('.card-actions .like-button').getBoundingClientRect();
+        const edit = $card[0].querySelector('[data-cy="edit-catch"]').getBoundingClientRect();
+        expect(like.left).to.equal(actions.left);
+        expect(edit.left - like.right).to.be.greaterThan(20);
         $card[0].querySelectorAll('.catch-title').forEach(row => {
           const fish = row.querySelector('h3').getBoundingClientRect();
           const recipe = row.querySelector('.recipe-trigger').getBoundingClientRect();
