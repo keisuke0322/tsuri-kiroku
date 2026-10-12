@@ -21,7 +21,13 @@ export default function RecipeMenu({fishName}: {fishName: string}) {
   if (!name) return null;
   return <Popover open={open} onOpenChange={setOpen}>
     <PopoverTrigger asChild>
-      <button type="button" className="recipe-trigger" data-cy="recipe-trigger" aria-label={`${name}のレシピを探す`}>
+      <button type="button" className="recipe-trigger" data-cy="recipe-trigger" aria-label={`${name}のレシピを探す`} onKeyDown={event => {
+        // Cancel native Enter activation before focus moves to an external link.
+        if (event.key === 'Enter') {
+          event.preventDefault();
+          if (!event.repeat) event.currentTarget.click();
+        }
+      }}>
         <RecipeIcon/><span>レシピ</span>
       </button>
     </PopoverTrigger>
