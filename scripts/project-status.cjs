@@ -1,6 +1,6 @@
-const STATES = ['検討中', '開発中', 'staging確認待ち', '本番反映待ち', '完了'];
+const STATES = ['検討中', '開発中', 'staging確認待ち', '本番反映待ち', '完了', '外部提案'];
 const COMMANDS = Object.fromEntries([
-  ...['検討中', '開発待ち', '開発中', 'staging確認待ち', '本番反映待ち', '完了'].map(name => [`project:${name}`, ['Status', name]]),
+  ...['外部提案', '検討中', '開発待ち', '開発中', 'staging確認待ち', '本番反映待ち', '完了'].map(name => [`project:${name}`, ['Status', name]]),
   ...['高', '中', '低'].map(name => [`priority:${name}`, ['優先度', name]]),
 ]);
 const sameName = (a, b) => a?.trim().toLowerCase() === b.trim().toLowerCase();
@@ -50,20 +50,21 @@ async function loadProject({ github, ensureOptions = false, log = () => {} }) {
   return { id, fields };
 }
 
-async function projectItem({ github, context, number, project, add = true }) {
+async function projectItem({ github, context, number, project, add = true, kind = 'issue' }) {
+  if (!['issue', 'pullRequest'].includes(kind)) throw new Error('Unknown content kind');
   let after = null;
   let issueId;
   do {
     const result = await github.graphql(`
       query($owner: String!, $repo: String!, $number: Int!, $after: String) {
         repository(owner: $owner, name: $repo) {
-          issue(number: $number) { id projectItems(first: 100, after: $after) {
+          ${kind}(number: $number) { id projectItems(first: 100, after: $after) {
             nodes { id project { id } }
             pageInfo { hasNextPage endCursor }
           } }
         }
       }`, { ...context.repo, number, after });
-    const issue = result.repository.issue;
+    const issue = result.repository[kind];
     if (!issue) throw new Error(`Issue #${number} not found`);
     issueId = issue.id;
     const connection = issue.projectItems;
@@ -108,27 +109,27 @@ async function updateField({ github, project, item, fieldName, value }) {
 async function removeLegacyLabels({ github, context, number, labels }) {
   for (const label of labels) {
     const name = typeof label === 'string' ? label : label.name;
-    if (!STATES.includes(name)) continue;
+    if (!STATES.includes(name) || name === '外部提案') continue;
     try { await github.rest.issues.removeLabel({ ...context.repo, issue_number: number, name }); }
     catch (error) { if (error.status !== 404) throw error; }
   }
 }
 
-async function setStatus({ github, context, number, status, initial = false, project, log = () => {} }) {
+async function setStatus({ github, context, number, status, initial = false, project, kind = 'issue', log = () => {} }) {
   if (!STATES.includes(status)) throw new Error('Unknown Project Status');
   const args = { ...context.repo, issue_number: number };
   const { data: issue } = await github.rest.issues.get(args);
-  if (issue.pull_request) throw new Error(`#${number} is a PR, not an Issue`);
+  if (Boolean(issue.pull_request) !== (kind === 'pullRequest')) throw new Error(`Unexpected content kind for #${number}`);
   if (status !== '完了' && issue.state === 'closed') return;
   project ||= await loadProject({ github });
-  const item = await projectItem({ github, context, number, project });
+  const item = await projectItem({ github, context, number, project, kind });
   const current = await readValue({ github, item, fieldName: 'Status' });
   // A delayed opened event must not overwrite any existing status, even 開発待ち.
   if (initial && current?.optionId) return;
   const actual = await updateField({ github, project, item, fieldName: 'Status', value: status });
   await removeLegacyLabels({ github, context, number, labels: issue.labels });
   log(`Issue #${number}: Project #7 Status = ${actual} (verified)`);
-  if (status === '完了' && issue.state !== 'closed') {
+  if (kind === 'issue' && status === '完了' && issue.state !== 'closed') {
     await github.rest.issues.update({ ...args, state: 'closed', state_reason: 'completed' });
   }
 }
@@ -142,10 +143,10 @@ async function processCommand({ github, context, log = () => {} }) {
   const number = context.issue.number;
   const args = { ...context.repo, issue_number: number };
   const { data: issue } = await github.rest.issues.get(args);
-  if (issue.pull_request) return;
+  const kind = issue.pull_request ? 'pullRequest' : 'issue';
   if (!issue.labels.some(l => (typeof l === 'string' ? l : l.name) === name)) return;
   const project = await loadProject({ github });
-  const item = await projectItem({ github, context, number, project });
+  const item = await projectItem({ github, context, number, project, kind });
   const [fieldName, value] = command;
   const actual = await updateField({ github, project, item, fieldName, value });
   if (fieldName === 'Status') await removeLegacyLabels({ github, context, number, labels: issue.labels });
@@ -162,12 +163,17 @@ async function bootstrap({ github, context, log = () => {} }) {
       await github.rest.issues.createLabel({ ...context.repo, name, color: name.startsWith('project:') ? '1D76DB' : 'D93F0B', description: 'Project #7 update command; removed after successful update' });
     }
   }
+  try { await github.rest.issues.getLabel({ ...context.repo, name: '外部提案' }); }
+  catch (error) {
+    if (error.status !== 404) throw error;
+    await github.rest.issues.createLabel({ ...context.repo, name: '外部提案', color: '7057FF', description: '外部からの要望・不具合報告・PR（出所の分類）' });
+  }
   // Transfer previously introduced Issue status labels into Project Status.
   // Conflicting legacy labels are reported instead of guessing the intended status.
   const issues = await github.paginate(github.rest.issues.listForRepo, { ...context.repo, state: 'all', per_page: 100 });
   for (const issue of issues) {
     if (issue.pull_request) continue;
-    const states = issue.labels.map(l => typeof l === 'string' ? l : l.name).filter(l => STATES.includes(l));
+    const states = issue.labels.map(l => typeof l === 'string' ? l : l.name).filter(l => STATES.includes(l) && l !== '外部提案');
     if (!states.length) continue;
     if (states.length !== 1) throw new Error(`Issue #${issue.number} has conflicting legacy status labels`);
     const item = await projectItem({ github, context, number: issue.number, project });

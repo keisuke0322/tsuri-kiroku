@@ -5,7 +5,7 @@ import projectStatus from '../scripts/project-status.cjs';
 const { references, updateDeployment, updateEvent } = lifecycle;
 const { STATES, setStatus, processCommand, bootstrap } = projectStatus;
 const context = { repo: { owner: 'owner', repo: 'repo' }, ref: 'refs/heads/main', sha: 'release' };
-function mock({ labels = ['開発中', 'bug'], current = '開発中', attached = true, state = 'open', mismatch = false } = {}) {
+function mock({ labels = ['開発中', 'bug'], current = '開発中', attached = true, state = 'open', mismatch = false, pr = false, permission = 'write' } = {}) {
   const calls = [];
   const field = { id: 'status-field', name: 'Status', options: [...STATES, '開発待ち'].map((name, i) => ({ id: `option-${i}`, name, color: 'BLUE', description: '' })) };
   const priority = { id: 'priority-field', name: '優先度', options: ['高', '中', '低'].map(name => ({ id: name, name })) };
@@ -20,19 +20,20 @@ function mock({ labels = ['開発中', 'bug'], current = '開発中', attached =
     }
     if (query.includes('fieldValueByName')) return { node: { fieldValueByName: value } };
     if (query.includes('addProjectV2ItemById')) { calls.push(['add-item']); return { addProjectV2ItemById: { item: { id: 'item-1' } } }; }
-    if (query.includes('projectItems')) return { repository: { issue: { id: 'issue-id', projectItems: { nodes: attached ? [{ id: 'item-1', project: { id: project.id } }] : [], pageInfo: { hasNextPage: false } } } } };
+    if (query.includes('projectItems')) return { repository: { [query.includes('pullRequest(number') ? 'pullRequest' : 'issue']: { id: 'issue-id', projectItems: { nodes: attached ? [{ id: 'item-1', project: { id: project.id } }] : [], pageInfo: { hasNextPage: false } } } } };
     if (query.includes('fields(first')) return { node: { fields: { nodes: project.fields, pageInfo: { hasNextPage: false } } } };
     if (query.includes('projectV2(number')) return { user: { projectV2: { id: project.id } } };
     throw new Error(`Unexpected query: ${query}`);
   }, rest: { issues: {
-    get: async () => ({ data: { state, labels } }),
+    get: async () => ({ data: { state, labels, ...(pr ? { pull_request: {} } : {}) } }),
+    addLabels: async a => calls.push(['labels', a.issue_number, a.labels]),
     getLabel: async () => ({}),
     removeLabel: async a => calls.push(['remove', a.name]),
     update: async a => calls.push(['close', a.state]),
     listForRepo() {},
   }, repos: {
     listPullRequestsAssociatedWithCommit() {},
-    getCollaboratorPermissionLevel: async () => ({ data: { permission: 'write' } }),
+    getCollaboratorPermissionLevel: async () => ({ data: { permission } }),
   }, pulls: { list() {} } }, paginate: async () => [] };
   return { github, calls, project };
 }
@@ -90,12 +91,42 @@ test('staging updates commit targets and re-verifies production-waiting PR targe
   await updateDeployment({ github, context: { ...context, ref: 'refs/heads/cloudflare-migration' } });
   assert.deepEqual(calls, [['field', 'status-field', 'option-2'], ['field', 'status-field', 'option-3']]);
 });
-test('external PR cannot update Project Status', async () => {
-  const { github, calls } = mock();
+test('external PR is classified itself and never updates its Refs targets', async () => {
+  const { github, calls } = mock({ pr: true, permission: 'read', current: null, labels: ['外部提案'] });
+  const numbers = [];
+  const get = github.rest.issues.get;
+  github.rest.issues.get = async a => { numbers.push(a.issue_number); return get(a); };
   await updateEvent({ github, context: { ...context, eventName: 'pull_request_target', payload: { pull_request: {
-    base: { ref: 'main' }, head: { ref: 'cloudflare-migration', repo: { full_name: 'other/repo' } }, body: 'Refs #12',
+    number: 42, user: { login: 'guest', type: 'User' }, base: { ref: 'cloudflare-migration' }, head: { ref: 'feature', repo: { full_name: 'guest/fork' } }, body: 'Refs #12',
   } } } });
-  assert.deepEqual(calls, []);
+  assert.deepEqual(numbers, [42]);
+  assert.deepEqual(calls, [['labels', 42, ['外部提案']], ['field', 'status-field', 'option-5']]);
+});
+test('external Issue replay preserves progressed Status and classification', async () => {
+  const { github, calls } = mock({ permission: 'none', current: '開発中', labels: ['外部提案', 'bug'] });
+  await updateEvent({ github, context: { ...context, eventName: 'issues', payload: { issue: { number: 42, user: { login: 'guest', type: 'User' } } } } });
+  assert.deepEqual(calls, [['labels', 42, ['外部提案']]]);
+});
+test('classification uses original author permission and excludes Bots', async () => {
+  for (const permission of ['admin', 'maintain', 'write', 'read', 'none']) {
+    const { github } = mock({ permission });
+    assert.equal(await lifecycle.isExternal({ github, context, author: { login: 'author', type: 'User' } }), ['read', 'none'].includes(permission));
+  }
+  const { github } = mock();
+  github.rest.repos.getCollaboratorPermissionLevel = async () => { throw new Error('unavailable'); };
+  assert.equal(await lifecycle.isExternal({ github, context, author: { login: 'automation', type: 'Bot' } }), false);
+  await assert.rejects(lifecycle.isExternal({ github, context, author: { login: 'author', type: 'User' } }), /unavailable/);
+});
+test('classification survives later status changes and bootstrap migration', async () => {
+  const { github, calls, project } = mock({ labels: ['外部提案', 'bug'] });
+  await setStatus({ github, context, project, number: 42, status: '開発中' });
+  github.paginate = async () => [{ number: 42, labels: [{ name: '外部提案' }] }];
+  await bootstrap({ github, context });
+  assert.deepEqual(calls, [['field', 'status-field', 'option-1']]);
+});
+test('external PR failed readback is reported', async () => {
+  const { github, project } = mock({ pr: true, current: null, mismatch: true });
+  await assert.rejects(setStatus({ github, context, project, number: 42, kind: 'pullRequest', status: '外部提案', initial: true }), /readback/);
 });
 test('bootstrap migrates legacy Issue labels without closing or changing priority', async () => {
   const { github, calls } = mock();
@@ -122,5 +153,21 @@ test('setup preserves existing options and adds only missing Status values', asy
   } };
   await projectStatus.loadProject({ github, ensureOptions: true });
   assert.deepEqual(submitted.slice(0, 4), existing);
-  assert.deepEqual(submitted.slice(4).map(o => o.name), ['本番反映待ち', '完了']);
+  assert.deepEqual(submitted.slice(4).map(o => o.name), ['本番反映待ち', '完了', '外部提案']);
+});
+
+test('privileged intake executes only default-branch code, without PR interpolation', async () => {
+  const { readFile } = await import('node:fs/promises');
+  const workflow = await readFile(new URL('../.github/workflows/issue-status.yml', import.meta.url), 'utf8');
+  assert.match(workflow, /ref: \$\{\{ github\.event\.repository\.default_branch \}\}/);
+  assert.match(workflow, /persist-credentials: false/);
+  assert.doesNotMatch(workflow, /\$\{\{[^}]*pull_request/);
+  assert.doesNotMatch(workflow, /pnpm|npm |run:/);
+});
+test('replayed external PR uses its existing Project item and preserves review status', async () => {
+  const { github, calls } = mock({ pr: true, permission: 'triage', current: '検討中', labels: ['外部提案'] });
+  await updateEvent({ github, context: { ...context, eventName: 'pull_request_target', payload: { pull_request: {
+    number: 42, user: { login: 'guest', type: 'User' }, body: 'Refs #99',
+  } } } });
+  assert.deepEqual(calls, [['labels', 42, ['外部提案']]]);
 });

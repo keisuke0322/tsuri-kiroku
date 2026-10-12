@@ -18,13 +18,14 @@ jobs:
   update:
     if: >-
       github.event_name != 'issues' ||
-      contains(fromJSON('["project:検討中","project:開発待ち","project:開発中","project:staging確認待ち","project:本番反映待ち","project:完了","priority:高","priority:中","priority:低"]'), github.event.label.name)
+      contains(fromJSON('["project:外部提案","project:検討中","project:開発待ち","project:開発中","project:staging確認待ち","project:本番反映待ち","project:完了","priority:高","priority:中","priority:低"]'), github.event.label.name)
     runs-on: ubuntu-latest
     timeout-minutes: 5
     steps:
       - uses: actions/checkout@v4
         with:
           persist-credentials: false
+          ref: ${{ github.event_name == 'issues' && github.event.repository.default_branch || github.ref }}
       - name: Update Project and verify Status
         uses: actions/github-script@60a0d83039c74a4aee543508d2ffcb1c3799cdea
         with:

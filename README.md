@@ -34,3 +34,7 @@ corepack pnpm dev
 Sitesの既存データは取り込みません。テスト・本番は別のWorker、D1、R2を使用します。移行ブランチのpushはstagingへ自動デプロイします。staging確認後にcloudflare-migrationからmainへPRを作成し、ご自身でマージするとmainのコードがproductionへ自動デプロイされます。
 
 ブランド素材と使用方針は [docs/brand.md](docs/brand.md) を参照してください。
+
+## 要望・不具合報告
+
+[GitHub Issues](https://github.com/keisuke0322/tsuri-kiroku/issues)から投稿できます。forkやコード変更は不要です。[投稿の案内](CONTRIBUTING.md)をご覧ください。
