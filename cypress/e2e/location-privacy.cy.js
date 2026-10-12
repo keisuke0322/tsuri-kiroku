@@ -46,7 +46,9 @@ describe('釣行場所の地図と公開範囲',()=>{
     expect(response.statusCode).to.equal(201);const id=response.body.id;createdIds.push(id);cy.wait('@locations');
     reload().then(rows=>{const saved=rows.find(x=>x.id===id);expect(saved.locationVisibility).to.equal('area');expect(saved.position).to.include(point)});
     card(id).find(by('location-map-trigger')).scrollIntoView().focus().should('be.focused');
-    cy.press(Cypress.Keyboard.Keys.ENTER);
+    // Native Space activates the button. Cypress Enter omits the character
+    // event required for native button activation; real Enter is checked in Chromium.
+    cy.press(Cypress.Keyboard.Keys.SPACE);
     cy.get(by('location-map-dialog')).should('be.visible').then($dialog=>{const r=$dialog[0].getBoundingClientRect();expect(r.left).to.be.at.least(0);expect(r.right).to.be.at.most(width)});
     cy.get(by('location-exact')).should('contain','35.123000, 139.456000');
     cy.get(by('close-location-map')).focus().should('be.focused');cy.press(Cypress.Keyboard.Keys.ESC);cy.get(by('location-map-dialog')).should('not.exist');card(id).find(by('location-map-trigger')).should('be.focused');
