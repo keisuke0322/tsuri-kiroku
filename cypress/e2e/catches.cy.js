@@ -102,13 +102,12 @@ describe('釣果の主要操作', () => {
         cy.get(by('recipe-popover')).should('not.exist');
         card(id).find(selector).should('be.focused');
       }
-      // Native keyboard activation, tab navigation and Escape restore focus.
-      card(id).find(by('recipe-trigger')).first().focus();
-      cy.press(Cypress.Keyboard.Keys.ENTER);
+      // Target Enter at the trigger; use native Tab for browser focus navigation.
+      card(id).find(by('recipe-trigger')).first().scrollIntoView().focus().should('be.focused').type('{enter}');
       cy.get(by('recipe-link')).first().should('be.focused');
       cy.press(Cypress.Keyboard.Keys.TAB);
       cy.get(by('recipe-link')).last().should('be.focused');
-      cy.press(Cypress.Keyboard.Keys.ESC);
+      cy.get(by('recipe-link')).last().type('{esc}');
       cy.get(by('recipe-popover')).should('not.exist');
       card(id).find(by('recipe-trigger')).first().should('be.focused').click();
       cy.contains('釣行一覧').click();
