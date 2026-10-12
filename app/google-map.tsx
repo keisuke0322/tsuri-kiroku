@@ -1,12 +1,14 @@
 'use client';
 import {useEffect,useRef,useState} from 'react';
+import type {PublicArea} from './location-privacy';
 import type {Position} from './fishing-position';
 
 type LatLng={lat:()=>number;lng:()=>number};
 type Listener={remove:()=>void};
 type MapInstance={setCenter:(p:{lat:number;lng:number})=>void;setZoom:(z:number)=>void;fitBounds:(b:unknown)=>void;addListener:(event:string,callback:(e:{latLng:LatLng|null})=>void)=>Listener};
 type MarkerInstance={setMap:(map:MapInstance|null)=>void;addListener:(event:string,callback:(e:{latLng:LatLng|null})=>void)=>Listener};
-type Maps={Map:new(el:HTMLElement,options:unknown)=>MapInstance;Marker:new(options:unknown)=>MarkerInstance;LatLngBounds:new()=>{extend:(p:{lat:number;lng:number})=>void};Geocoder:new()=>{geocode:(input:{address:string;region:string},callback:(results:{geometry:{location:LatLng}}[]|null,status:string)=>void)=>void}};
+type CircleInstance={setMap:(map:MapInstance|null)=>void};
+type Maps={Circle:new(options:unknown)=>CircleInstance;Map:new(el:HTMLElement,options:unknown)=>MapInstance;Marker:new(options:unknown)=>MarkerInstance;LatLngBounds:new()=>{extend:(p:{lat:number;lng:number})=>void};Geocoder:new()=>{geocode:(input:{address:string;region:string},callback:(results:{geometry:{location:LatLng}}[]|null,status:string)=>void)=>void}};
 type MapsWindow=Window&{google?:{maps:Maps};fishingMapsReady?:()=>void;gm_authFailure?:()=>void};
 let loader:Promise<Maps>|null=null;
 function loadMaps(apiKey:string){
@@ -21,7 +23,7 @@ function loadMaps(apiKey:string){
  });return loader;
 }
 export type MapPoint={id:number;latitude:number;longitude:number;title:string};
-export default function GoogleMap({apiKey,position,points=[],editable=false,onChange,onSelect}:{apiKey:string;position?:Position|null;points?:MapPoint[];editable?:boolean;onChange?:(p:Position)=>void;onSelect?:(id:number)=>void}){
+export default function GoogleMap({apiKey,position,points=[],area,editable=false,onChange,onSelect}:{apiKey:string;position?:Position|null;points?:MapPoint[];area?:PublicArea|null;editable?:boolean;onChange?:(p:Position)=>void;onSelect?:(id:number)=>void}){
  const element=useRef<HTMLDivElement>(null),map=useRef<MapInstance|null>(null),callbacks=useRef({onChange,onSelect}),[maps,setMaps]=useState<Maps|null>(null),[error,setError]=useState(''),[search,setSearch]=useState(''),[searching,setSearching]=useState(false);
  callbacks.current={onChange,onSelect};
  useEffect(()=>{if(!apiKey)return;let active=true;void loadMaps(apiKey).then(value=>{if(active)setMaps(value)}).catch(e=>{if(active)setError(e.message)});return()=>{active=false}},[apiKey]);
@@ -31,7 +33,7 @@ export default function GoogleMap({apiKey,position,points=[],editable=false,onCh
   const click=instance.addListener('click',e=>{if(editable&&e.latLng)callbacks.current.onChange?.({latitude:e.latLng.lat(),longitude:e.latLng.lng(),source:'map'})});
   return()=>{click.remove();map.current=null};
  },[maps,editable]);
- const pointKey=JSON.stringify(points),positionKey=JSON.stringify(position);
+ const pointKey=JSON.stringify(points),positionKey=JSON.stringify(position),areaKey=JSON.stringify(area);
  useEffect(()=>{
   const instance=map.current;if(!maps||!instance)return;
   const markers:MarkerInstance[]=[],listeners:Listener[]=[];
@@ -41,10 +43,13 @@ export default function GoogleMap({apiKey,position,points=[],editable=false,onCh
    listeners.push(marker.addListener('click',()=>callbacks.current.onSelect?.(point.id)));
    if(editable)listeners.push(marker.addListener('dragend',e=>{if(e.latLng)callbacks.current.onChange?.({latitude:e.latLng.lat(),longitude:e.latLng.lng(),source:'map',spotId:position?.spotId})}));
   }
-  if(displayed.length===1){instance.setCenter({lat:displayed[0].latitude,lng:displayed[0].longitude});instance.setZoom(editable?14:12)}else if(displayed.length>1)instance.fitBounds(bounds);
-  return()=>{listeners.forEach(l=>l.remove());markers.forEach(m=>m.setMap(null))};
- },[maps,pointKey,positionKey,editable]);
+  const circleArea:PublicArea|null=areaKey?JSON.parse(areaKey):null;
+  const circle=circleArea?new maps.Circle({map:instance,center:{lat:circleArea.latitude,lng:circleArea.longitude},radius:circleArea.radius,strokeColor:'#087e8b',strokeWeight:2,fillColor:'#087e8b',fillOpacity:0.15,clickable:false}):null;
+  if(circleArea){instance.setCenter({lat:circleArea.latitude,lng:circleArea.longitude});instance.setZoom(10)}
+  else if(displayed.length===1){instance.setCenter({lat:displayed[0].latitude,lng:displayed[0].longitude});instance.setZoom(editable?14:12)}else if(displayed.length>1)instance.fitBounds(bounds);
+  return()=>{circle?.setMap(null);listeners.forEach(l=>l.remove());markers.forEach(m=>m.setMap(null))};
+ },[maps,pointKey,positionKey,areaKey,editable]);
  function findPlace(){if(!maps||!map.current||!search.trim())return;setSearching(true);setError('');new maps.Geocoder().geocode({address:search.trim(),region:'JP'},(results,status)=>{setSearching(false);if(status!=='OK'||!results?.length){setError('場所を検索できませんでした。検索語や通信を確認してください。');return}const p=results[0].geometry.location;map.current?.setCenter({lat:p.lat(),lng:p.lng()});map.current?.setZoom(14)})}
- if(!apiKey)return <p className="map-notice">地図は準備中です。現在地・緯度経度で位置を保存できます。</p>;
- return <div className="google-map-wrap">{editable&&<div className="map-search"><input aria-label="地図で場所名を検索" placeholder="地名・住所で地図を移動" value={search} onChange={e=>setSearch(e.target.value)} onKeyDown={e=>{if(e.key==='Enter'){e.preventDefault();findPlace()}}}/><button type="button" onClick={findPlace} disabled={!maps||searching}>{searching?'検索中…':'検索'}</button></div>}<div ref={element} className="google-map" data-cy="google-map" aria-label={editable?'タップして釣り場を指定':'自分の釣果マップ'}/>{!maps&&!error&&<p role="status">地図を読み込み中…</p>}{error&&<p role="alert">{error}</p>}{editable&&<p className="photo-help">地図をタップして位置を選択。ピンをドラッグして調整できます。</p>}</div>;
+ if(!apiKey)return <p className="map-notice">{editable?'地図は準備中です。現在地・緯度経度で位置を保存できます。':'地図は準備中です。時間をおいて再度お試しください。'}</p>;
+ return <div className="google-map-wrap">{editable&&<div className="map-search"><input aria-label="地図で場所名を検索" placeholder="地名・住所で地図を移動" value={search} onChange={e=>setSearch(e.target.value)} onKeyDown={e=>{if(e.key==='Enter'){e.preventDefault();findPlace()}}}/><button type="button" onClick={findPlace} disabled={!maps||searching}>{searching?'検索中…':'検索'}</button></div>}<div ref={element} className="google-map" data-cy="google-map" aria-label={editable?'タップして釣り場を指定':area?'おおよその釣行エリア':'釣行場所の地図'}/>{!maps&&!error&&<p role="status">地図を読み込み中…</p>}{error&&<p role="alert">{error}</p>}{editable&&<p className="photo-help">地図をタップして位置を選択。ピンをドラッグして調整できます。</p>}</div>;
 }

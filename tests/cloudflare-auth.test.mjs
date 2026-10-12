@@ -122,6 +122,62 @@ assert.equal((await entry.PUT(request('/api/catches/'+mappedId,'PUT',{...multi,p
 assert.equal(sql.prepare('SELECT latitude FROM catch_positions WHERE catch_id=?').get(mappedId).latitude,point.latitude,'Older client edits preserve positions');
 assert.equal((await entry.PUT(request('/api/catches/'+mappedId,'PUT',{...multi,position:null,photoAssignments:[],featuredPhotoId:null},owner),params(mappedId))).status,200);
 assert.equal(sql.prepare('SELECT * FROM catch_positions WHERE catch_id=?').get(mappedId),undefined);
+// Issue #31: check real API responses for every viewer/visibility combination.
+const privacyRows=async session=>(await (await catches.GET(request('/api/catches','GET',undefined,session))).json());
+const privacyCreate=await catches.POST(request('/api/catches','POST',{...multi,position:point},owner));
+assert.equal(privacyCreate.status,201);const privacyId=(await privacyCreate.json()).id;
+const privacyRow=async session=>(await privacyRows(session)).find(x=>x.id===privacyId);
+assert.equal((await privacyRow(owner)).locationVisibility,'area','Default is approximate area');
+const initialArea=(await privacyRow(other)).publicArea;
+assert.deepEqual(JSON.parse(JSON.stringify(initialArea)),{latitude:35.15,longitude:139.45,radius:8000});
+assert.equal((await privacyRow(other)).position,null);
+assert.ok(!JSON.stringify(await privacyRow(other)).includes('35.123'),'No exact latitude anywhere in the response');
+assert.ok(!JSON.stringify(await privacyRow(other)).includes('139.456'),'No exact longitude anywhere in the response');
+assert.ok(!Object.hasOwn(await privacyRow(other),'public_latitude'),'Internal columns are not sent');
+assert.deepEqual(JSON.parse(JSON.stringify((await privacyRow(other)).publicArea)),JSON.parse(JSON.stringify(initialArea)),'Repeated visits return the same coarse center');
+for(const visibility of ['area','exact','private']) {
+ const update={...multi,locationVisibility:visibility,photoAssignments:[],featuredPhotoId:null};
+ assert.equal((await entry.PUT(request('/api/catches/'+privacyId,'PUT',update,owner),params(privacyId))).status,200);
+ const self=await privacyRow(owner),guest=await privacyRow(other);
+ assert.equal(self.position.latitude,point.latitude);assert.equal(self.location,multi.location);
+ assert.equal(guest.locationVisibility,visibility);
+ if(visibility==='exact') {
+  assert.equal(guest.position.latitude,point.latitude);assert.equal(guest.position.longitude,point.longitude);
+  assert.ok(!Object.hasOwn(guest.position,'spotId'),'Private saved spot IDs never leak');
+  assert.equal(guest.publicArea,null);assert.equal(guest.locationHidden,false);
+ } else {
+  assert.equal(guest.position,null);
+  assert.ok(!JSON.stringify(guest).includes('35.123'));assert.ok(!JSON.stringify(guest).includes('139.456'));
+  if(visibility==='private'){assert.equal(guest.location,'');assert.equal(guest.locationHidden,true);assert.equal(guest.publicArea,null)}
+  else {assert.equal(guest.location,multi.location);assert.ok(guest.publicArea);assert.equal(guest.locationHidden,false)}
+ }
+}
+// Older clients preserve private visibility, including when replacing a position.
+assert.equal((await entry.PUT(request('/api/catches/'+privacyId,'PUT',{...multi,position:{...point,latitude:36.123},photoAssignments:[],featuredPhotoId:null},owner),params(privacyId))).status,200);
+assert.equal((await privacyRow(other)).locationHidden,true);assert.equal((await privacyRow(owner)).position.latitude,36.123);
+for(const invalid of ['',null,'public',1,{},[]]) {
+ const before=JSON.stringify(sql.prepare('SELECT * FROM catches WHERE id=?').get(privacyId));
+ assert.equal((await catches.POST(request('/api/catches','POST',{...multi,locationVisibility:invalid},owner))).status,400);
+ assert.equal((await entry.PUT(request('/api/catches/'+privacyId,'PUT',{...multi,locationVisibility:invalid},owner),params(privacyId))).status,400);
+ assert.equal(JSON.stringify(sql.prepare('SELECT * FROM catches WHERE id=?').get(privacyId)),before);
+}
+assert.equal((await entry.PUT(request('/api/catches/'+privacyId,'PUT',{...multi,locationVisibility:'exact'},other),params(privacyId))).status,403);
+// A legacy snapshot has no published area until the owner explicitly saves it.
+sql.prepare("UPDATE catches SET location_visibility='area',public_latitude=NULL,public_longitude=NULL WHERE id=?").run(privacyId);
+assert.equal((await privacyRow(other)).position,null);assert.equal((await privacyRow(other)).publicArea,null);assert.equal((await privacyRow(other)).location,multi.location);
+assert.equal((await entry.PUT(request('/api/catches/'+privacyId,'PUT',{...multi,photoAssignments:[],featuredPhotoId:null},owner),params(privacyId))).status,200);
+assert.equal((await privacyRow(other)).publicArea,null,'Older edits do not publish legacy coordinates');
+assert.equal((await entry.PUT(request('/api/catches/'+privacyId,'PUT',{...multi,locationVisibility:'area',position:null,photoAssignments:[],featuredPhotoId:null},owner),params(privacyId))).status,200);
+assert.equal((await privacyRow(other)).publicArea,null);assert.equal((await privacyRow(owner)).position,null);
+const {approximateArea}=await module('app/location-privacy.ts');
+for(const latitude of [-90,-89.999,-35.123,0,35.099999999999,35.1,89.999,90])for(const longitude of [-180,-179.999,-139.456,0,139.499999999,179.999,180]) {
+ const area=approximateArea({latitude,longitude,source:'map'});
+ assert.ok(Math.abs(area.latitude)<=90&&Math.abs(area.longitude)<=180);
+ const rad=Math.PI/180,dlat=(latitude-area.latitude)*rad,dlon=(longitude-area.longitude)*rad;
+ const a=Math.sin(dlat/2)**2+Math.cos(latitude*rad)*Math.cos(area.latitude*rad)*Math.sin(dlon/2)**2;
+ assert.ok(6371000*2*Math.atan2(Math.sqrt(a),Math.sqrt(1-a))<=area.radius,'The circle contains every point in its cell');
+}
+console.log('Location privacy passed: three scopes, both identities, defaults, stable coarse areas, boundary coverage, raw-response secrecy, invalid input and legacy compatibility.');
 const reusedId=(await reused.json()).id;assert.equal((await entry.DELETE(request('/api/catches/'+reusedId,'DELETE',undefined,owner),params(reusedId))).status,200);
 assert.equal(sql.prepare('SELECT * FROM catch_positions WHERE catch_id=?').get(reusedId),undefined);
 console.log('Fishing map API passed: private coordinates/spots, CSRF, ownership, coordinate validation, reuse, favorites, immutable snapshots, legacy edits, clear and delete.');
