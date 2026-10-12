@@ -114,3 +114,25 @@ button.featured-photo{width:100%;border:0}
 .login-night .brand-english{color:#73c8f1}
 .login-night .brand-symbol{content:url('/brand/mark-dark.svg')}
 @media(max-width:650px){.brand-symbol{width:58px;height:42px}.brand-name{font-size:20px}.brand-english{font-size:9px}.topbar{height:auto;min-height:76px;padding-top:12px;padding-bottom:12px}.brand-login .brand-symbol{width:111px;height:80px}}
+
+/* Private fishing map */
+.fishing-map-panel,.position-editor {margin:20px 0;padding:18px;border:1px solid #d9e4e5;border-radius:14px;background:#fff;min-width:0}
+.position-editor legend{font-weight:600;padding:0 6px}
+.google-map{height:360px;width:100%;border-radius:10px;background:#eef4f5;margin-top:12px}
+.position-editor .google-map{height:280px}
+.map-filters,.map-coordinates,.map-search,.map-actions{display:flex;flex-wrap:wrap;gap:10px;align-items:end;margin:12px 0}
+.map-filters label,.map-coordinates label,.spot-edit label{display:flex;flex-direction:column;gap:6px;min-width:0}
+.map-filters input,.map-filters select,.map-coordinates input,.map-search input,.spot-edit input,.position-editor select{padding:8px;border:1px solid #cddcde;border-radius:6px;max-width:100%;background:white;color:#24444a}
+.map-search input{flex:1;min-width:130px}
+.fishing-map-panel button,.position-editor button{border:1px solid #cddcde;border-radius:7px;padding:8px 12px;background:#f5f9f9;color:#174d53;cursor:pointer}
+.fishing-map-panel button:disabled,.position-editor button:disabled{opacity:.6;cursor:wait}
+.map-check{flex-direction:row!important;align-items:center}
+.spot-list{display:flex;flex-wrap:wrap;gap:8px}
+.spot-list button[aria-pressed=true]{background:#174d53;color:white}
+.spot-detail{margin-top:18px;border-top:1px solid #d9e4e5;padding-top:16px}
+.spot-detail article{margin-top:12px;border-bottom:1px solid #edf1f1;padding:10px 0}
+.spot-detail img{width:80px;height:80px;object-fit:cover;margin:4px;border-radius:8px}
+.map-notice{background:#eef4f5;padding:12px;border-radius:8px;margin:12px 0}
+.position-editor details{margin:12px 0}
+.position-editor p{overflow-wrap:anywhere}
+@media(max-width:600px){.fishing-map-panel,.position-editor{padding:12px}.google-map{height:300px}.map-filters>label{flex:1 1 130px}.map-coordinates>label{flex:1 1 100px}.map-coordinates input{width:100%}.map-search{align-items:stretch}}
