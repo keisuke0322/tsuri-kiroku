@@ -28,7 +28,10 @@ function visit() {
   cy.visit('/');
   cy.wait('@list').its('response.statusCode').should('equal', 200);
 }
-function reload() { cy.reload(); cy.wait('@list').its('response.statusCode').should('equal', 200); }
+function reload() { cy.reload(); return cy.wait('@list').then(interception => {
+  expect(interception.response.statusCode).to.equal(200);
+  return interception;
+}); }
 
 describe('釣果の主要操作', () => {
   before(() => { expect(marker, 'run marker').to.match(/^E2E-[a-f0-9-]{36}$/); });
@@ -155,26 +158,47 @@ describe('釣果の主要操作', () => {
     cy.intercept('POST', '/api/catches').as('saveMap');cy.get(by('save-catch')).click();
     cy.wait('@saveMap').then(({response}) => {
       expect(response.statusCode).to.equal(201);const id=response.body.id;createdIds.push(id);
-      cy.wait('@list').its('response.statusCode').should('equal', 200);reload();
-      cy.request({url:'/api/catches',log:false}).then(({body}) => {
-        const position=body.find(x=>x.id===id).position;expect(position.latitude).to.equal(35.123);const spotId=position.spotId;
+      cy.wait('@list').its('response.statusCode').should('equal', 200);
+      reload().then(({response}) => {
+        const body=response.body;
+        expect(body, 'catch list').to.be.an('array');
+        const trip=body.find(x=>x.id===id);
+        expect(trip, `saved catch ${id}`).to.exist;
+        const position=trip.position;expect(position.latitude).to.equal(35.123);const spotId=position.spotId;
         cy.get(by('toggle-map')).click();
         cy.get(`${by('map-spot')}[data-spot-id="${spotId}"]`).click();
         cy.get(by('spot-detail')).should('contain', `${marker}-map-${width}`).and('contain','35.123000');
-        cy.intercept('PUT',`/api/spots/${spotId}`).as('spot');
-        cy.get(by('favorite-spot')).click();cy.wait('@spot').its('response.statusCode').should('equal',200);
+        cy.intercept('PUT',`/api/spots/${spotId}`).as('favoriteSpot');
+        cy.get(by('favorite-spot')).click();cy.wait('@favoriteSpot').its('response.statusCode').should('equal',200);
         cy.get(by('map-favorites')).check();cy.get(`${by('map-spot')}[data-spot-id="${spotId}"]`).should('exist');
         cy.get(by('map-species')).select('アジ');
         cy.get(by('map-start')).type('2099-01-01');cy.get(`${by('map-trip')}[data-catch-id="${id}"]`).should('not.exist');
         cy.get(by('map-start')).clear();cy.get(`${by('map-spot')}[data-spot-id="${spotId}"]`).click();
         cy.get(by('edit-spot')).click();cy.get(by('spot-name')).clear().type(`${marker}-renamed-${width}`);
         cy.get('.spot-edit summary').click();cy.get('.spot-edit '+by('latitude')).clear().type('36');
-        cy.get('.spot-edit '+by('apply-coordinates')).click();cy.get(by('save-spot')).click();
-        cy.wait('@spot').its('response.statusCode').should('equal',200);
-        cy.get(by('spot-detail')).should('contain', `${marker}-renamed-${width}`);
-        cy.request({url:'/api/catches',log:false}).then(({body}) => {
-          const trip=body.find(x=>x.id===id);expect(trip.location).to.equal(`${marker}-map-${width}`);expect(trip.position.latitude).to.equal(35.123);
+        cy.get('.spot-edit '+by('apply-coordinates')).click();
+        cy.intercept('PUT',`/api/spots/${spotId}`).as('editSpot');
+        cy.get(by('save-spot')).click();
+        cy.wait('@editSpot').then(({request,response})=>{
+          expect(response.statusCode).to.equal(200);
+          expect(request.body.name).to.equal(`${marker}-renamed-${width}`);
+          expect(request.body.latitude).to.equal(36);
         });
+        cy.get(by('spot-detail')).should('contain', `${marker}-renamed-${width}`);
+        // Validate persistence using the reload response consumed by the UI.
+        // Check the exact saved ID and coordinates after reloading, not only local UI state.
+        reload().then(({response})=>{
+          expect(response.body, 'reloaded catch list').to.be.an('array');
+          const saved=response.body.find(x=>x.id===id);
+          expect(saved, `preserved catch ${id}`).to.exist;
+          expect(saved.location).to.equal(`${marker}-map-${width}`);
+          expect(saved.position).to.include({latitude:35.123,longitude:139.456,spotId});
+        });
+        card(id).should('contain',`${marker}-map-${width}`);
+        cy.get(by('toggle-map')).click();
+        cy.get(`${by('map-spot')}[data-spot-id="${spotId}"]`).click();
+        cy.get(by('spot-detail')).should('contain',`${marker}-renamed-${width}`);
+        cy.get(`${by('map-trip')}[data-catch-id="${id}"]`).should('contain',`${marker}-map-${width}`).and('contain','35.123000, 139.456000');
         cy.get(by('record-catch')).click();cy.get(by('past-spot')).select(String(spotId));
         cy.get(by('catch-location')).should('have.value',`${marker}-renamed-${width}`);
         cy.get(by('selected-position')).should('contain','36.000000');
