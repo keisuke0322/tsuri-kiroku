@@ -45,10 +45,11 @@ describe('釣行場所の地図と公開範囲',()=>{
    cy.wait('@createLocation').then(({response})=>{
     expect(response.statusCode).to.equal(201);const id=response.body.id;createdIds.push(id);cy.wait('@locations');
     reload().then(rows=>{const saved=rows.find(x=>x.id===id);expect(saved.locationVisibility).to.equal('area');expect(saved.position).to.include(point)});
-    card(id).find(by('location-map-trigger')).scrollIntoView().focus().type('{enter}');
+    card(id).find(by('location-map-trigger')).scrollIntoView().focus().should('be.focused');
+    cy.press(Cypress.Keyboard.Keys.ENTER);
     cy.get(by('location-map-dialog')).should('be.visible').then($dialog=>{const r=$dialog[0].getBoundingClientRect();expect(r.left).to.be.at.least(0);expect(r.right).to.be.at.most(width)});
     cy.get(by('location-exact')).should('contain','35.123000, 139.456000');
-    cy.get(by('close-location-map')).type('{esc}');cy.get(by('location-map-dialog')).should('not.exist');card(id).find(by('location-map-trigger')).should('be.focused');
+    cy.get(by('close-location-map')).focus().should('be.focused');cy.press(Cypress.Keyboard.Keys.ESC);cy.get(by('location-map-dialog')).should('not.exist');card(id).find(by('location-map-trigger')).should('be.focused');
     for(const visibility of ['private','exact','area']){
      card(id).find(by('edit-catch')).click();cy.get(by('location-visibility')).select(visibility);cy.intercept('PUT',`/api/catches/${id}`).as('editLocation');cy.get(by('save-catch')).click();cy.wait('@editLocation').its('response.statusCode').should('equal',200);cy.wait('@locations');
      reload().then(rows=>{const saved=rows.find(x=>x.id===id);expect(saved.locationVisibility).to.equal(visibility);expect(saved.position).to.include(point)});
