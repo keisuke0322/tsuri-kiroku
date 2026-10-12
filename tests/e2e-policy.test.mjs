@@ -6,7 +6,7 @@ import {mkdtemp, rm} from 'node:fs/promises';
 import {tmpdir} from 'node:os';
 import {join} from 'node:path';
 import {command} from '../scripts/e2e-command.mjs';
-import {validateTarget, createSession, createRunMarker, cleanupQuery} from '../scripts/e2e-policy.mjs';
+import {validateTarget, createSession, createRunMarker, cleanupQuery, cleanupSpotsQuery} from '../scripts/e2e-policy.mjs';
 const config = {name: 'tsuri-kiroku-staging', vars: {APP_ORIGIN: 'https://tsuri-kiroku-staging.keisuke0322.workers.dev'},
   d1_databases: [{database_name: 'tsuri-kiroku-staging', database_id: 'bd5eb98e-edc9-4c26-8d2b-f1fd8e825ba5'}]};
 test('E2E rejects production, mixed databases, missing users and SQL injection', () => {
@@ -50,4 +50,12 @@ test('D1 query mode returns parseable JSON containing actual SELECT rows', async
 test('command errors do not expose captured credential-bearing output', async () => {
   await assert.rejects(command(['--eval', 'console.log("fake-secret"); console.error("fake-secret"); process.exit(1)'], {quiet: true}),
     error => !error.message.includes('fake-secret'));
+});
+
+test('map cleanup deletes only generated spot names for the test owner', () => {
+  const db=new DatabaseSync(':memory:');db.exec('CREATE TABLE fishing_spots (id INTEGER,owner_id TEXT,name TEXT)');
+  const marker=createRunMarker(),insert=db.prepare('INSERT INTO fishing_spots VALUES (?,?,?)');
+  insert.run(1,'google:123',marker+'-map');insert.run(2,'google:123','海岸');insert.run(3,'google:456',marker+'-map');insert.run(4,'google:123',createRunMarker()+'-map');
+  db.exec(cleanupSpotsQuery('google:123',marker));assert.deepEqual(db.prepare('SELECT id FROM fishing_spots ORDER BY id').all().map(x=>x.id),[2,3,4]);
+  assert.throws(()=>cleanupSpotsQuery('google:123','%'));db.close();
 });

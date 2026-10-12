@@ -17,6 +17,7 @@ config.name=name;config.account_id=process.env.CLOUDFLARE_ACCOUNT_ID;
 config.d1_databases=[{binding:'DB',database_name:name,database_id:process.env.D1_DATABASE_ID,migrations_dir:'drizzle'}];
 config.r2_buckets=[{binding:'BUCKET',bucket_name:`tsuri-kiroku-photos-${stage}`}];
 config.vars={APP_ORIGIN:origin.origin,GOOGLE_CLIENT_ID:process.env.GOOGLE_CLIENT_ID};
+if(process.env.GOOGLE_MAPS_API_KEY)config.vars.GOOGLE_MAPS_API_KEY=process.env.GOOGLE_MAPS_API_KEY;
 for(const [key,fallback] of [['PHOTO_STORAGE_GLOBAL_LIMIT_BYTES','8000000000'],['PHOTO_STORAGE_USER_LIMIT_BYTES','100000000']]) {
   // GitHub's unset optional environment variables arrive as empty strings.
   const value=process.env[key]||fallback;

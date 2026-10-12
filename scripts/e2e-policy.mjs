@@ -27,3 +27,8 @@ export function cleanupQuery(userId, marker) {
   if (!/^google:[0-9]+$/.test(userId) || !/^E2E-[a-f0-9-]{36}$/.test(marker)) throw Error('Invalid cleanup scope.');
   return `SELECT id FROM catches WHERE owner_id='${userId}' AND memo='${marker}'`;
 }
+
+export function cleanupSpotsQuery(userId, marker) {
+  cleanupQuery(userId, marker); // Reuse strict owner and generated marker validation.
+  return `DELETE FROM fishing_spots WHERE owner_id='${userId}' AND name LIKE '${marker}-%'`;
+}

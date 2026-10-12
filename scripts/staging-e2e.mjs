@@ -1,6 +1,6 @@
 import {readFile, writeFile} from 'node:fs/promises';
 import {command} from './e2e-command.mjs';
-import {validateTarget, createSession, createRunMarker, cleanupQuery} from './e2e-policy.mjs';
+import {validateTarget, createSession, createRunMarker, cleanupQuery, cleanupSpotsQuery} from './e2e-policy.mjs';
 
 const config = JSON.parse(await readFile('wrangler.deploy.json', 'utf8'));
 const origin = validateTarget(config, process.env.E2E_USER_ID, process.env.E2E_OTHER_USER_ID);
@@ -50,6 +50,8 @@ try {
       if (![200, 404].includes(response.status)) throw Error('Test record cleanup failed.');
     }
   } catch { console.error('Test record cleanup failed; inspect records with marker ' + marker); failed = true; }
+  try { await sql(cleanupSpotsQuery(sessions[0].userId, marker)); }
+  catch { console.error('Test spot cleanup failed; inspect spots with marker ' + marker); failed = true; }
   for (const session of sessions) {
     try { await sql(`DELETE FROM auth_sessions WHERE token_hash='${session.hash}' AND user_id='${session.userId}'`); }
     catch { console.error('Temporary session cleanup failed; it expires within one hour.'); failed = true; }

@@ -38,3 +38,13 @@ export const photoStorageObjects=sqliteTable('photo_storage_objects',{
  byteSize:integer('byte_size').notNull(),state:text('state',{enum:['reserved','stored','deleting']}).notNull(),
  inventorySeen:integer('inventory_seen').notNull().default(0),createdAt:text('created_at').notNull()
 },table=>[index('idx_photo_storage_owner').on(table.ownerId),index('idx_photo_storage_catch').on(table.catchId),index('idx_photo_storage_state').on(table.state),check('photo_object_size',sql`${table.byteSize}>=0`),check('photo_object_state',sql`${table.state} IN ('reserved','stored','deleting')`)]);
+
+// Positions are deliberately separate from the shared catches query.
+export const fishingSpots=sqliteTable('fishing_spots',{
+ id:integer('id').primaryKey({autoIncrement:true}),ownerId:text('owner_id').notNull().references(()=>profiles.userId,{onDelete:'cascade'}),
+ name:text('name').notNull(),latitude:real('latitude').notNull(),longitude:real('longitude').notNull(),favorite:integer('favorite').notNull().default(0)
+},table=>[index('idx_fishing_spots_owner').on(table.ownerId)]);
+export const catchPositions=sqliteTable('catch_positions',{
+ catchId:integer('catch_id').primaryKey().references(()=>catches.id,{onDelete:'cascade'}),spotId:integer('spot_id').references(()=>fishingSpots.id,{onDelete:'set null'}),
+ latitude:real('latitude').notNull(),longitude:real('longitude').notNull(),source:text('source',{enum:['gps','map','saved']}).notNull()
+});
