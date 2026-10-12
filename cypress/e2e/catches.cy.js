@@ -71,6 +71,52 @@ describe('釣果の主要操作', () => {
     });
   });
 
+  for (const width of [1280, 390]) it(`魚種ごとのレシピ検索とポップアップ操作（${width}px）`, () => {
+    cy.viewport(width, 844);
+    const fishNames = ['アジ', '太刀魚', 'とても長い名前の魚（地方名・別名を含む）'];
+    const body = {...payload(`recipes-${width}`), fish: fishNames.map(species => ({species, count: 1, length: null}))};
+    cy.request({method: 'POST', url: '/api/catches', body,
+      headers: {Origin: Cypress.config('baseUrl')}, log: false}).then(response => {
+      expect(response.status).to.equal(201);
+      const id = response.body.id; createdIds.push(id);
+      visit();
+      reload();
+      card(id).find(by('recipe-trigger')).should('have.length', 3);
+      for (const name of fishNames) {
+        const selector = `${by('recipe-trigger')}[aria-label="${name}のレシピを探す"]`;
+        card(id).find(selector).scrollIntoView().click().should('have.attr', 'aria-expanded', 'true');
+        cy.get(by('recipe-popover')).should('be.visible').and('contain', `${name}のレシピ`).then($popup => {
+          const rect = $popup[0].getBoundingClientRect();
+          expect(rect.left).to.be.at.least(0);
+          expect(rect.right).to.be.at.most(width);
+        });
+        const query = encodeURIComponent(`釣り ${name}`);
+        const urls = [`https://recipe.rakuten.co.jp/search/${query}/`, `https://cookpad.com/jp/search/${query}`];
+        cy.get(by('recipe-link')).should('have.length', 2).each(($link, index) => {
+          expect($link.attr('href')).to.equal(urls[index]);
+          expect($link.attr('target')).to.equal('_blank');
+          expect($link.attr('rel')).to.equal('noopener noreferrer');
+        });
+        cy.get(by('recipe-link')).first().should('be.focused');
+        cy.get(by('recipe-close')).click();
+        cy.get(by('recipe-popover')).should('not.exist');
+        card(id).find(selector).should('be.focused');
+      }
+      // Native keyboard activation, tab navigation and Escape restore focus.
+      card(id).find(by('recipe-trigger')).first().focus();
+      cy.press(Cypress.Keyboard.Keys.ENTER);
+      cy.get(by('recipe-link')).first().should('be.focused');
+      cy.press(Cypress.Keyboard.Keys.TAB);
+      cy.get(by('recipe-link')).last().should('be.focused');
+      cy.press(Cypress.Keyboard.Keys.ESC);
+      cy.get(by('recipe-popover')).should('not.exist');
+      card(id).find(by('recipe-trigger')).first().should('be.focused').click();
+      cy.contains('釣行一覧').click();
+      cy.get(by('recipe-popover')).should('not.exist');
+      card(id).find(by('edit-catch')).should('be.visible');
+    });
+  });
+
   it('必須項目が空なら保存リクエストを送らず、修正後に保存できる', () => {
     visit();
     let requests = 0;
