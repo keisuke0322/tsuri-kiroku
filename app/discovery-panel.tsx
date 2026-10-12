@@ -1,10 +1,12 @@
-import {Fish,Heart,MapPin,CalendarDays} from 'lucide-react';
+import {Fish,Heart,CalendarDays} from 'lucide-react';
 import {Tabs,TabsList,TabsTrigger} from '@/components/ui/tabs';
 import {Avatar} from './profile-dialog';
 import PhotoViewer from './photo-viewer';
 import {aggregateDiscovery,type DiscoveryEntry,type Period} from './discovery';
-type Entry=DiscoveryEntry&{photos:{id:number;species:string}[];featured_photo_id:number|null;owner_id:string;authorName:string;location:string;liked:boolean};
-export default function DiscoveryPanel<T extends Entry>({items,days,onDays,now,onSpecies,onProfile,onLike,busyLikes}:{items:T[];days:Period;onDays:(days:Period)=>void;now:Date;onSpecies:(species:string)=>void;onProfile:(id:string)=>void;onLike:(item:T)=>void;busyLikes:Set<number>}){
+import LocationMapDialog from './location-map-dialog';
+import type {LocationEntry} from './location-privacy';
+type Entry=DiscoveryEntry&LocationEntry&{photos:{id:number;species:string}[];featured_photo_id:number|null;owner_id:string;authorName:string;location:string;liked:boolean};
+export default function DiscoveryPanel<T extends Entry>({mapsApiKey,items,days,onDays,now,onSpecies,onProfile,onLike,busyLikes}:{mapsApiKey:string;items:T[];days:Period;onDays:(days:Period)=>void;now:Date;onSpecies:(species:string)=>void;onProfile:(id:string)=>void;onLike:(item:T)=>void;busyLikes:Set<number>}){
  const {fish,featured,hasLikes}=aggregateDiscovery(items,days,now);
  return <section className="discovery" aria-label="みんなの釣果のトレンド">
   <div className="discovery-toolbar"><span>最近の釣果をチェック</span><Tabs value={String(days)} onValueChange={v=>onDays(Number(v) as Period)}><TabsList aria-label="ランキングの集計期間"><TabsTrigger value="7">7日間</TabsTrigger><TabsTrigger value="30">30日間</TabsTrigger></TabsList></Tabs></div>
@@ -16,7 +18,7 @@ export default function DiscoveryPanel<T extends Entry>({items,days,onDays,now,o
     {photo?<PhotoViewer className="featured-photo" photos={item.photos} initialPhotoId={photo.id} fish={item.fish} date={item.date} location={item.location}><img src={`/api/photos/${photo.id}`} alt={`${representative}の釣果写真`} loading="lazy"/></PhotoViewer>:<div className="featured-photo photo-fallback" role="img" aria-label="写真なし"><Fish size={48}/></div>}
     <div className="featured-info"><div className="featured-heading"><h3>{representative}{others>0&&<small> ほか{others}種</small>}</h3><div className="card-actions"><button className={`like-button ${item.liked?'is-liked':''}`} aria-label={item.liked?'いいねを取り消す':'いいね'} aria-pressed={item.liked} disabled={busyLikes.has(item.id)} onClick={()=>onLike(item)}><Heart size={19} fill={item.liked?'currentColor':'none'}/><span>{item.likeCount}</span></button></div></div>
      <button className="author-button" onClick={()=>onProfile(item.owner_id)}><Avatar name={item.authorName}/><span>{item.authorName}</span></button>
-     <p className="featured-date"><CalendarDays size={15}/><time dateTime={item.date}>{item.date.replaceAll('-','/')}</time></p><p className="place"><MapPin size={16}/>{item.location}</p>
+     <p className="featured-date"><CalendarDays size={15}/><time dateTime={item.date}>{item.date.replaceAll('-','/')}</time></p><LocationMapDialog entry={item} apiKey={mapsApiKey}/>
     </div></article>})}</div>:<p className="discovery-empty">過去{days}日間の投稿はありません。</p>}
   </section>
  </section>;
