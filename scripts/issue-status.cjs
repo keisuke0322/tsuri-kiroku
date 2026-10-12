@@ -1,5 +1,4 @@
-const STATES = ['検討中', '開発中', 'staging確認待ち', '本番反映待ち', '完了'];
-
+const { STATES, setStatus } = require('./project-status.cjs');
 // Only explicit local references are release targets; incidental #numbers are ignored.
 function references(text = '') {
   const result = new Set();
@@ -10,47 +9,22 @@ function references(text = '') {
   return [...result];
 }
 
-async function setStatus({ github, context, number, status, initial = false }) {
-  if (!STATES.includes(status)) throw new Error('Unknown issue status');
-  const args = { ...context.repo, issue_number: number };
-  const { data: issue } = await github.rest.issues.get(args);
-  if (issue.pull_request) throw new Error(`#${number} is a PR, not an Issue`);
-  const labels = issue.labels.map(l => typeof l === 'string' ? l : l.name);
-  if (initial && labels.some(l => STATES.includes(l))) return;
-  if (status !== '完了' && issue.state === 'closed') return;
-  try {
-    await github.rest.issues.getLabel({ ...context.repo, name: status });
-  } catch (error) {
-    if (error.status !== 404) throw error;
-    try {
-      await github.rest.issues.createLabel({ ...context.repo, name: status, color: status === '完了' ? '0E8A16' : '1D76DB' });
-    } catch (error) { if (error.status !== 422) throw error; }
-  }
-  await github.rest.issues.addLabels({ ...args, labels: [status] });
-  for (const name of labels.filter(l => STATES.includes(l) && l !== status)) {
-    try { await github.rest.issues.removeLabel({ ...args, name }); }
-    catch (error) { if (error.status !== 404) throw error; }
-  }
-  if (status === '完了' && issue.state !== 'closed') {
-    await github.rest.issues.update({ ...args, state: 'closed', state_reason: 'completed' });
-  }
-}
-
-async function updateEvent({ github, context }) {
+async function updateEvent({ github, context, log }) {
   if (context.eventName === 'issues') {
-    return setStatus({ github, context, number: context.issue.number, status: '検討中', initial: true });
+    return setStatus({ github, context, number: context.issue.number, status: '検討中', initial: true, log });
   }
   const pr = context.payload.pull_request;
   if (pr.base.ref !== 'main' || pr.head.ref !== 'cloudflare-migration' ||
       pr.head.repo?.full_name !== `${context.repo.owner}/${context.repo.repo}`) return;
   for (const number of references(pr.body)) {
-    await setStatus({ github, context, number, status: '本番反映待ち' });
+    await setStatus({ github, context, number, status: '本番反映待ち', log });
   }
 }
 
-async function updateDeployment({ github, context }) {
+async function updateDeployment({ github, context, log }) {
   const targets = new Set();
   let status;
+  const releaseTargets = new Set();
   if (context.ref === 'refs/heads/cloudflare-migration') {
     status = 'staging確認待ち';
     const { data } = await github.rest.repos.compareCommitsWithBasehead({
@@ -61,8 +35,13 @@ async function updateDeployment({ github, context }) {
     for (const commit of data.commits) for (const number of references(commit.commit.message)) targets.add(number);
     const prs = await github.paginate(github.rest.pulls.list, { ...context.repo, state: 'open', base: 'main', head: `${context.repo.owner}:cloudflare-migration`, per_page: 100 });
     for (const pr of prs) {
-      // An existing release PR remains waiting for production after staging succeeds.
-      for (const number of references(pr.body)) targets.delete(number);
+      // Re-verify Project Status after staging, including PRs opened before this workflow was migrated.
+      if (pr.head.sha === context.sha) {
+        for (const number of references(pr.body)) {
+          targets.add(number);
+          releaseTargets.add(number);
+        }
+      }
     }
   } else if (context.ref === 'refs/heads/main') {
     status = '完了';
@@ -73,6 +52,6 @@ async function updateDeployment({ github, context }) {
     if (!pr) throw new Error('No merged release PR at production commit');
     for (const number of references(pr.body)) targets.add(number);
   } else throw new Error('Unsupported deployment branch');
-  for (const number of targets) await setStatus({ github, context, number, status });
+  for (const number of targets) await setStatus({ github, context, number, status: releaseTargets.has(number) ? '本番反映待ち' : status, log });
 }
 module.exports = { STATES, references, setStatus, updateEvent, updateDeployment };

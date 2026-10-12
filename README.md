@@ -1,4 +1,4 @@
-# 釣果ノート — Cloudflare版
+# つりめぐり（TSURIMEGURI） — Cloudflare版
 
 Googleログインで釣果・プロフィール・写真・いいねを共有するアプリです。
 
@@ -31,3 +31,5 @@ corepack pnpm dev
 検証: `corepack pnpm run typecheck` / `corepack pnpm test` / `corepack pnpm build`
 
 Sitesの既存データは取り込みません。テスト・本番は別のWorker、D1、R2を使用します。移行ブランチのpushはstagingへ自動デプロイします。staging確認後にcloudflare-migrationからmainへPRを作成し、ご自身でマージするとmainのコードがproductionへ自動デプロイされます。
+
+ブランド素材と使用方針は [docs/brand.md](docs/brand.md) を参照してください。
