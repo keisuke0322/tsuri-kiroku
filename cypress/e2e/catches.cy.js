@@ -71,10 +71,10 @@ describe('釣果の主要操作', () => {
     });
   });
 
-  for (const width of [1280, 390]) it(`魚種ごとのレシピ検索とポップアップ操作（${width}px）`, () => {
+  for (const width of [1280, 390, 414]) it(`魚種ごとのレシピ検索とポップアップ操作（${width}px）`, () => {
     cy.viewport(width, 844);
     const fishNames = ['アジ', '太刀魚', 'とても長い名前の魚（地方名・別名を含む）'];
-    const body = {...payload(`recipes-${width}`), fish: fishNames.map(species => ({species, count: 1, length: null}))};
+    const body = {...payload(`recipes-${width}`), fish: fishNames.map(species => ({species, count: 1, length: 12.5}))};
     cy.request({method: 'POST', url: '/api/catches', body,
       headers: {Origin: Cypress.config('baseUrl')}, log: false}).then(response => {
       expect(response.status).to.equal(201);
@@ -82,6 +82,22 @@ describe('釣果の主要操作', () => {
       visit();
       reload();
       card(id).find(by('recipe-trigger')).should('have.length', 3);
+      if (width <= 650) card(id).then($card => {
+        const main = $card[0].querySelector('.card-main').getBoundingClientRect();
+        const actions = $card[0].querySelector('.card-actions').getBoundingClientRect();
+        expect(actions.top).to.be.at.least(main.bottom);
+        const like = $card[0].querySelector('.card-actions .like-button').getBoundingClientRect();
+        const edit = $card[0].querySelector('[data-cy="edit-catch"]').getBoundingClientRect();
+        expect(like.left).to.equal(actions.left);
+        expect(edit.left - like.right).to.be.greaterThan(20);
+        $card[0].querySelectorAll('.catch-title').forEach(row => {
+          const fish = row.querySelector('h3').getBoundingClientRect();
+          const recipe = row.querySelector('.recipe-trigger').getBoundingClientRect();
+          expect(recipe.top).to.be.lessThan(fish.bottom);
+          expect(recipe.bottom).to.be.greaterThan(fish.top);
+          expect(recipe.right).to.be.at.most(main.right);
+        });
+      });
       for (const name of fishNames) {
         const selector = `${by('recipe-trigger')}[aria-label="${name}のレシピを探す"]`;
         card(id).find(selector).scrollIntoView().click().should('have.attr', 'aria-expanded', 'true');
