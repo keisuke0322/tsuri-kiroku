@@ -6,10 +6,12 @@ import {recipeLinks} from './recipe-links';
 
 function RecipeIcon() {
   return <svg data-cy="recipe-icon" width="22" height="22" viewBox="0 0 32 32" fill="none" aria-hidden="true">
-    <path d="M16 8C12 5 7 5 3 7v20c4-2 9-2 13 1 4-3 9-3 13-1V7c-4-2-9-2-13 1Zm0 0v20" stroke="#163b48" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
-    <path d="M6 16c2-4 5-4 7 0-2 4-5 4-7 0Zm0 0-2-2v4l2-2Z" fill="#e98636"/>
-    <circle cx="11" cy="15.5" r=".8" fill="#163b48"/>
-    <path d="M20 12h5m-5 5h5m-5 5h3" stroke="#163b48" strokeWidth="2" strokeLinecap="round"/>
+    <g stroke="#163b48" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round">
+      <path d="m4 7 5 5m-2-8 5 5m-2-8 5 5c3 3-2 8-5 5L4 7m8 6 14 14"/>
+      <path d="m18 15-13 13"/>
+    </g>
+    <ellipse cx="22" cy="10" rx="4" ry="6" transform="rotate(40 22 10)" fill="#163b48"/>
+    <path d="m28 1 1.2 2.8L32 5l-2.8 1.2L28 9l-1.2-2.8L24 5l2.8-1.2Z" fill="#e98636"/>
   </svg>;
 }
 
