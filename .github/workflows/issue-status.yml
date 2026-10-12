@@ -1,4 +1,4 @@
-name: Update Issue lifecycle labels
+name: Update Project Status for Issues and PRs
 on:
   issues:
     types: [opened]
@@ -9,20 +9,25 @@ permissions:
   contents: read
   issues: write
 concurrency:
-  group: issue-lifecycle
+  group: project-7-status
   cancel-in-progress: false
 jobs:
   update:
+    if: >-
+      github.event_name == 'issues' ||
+      (github.event.pull_request.head.repo.full_name == github.repository &&
+       github.event.pull_request.head.ref == 'cloudflare-migration')
     runs-on: ubuntu-latest
     timeout-minutes: 5
     steps:
-      # Always execute trusted base-branch code, never PR content.
+      # Execute trusted base code, never the PR branch with PROJECT_TOKEN.
       - uses: actions/checkout@v4
         with:
           ref: ${{ github.event.repository.default_branch }}
           persist-credentials: false
       - uses: actions/github-script@v7
         with:
+          github-token: ${{ secrets.PROJECT_TOKEN }}
           script: |
             const { updateEvent } = require('./scripts/issue-status.cjs');
-            await updateEvent({ github, context });
+            await updateEvent({ github, context, log: core.info });

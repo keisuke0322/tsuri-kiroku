@@ -1,17 +1,29 @@
-# Issue状態の自動管理
+# GitHub ProjectのStatus自動管理
 
-| 操作 | ラベル | 担当 |
+状態は [Project #7](https://github.com/users/keisuke0322/projects/7) の `Status` フィールドで管理する。
+
+| 操作 | Project Status | 担当 |
 | --- | --- | --- |
-| Issue登録 | 検討中 | AI、Issue opened Actions |
-| 開発着手 | 開発中 | AGENTS.mdに従うAI |
+| Issue登録 | 検討中 | Issue opened Actions、AIのproject:検討中操作 |
+| 開発着手 | 開発中 | AIのproject:開発中操作 |
 | stagingデプロイ・動作確認・E2E成功 | staging確認待ち | Deploy Cloudflareの後続ジョブ |
-| main向けPR登録 | 本番反映待ち | AI、PRイベントActions |
+| main向けPR登録 | 本番反映待ち | PRイベントActions |
 | mainへマージ後productionデプロイ・動作確認成功 | 完了 | Deploy Cloudflareの後続ジョブ（Issueも閉じる） |
 
-開発コミットとPR本文に独立した行で `Refs #123` を記載する。複数のIssueは `Refs #123, #124` と書く。単なる文章中の番号や別リポジトリへの参照は対象にしない。PR本文には本番反映する全Issueを記載する。`Closes`などはマージ時にIssueを閉じるため、新規PRでは使用しない（過去の記載は解析可能）。
+IssueがProjectに未登録なら自動で追加する。Status以外のフィールドや分類ラベルには触れない。Issueの通常ラベルは状態管理に使わない。
 
-stagingではmainとの差分コミットから対象を取得する。開いているリリースPRに既に記載されたIssueは本番反映待ちを維持する。追加開発したIssueはAIがstaging成功後に本番反映待ちへ更新する。productionではデプロイしたmainコミットに対応するマージ済みPRの本文だけを使用する。
+## AIからの操作
 
-状態変更では他の状態ラベルだけを外し、優先度や分類を保持する。必要な状態ラベルは自動作成する。閉じたIssueをstaging・PRイベントで戻さない。デプロイやテストが失敗した場合は状態を進めない。ラベル更新自体が失敗した場合はActionsの後続ジョブが失敗し、再実行で復旧できる。
+`project:検討中` / `project:開発待ち` / `project:開発中` / `project:staging確認待ち` / `project:本番反映待ち` / `project:完了` はProject更新の操作用ラベル。既存の `priority:高` / `priority:中` / `priority:低` も利用できる。Actionsが対応するフィールドだけを変更し、読み戻し確認後に操作用ラベルを外す。更新に失敗した場合は操作用ラベルを残す。リポジトリへの書き込み権限があるユーザーの操作だけを受け付ける。
 
-この設定を含むPRがmainにマージされると、Issue作成・PRイベントのActionsが有効になる。開発ブランチへの反映時点からAIルールとstagingの後続ジョブは利用できる。新しいSecretsは不要（標準GITHUB_TOKENを使用）。既存のProject操作用ラベルとProjectフィールドには干渉しない。
+## デプロイと対象Issue
+
+開発コミットとPR本文に独立した行で `Refs #123` を記載する。複数のIssueは `Refs #123, #124`。PR本文には本番反映する全Issueを記載する。`Closes`などはマージ時にIssueを閉じるため、新規PRでは使用しない（過去の記載は解析可能）。
+
+stagingではmainとの差分コミットから対象を取得する。デプロイしたコミットと同じheadのmain向けPRが既にあれば、PRの対象Issueは `本番反映待ち` にする。productionではデプロイしたmainコミットに対応するマージ済みPRの本文だけを使用する。デプロイやテストが失敗した場合は状態を進めない。本番の完了はStatusを読み戻し確認した後にIssueを閉じる。
+
+## 既存設定からの修正と有効化
+
+既存の `PROJECT_TOKEN` を全Project更新ジョブで使用する。新しいSecretsは不要。Issue・PRイベントの変更は、この修正をmainにマージした後に有効になる。
+
+開発ブランチへのpushで初期設定ジョブを実行する。既存Statusの選択肢（開発待ちを含む）のID・色・説明を保持し、不足する5段階の選択肢だけを追加する。通常のIssue状態ラベルが付いたIssueはその値をProject Statusへ移し、読み戻し確認後に該当Issueラベルを外す。Issueを勝手に閉じたり再オープンしたりしない。状態ラベルが複数あれば推測せずジョブを失敗させる。
