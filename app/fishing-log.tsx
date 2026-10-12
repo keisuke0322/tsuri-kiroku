@@ -1,6 +1,6 @@
 'use client';
 import {useEffect,useEffectEvent,useMemo,useRef,useState} from 'react';
-import {Anchor,Fish,MapPin,Plus,Search,CalendarDays,Trash2,Pencil,Waves,Camera,X,Heart,LogOut} from 'lucide-react';
+import {Anchor,Fish,MapPin,Plus,Search,CalendarDays,Trash2,Pencil,Camera,X,Heart,LogOut} from 'lucide-react';
 import {Dialog,DialogContent,DialogHeader,DialogTitle} from '@/components/ui/dialog';
 import {Button} from '@/components/ui/button';
 import {Input} from '@/components/ui/input';
@@ -9,6 +9,7 @@ import {compressPhoto} from './photo-compression';
 import CatchDateField from './catch-date-field';
 import {validateCatch,type CatchFieldErrors} from './catch-validation';
 import SeasonalHero from './seasonal-hero';
+import Brand from './brand';
 import DemoControls from './demo-controls';
 import PhotoViewer from './photo-viewer';
 import DiscoveryPanel from './discovery-panel';
@@ -94,7 +95,7 @@ export default function FishingLog({canManageDemo=false,userId,initialName,signO
  if(signedOut)return <div className="empty" role="status">ログイン画面へ移動しています…</div>;
 
  return <div className="app-shell"><Toaster position="top-center" richColors/>
-  <header className="topbar"><div className="brand"><span className="brand-mark"><Waves size={23}/></span><span>釣果ノート</span></div><nav className="account-nav" aria-label="アカウント"><button className="profile-button" onClick={()=>showProfile(userId)}><Avatar name={profile.displayName}/><span>{profile.displayName}</span></button><a href={signOutPath} target="_top" onClick={e=>{e.preventDefault();void logout()}}><LogOut size={17}/><span>ログアウト</span></a></nav></header>
+  <header className="topbar"><Brand/><nav className="account-nav" aria-label="アカウント"><button className="profile-button" onClick={()=>showProfile(userId)}><Avatar name={profile.displayName}/><span>{profile.displayName}</span></button><a href={signOutPath} target="_top" onClick={e=>{e.preventDefault();void logout()}}><LogOut size={17}/><span>ログアウト</span></a></nav></header>
   <main><SeasonalHero onRecord={startNew} onView={()=>{setQuery('');setSpeciesFilter('すべて');listHeading.current?.focus({preventScroll:true});listHeading.current?.scrollIntoView({behavior:window.matchMedia('(prefers-reduced-motion: reduce)').matches?'instant':'smooth',block:'start'})}}/><div className="container">
    <Dialog open={open} onOpenChange={value=>{if(saving)return;if(!value)cancelPhotoTask();setOpen(value)}}><DialogContent className="form-dialog"><DialogHeader><DialogTitle>{editing?'記録を編集':'新しい釣果を記録'}</DialogTitle></DialogHeader>
     <form noValidate onSubmit={submit} className="entry-form"><p className="required-note">※は必須項目です</p>{fieldError('form')}<div className="form-grid"><CatchDateField value={form.date} error={fieldErrors.date} onBlur={revalidate} onChange={date=>setForm(current=>({...current,date}))}/><label><span className="required-field-label">場所 ※</span><Input data-cy="catch-location" {...fieldProps('location')} placeholder="例：三浦海岸" required value={form.location} onChange={e=>setForm({...form,location:e.target.value})}/>{fieldError('location')}</label></div>
