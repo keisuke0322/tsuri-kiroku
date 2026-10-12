@@ -26,4 +26,6 @@ cloudflare-migrationへのpushでProject初期設定ActionsがStatus選択肢・
 
 「Update Project from issue labels」と「Update Project Status for Issues and PRs」のActions結果を確認します。失敗時は権限・PROJECT_TOKEN・Project選択肢を確認して再実行してください。再実行は既存のProject項目を利用し、設定済みStatusを上書きしません。外部コードはSecrets付きで実行しません。
 
-外部PRの取り込み・クローズ時点の詳細はIssue #26で整備します。本番公開は従来どおりcloudflare-migrationからmainへのPRを使います。
+外部PRは `Contribution checks` の成功と管理者レビュー後、merge commitでcloudflare-migrationへ取り込んだ時点で閉じます。関連Issueは本番成功まで開いたまま追跡し、外部PRのProject Statusも取り込み時点では「完了」にしません。詳細は[貢献ガイド](../CONTRIBUTING.md#取り込みから本番公開まで)を参照してください。
+
+Issueフォームはmainへのマージ後にNew issueで選べます。外部PR用CIは提出先cloudflare-migrationにワークフローが入った後、そのブランチ宛てのPRの作成・更新で動作します。fork投稿ではGitHubのActions実行承認が必要な場合があります。

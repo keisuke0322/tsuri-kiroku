@@ -1,0 +1,33 @@
+name: 機能要望
+description: 新しい機能や改善を提案する
+title: "[要望] "
+body:
+  - type: markdown
+    attributes:
+      value: |
+        投稿前に既存のIssueをご確認ください。要望は検討の入口であり、採用・対応時期を確約するものではありません。
+        パスワード、APIキー、セッション情報、個人情報は記載しないでください。
+  - type: textarea
+    id: problem
+    attributes:
+      label: 困っていること・目的
+      description: 何を解決したいですか？
+    validations:
+      required: true
+  - type: textarea
+    id: expected
+    attributes:
+      label: 希望する動作
+      description: どのような機能・改善を希望しますか？
+    validations:
+      required: true
+  - type: textarea
+    id: context
+    attributes:
+      label: 利用場面
+      description: いつ、どのような場面で使いたいですか？
+  - type: textarea
+    id: alternatives
+    attributes:
+      label: 代替案・補足
+      description: 他の方法や補足情報があれば記載してください（任意）。
