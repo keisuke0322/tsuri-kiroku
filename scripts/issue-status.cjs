@@ -9,11 +9,29 @@ function references(text = '') {
   return [...result];
 }
 
+// Classify the original author, never the actor editing/reopening the submission.
+async function isExternal({ github, context, author }) {
+  if (!author?.login) throw new Error('Submission author is missing');
+  if (author.type === 'Bot' || author.login.endsWith('[bot]')) return false;
+  const { data } = await github.rest.repos.getCollaboratorPermissionLevel({ ...context.repo, username: author.login });
+  return !['admin', 'maintain', 'write'].includes(data.permission);
+}
+
 async function updateEvent({ github, context, log }) {
-  if (context.eventName === 'issues') {
-    return setStatus({ github, context, number: context.issue.number, status: '検討中', initial: true, log });
+  const issueEvent = context.eventName === 'issues';
+  const submission = issueEvent ? context.payload.issue : context.payload.pull_request;
+  if (!submission) throw new Error('Submission payload is missing');
+  const external = await isExternal({ github, context, author: submission.user });
+  if (external) {
+    await github.rest.issues.addLabels({ ...context.repo, issue_number: submission.number, labels: ['外部提案'] });
+    await setStatus({ github, context, number: submission.number, kind: issueEvent ? 'issue' : 'pullRequest', status: '外部提案', initial: true, log });
+    // Never use an external PR's Refs to update another Issue.
+    return;
   }
-  const pr = context.payload.pull_request;
+  if (issueEvent) {
+    return setStatus({ github, context, number: submission.number, status: '検討中', initial: true, log });
+  }
+  const pr = submission;
   if (pr.base.ref !== 'main' || pr.head.ref !== 'cloudflare-migration' ||
       pr.head.repo?.full_name !== `${context.repo.owner}/${context.repo.repo}`) return;
   for (const number of references(pr.body)) {
@@ -54,4 +72,4 @@ async function updateDeployment({ github, context, log }) {
   } else throw new Error('Unsupported deployment branch');
   for (const number of targets) await setStatus({ github, context, number, status: releaseTargets.has(number) ? '本番反映待ち' : status, log });
 }
-module.exports = { STATES, references, setStatus, updateEvent, updateDeployment };
+module.exports = { STATES, isExternal, references, setStatus, updateEvent, updateDeployment };

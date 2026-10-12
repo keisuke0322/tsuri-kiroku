@@ -64,12 +64,13 @@
 
 ## GitHub ProjectのStatus管理（必須）
 
-- 状態は [Project #7](https://github.com/users/keisuke0322/projects/7) の単一選択フィールド `Status` で管理する。値は `検討中` / `開発中` / `staging確認待ち` / `本番反映待ち` / `完了`。通常のIssueラベルで状態を管理しない。既存の `開発待ち` と優先度は保持する。
+- 状態は [Project #7](https://github.com/users/keisuke0322/projects/7) の単一選択フィールド `Status` で管理する。値は `外部提案` / `検討中` / `開発中` / `staging確認待ち` / `本番反映待ち` / `完了`。通常のIssueラベルで状態を管理しない。既存の `開発待ち` と優先度は保持する。
 - AIがIssueを登録したら `project:検討中`、開発依頼で実装に着手する前には `project:開発中` を付ける。既存ActionsがProjectへ追加・Statusを変更し、読み戻し確認後に操作用ラベルを外す。GitHubへの反映とActions成功を確認する。変更できなければ黙って省略せず報告する。
 - 開発コミットのメッセージに独立した行で `Refs #番号` を記載する（複数は `Refs #12, #13`）。stagingへのpush前に対象Issueの記載漏れがないことを確認する。
 - stagingデプロイ・動作確認・E2Eがすべて成功した後、Actionsが対象IssueのProject Statusを `staging確認待ち` に変更する。
 - main向けPR本文に今回本番へ反映する全対象Issueを `Refs #番号` で記載する。PRイベントActionsがProject Statusを `本番反映待ち` に変更する。既存PRに追加修正をpushした場合も、staging成功後のActionsがStatusを更新する。
 - productionデプロイ・起動確認が成功した後、Actionsがマージ済みPR本文の対象IssueのProject Statusを `完了` に変更して閉じる。AIはマージ時点で完了にしない。
 - Project更新の操作用ラベルは `project:staging確認待ち` / `project:本番反映待ち` / `project:完了` も利用できる。デプロイ失敗時に操作用ラベルで状態を先に進めない。
+- `外部提案` は外部由来を示す分類ラベルでもある。Status変更後も分類ラベルを保持し、旧状態ラベルとして除去しない。外部PRはProject画面でStatusを変更する。判定・通知設定は [docs/external-proposals.md](docs/external-proposals.md) を参照する。
 - 通常のIssue分類ラベルとProjectの優先度・ほかの項目は変更しない。誤って導入した5種類のIssue状態ラベルは、Project Statusの更新を読み戻し確認した後でのみ外す。
 - 仕組みと有効化条件は [docs/issue-status.md](docs/issue-status.md) を参照する。
