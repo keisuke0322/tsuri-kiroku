@@ -33,7 +33,9 @@ describe('ゲストによる釣果閲覧',()=>{
    cy.get('.photo-viewer').should('be.visible').and('contain','シロギス');
    cy.get('.photo-viewer-stage img').should('have.attr','src','/shirogisu.png').and($img=>expect($img[0].naturalWidth).to.be.greaterThan(0));
    cy.get('[aria-label="写真を閉じる"]').click();
-   cy.get('input[aria-label="記録を検索"]').type('サビキ');cy.get(by('catch-card')).should('have.length',1);card(-2).should('contain','アジ');
+   // Wait for dialog teardown and focus restoration before starting another input.
+   cy.get('.photo-viewer').should('not.exist');
+   cy.get('input[aria-label="記録を検索"]').type('サビキ').should('have.value','サビキ');cy.get(by('catch-card')).should('have.length',1);card(-2).should('contain','アジ');
    cy.get('input[aria-label="記録を検索"]').clear();
    cy.get('.ranking-list button[aria-label="シロギスの釣果を一覧で見る"]').click();cy.get(by('catch-card')).should('have.length',1);
    card(-1).find('.like-button').click();checkPrompt();
