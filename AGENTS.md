@@ -46,7 +46,7 @@
 
 - stagingとproductionは別のWorkers・D1・R2を使用する。テスト環境を本番DBへつなぎ替えたり、テストデータを本番へ自動コピーしたりしない。
 - DB変更はスキーマと新規マイグレーションを追加して管理し、適用済みSQLを変更しない。同じ変更をstagingで検証してからproductionへ適用する。
-- Actionsは各環境のDBマイグレーション後にWorkerをデプロイする。互換性のある追加変更を優先し、破壊的変更では既存データのバックアップと復旧手順を用意する。Workerを戻してもDBは元に戻らない。
+- Actionsは各環境の互換性のあるDBマイグレーション後にWorkerをデプロイする。Issue #37の公開フラグ削除（0009）だけは、ログイン必須のWorkerの動作確認とD1 Time Travelの復旧bookmark取得後に適用する（[復旧手順](CLOUDFLARE-MIGRATION.md#db変更と戻し方)）。破壊的変更では既存データのバックアップと復旧手順を用意する。Workerを戻してもDBは元に戻らない。
 - 秘密情報はコード・Issue・PR・チャット・ログへ記載しない。GitHubの環境別SecretsとWorkerのSecretsを使う。
 - 無料枠での運用を意識し、不要なD1・R2アクセスや有料サービスの追加を避ける。
 
