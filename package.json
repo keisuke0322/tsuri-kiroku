@@ -14,7 +14,7 @@
     "lint": "eslint . --ignore-pattern dist --ignore-pattern .next",
     "db:generate": "drizzle-kit generate",
     "typecheck": "tsc --noEmit",
-    "test": "node --experimental-vm-modules tests/photo-storage.test.mjs && node tests/catch-validation.test.mjs && node --test tests/deployment-policy.test.mjs && node tests/multiple-fish-migration.test.mjs && node tests/location-privacy-migration.test.mjs && node --experimental-vm-modules tests/cloudflare-auth.test.mjs && node tests/optimistic-like.test.mjs && node tests/discovery.test.mjs && node tests/recipe-links.test.mjs && node --test tests/e2e-policy.test.mjs && node --test tests/issue-status.test.mjs && node --test tests/contribution-policy.test.mjs && node --test tests/third-party-licenses.test.mjs",
+    "test": "node --experimental-vm-modules tests/photo-storage.test.mjs && node tests/catch-validation.test.mjs && node --test tests/deployment-policy.test.mjs && node --test tests/cloudflare-smoke.test.mjs && node tests/multiple-fish-migration.test.mjs && node tests/location-privacy-migration.test.mjs && node tests/guest-public-migration.test.mjs && node --experimental-vm-modules tests/cloudflare-auth.test.mjs && node tests/optimistic-like.test.mjs && node tests/discovery.test.mjs && node tests/recipe-links.test.mjs && node --test tests/e2e-policy.test.mjs && node --test tests/issue-status.test.mjs && node --test tests/contribution-policy.test.mjs && node --test tests/third-party-licenses.test.mjs",
     "e2e:staging": "node scripts/staging-e2e.mjs"
   },
   "dependencies": {
