@@ -5,10 +5,13 @@ import FishingLog from './fishing-log';
 import {getUser} from './auth';
 import LoginScreen from './login-screen';
 export const dynamic='force-dynamic';
-export default async function Home({searchParams}:{searchParams:Promise<{login_error?:string}>}){
- const loginFailed=!!(await searchParams).login_error;
+export default async function Home({searchParams}:{searchParams:Promise<{login_error?:string;guest?:string}>}){
+ const params=await searchParams,loginFailed=!!params.login_error;
  const user=await getUser();
- if(!user)return <LoginScreen loginFailed={loginFailed}/>;
+ if(!user){
+  if(params.guest==='1')return <FishingLog isGuest mapsApiKey={(env as unknown as {GOOGLE_MAPS_API_KEY?:string}).GOOGLE_MAPS_API_KEY||''} userId="" initialName="ゲスト" signOutPath="/api/auth/logout" signInPath="/api/auth/google"/>;
+  return <LoginScreen loginFailed={loginFailed}/>;
+ }
  let initialName=user.fullName||'釣り人';
  try{initialName=(await ensureProfile(user)).displayName}catch{/* The client displays a retryable storage error. */}
  return <FishingLog mapsApiKey={(env as unknown as {GOOGLE_MAPS_API_KEY?:string}).GOOGLE_MAPS_API_KEY||''} canManageDemo={await canManageDemo(user.userId)} userId={user.userId} initialName={initialName} signOutPath="/api/auth/logout" signInPath="/api/auth/google"/>;

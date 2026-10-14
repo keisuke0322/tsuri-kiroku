@@ -38,7 +38,7 @@ async function finish(flow,token){idToken=token;return callback.GET(new Request(
 async function login(sub='owner'){const f=await begin(),r=await finish(f,await sign(f.nonce,{sub}));assert.equal(r.headers.get('location'),env.APP_ORIGIN+'/');const c=r.headers.getSetCookie().find(v=>v.startsWith('__Host-tsuri_session='));assert.ok(c);return c.split(';')[0];}
 // Spoofed Sites headers do not authenticate an independently hosted Worker.
 incoming=new Headers({'oai-authenticated-user-id':'owner','oai-authenticated-user-email':'owner@example.com'});assert.equal(await auth.getUser(),null);
-for(const [mod,method,path] of [[catches,'GET','/api/catches'],[catches,'POST','/api/catches'],[entry,'PUT','/api/catches/1'],[entry,'DELETE','/api/catches/1'],[likes,'PUT','/api/catches/1/like'],[profile,'GET','/api/profile'],[publicProfile,'GET','/api/profiles/owner'],[photoGet,'GET','/api/photos/1'],[photoPost,'POST','/api/catches/1/photos'],[photoDelete,'DELETE','/api/catches/1/photos/1']])assert.equal((await mod[method](request(path,method,method==='POST'?valid:undefined),params('1'))).status,401);
+for(const [mod,method,path] of [[catches,'POST','/api/catches'],[entry,'PUT','/api/catches/1'],[entry,'DELETE','/api/catches/1'],[likes,'PUT','/api/catches/1/like'],[profile,'GET','/api/profile'],[publicProfile,'GET','/api/profiles/owner'],[photoPost,'POST','/api/catches/1/photos'],[photoDelete,'DELETE','/api/catches/1/photos/1']])assert.equal((await mod[method](request(path,method,method==='POST'?valid:undefined),params('1'))).status,401);
 let f=await begin();let r=await callback.GET(request('/api/auth/google/callback?state='+f.state+'&code=x'));assert.equal(exchangeRequests,0);assert.match(r.headers.get('location'),/login_error/);
 r=await finish(f,await sign('wrong-nonce'));assert.match(r.headers.get('location'),/login_error/);assert.equal(sql.prepare('SELECT COUNT(*) n FROM auth_sessions').get().n,0);
 await finish(f,await sign(f.nonce));assert.equal(exchangeRequests,1,'State is single use');
@@ -82,7 +82,7 @@ const uploaded=await photoPost.POST(new Request(env.APP_ORIGIN+`/api/catches/${i
 const photoId=(await uploaded.json()).id;
 assert.equal(sql.prepare('SELECT featured_photo_id FROM catches WHERE id=?').get(id).featured_photo_id,photoId);
 const image=await photoGet.GET(request('/api/photos/'+photoId,'GET',undefined,other),params(photoId));assert.equal(image.status,200);assert.match(image.headers.get('cache-control'),/private, no-store/);
-assert.equal((await photoGet.GET(request('/api/photos/'+photoId),params(photoId))).status,401);
+assert.equal((await photoGet.GET(request('/api/photos/'+photoId),params(photoId))).status,404);
 assert.equal((await photoDelete.DELETE(request(`/api/catches/${id}/photos/${photoId}`,'DELETE',undefined,other),{params:Promise.resolve({id:String(id),photoId:String(photoId)})})).status,403);
 const multi={date:'2026-09-28',location:'港',fish:[{species:'アジ',count:3,length:18},{species:'サバ',count:2,length:24}],method:'サビキ',memo:''};
 const multiCreated=await catches.POST(request('/api/catches','POST',multi,owner));assert.equal(multiCreated.status,201);const multiId=(await multiCreated.json()).id;
@@ -181,7 +181,66 @@ console.log('Location privacy passed: three scopes, both identities, defaults, s
 const reusedId=(await reused.json()).id;assert.equal((await entry.DELETE(request('/api/catches/'+reusedId,'DELETE',undefined,owner),params(reusedId))).status,200);
 assert.equal(sql.prepare('SELECT * FROM catch_positions WHERE catch_id=?').get(reusedId),undefined);
 console.log('Fishing map API passed: private coordinates/spots, CSRF, ownership, coordinate validation, reuse, favorites, immutable snapshots, legacy edits, clear and delete.');
+// Guests see only explicitly published posts, even when calling the APIs directly.
+const guestList=async()=>{
+ const response=await catches.GET(request('/api/catches'));
+ assert.equal(response.status,200);assert.match(response.headers.get('cache-control'),/private, no-store/);
+ assert.match(response.headers.get('vary'),/Cookie/);return response.json();
+};
+assert.deepEqual(await guestList(),[],'Existing and default posts stay login-only');
+assert.equal(sql.prepare('SELECT guest_public FROM catches WHERE id=?').get(id).guest_public,0);
+assert.equal((await entry.GET(request('/api/catches/'+id),params(id))).status,404);
+assert.equal((await entry.GET(request('/api/catches/'+id,'GET',undefined,other),params(id))).status,200);
+const aggregate=await module('app/discovery.ts');
+const publishedIds=[];
+for(const visibility of ['area','exact','private']) {
+ const body={...multi,date:aggregate.japanDate(new Date()),location:'ゲスト公開の場所-'+visibility,memo:'公開のメモ-'+visibility,position:point,locationVisibility:visibility,guestPublic:true};
+ const made=await catches.POST(request('/api/catches','POST',body,owner));assert.equal(made.status,201);
+ const publicId=(await made.json()).id;publishedIds.push(publicId);
+ const data=new FormData();data.append('photo',new File([new Uint8Array([255,216,255,224])],'guest.jpg',{type:'image/jpeg'}));data.append('species','アジ');data.append('featured','true');
+ const upload=await photoPost.POST(new Request(env.APP_ORIGIN+`/api/catches/${publicId}/photos`,{method:'POST',headers:{Origin:env.APP_ORIGIN,Cookie:owner},body:data}),params(publicId));assert.equal(upload.status,201);
+ const imageId=(await upload.json()).id;
+ const detailed=await entry.GET(request('/api/catches/'+publicId),params(publicId));assert.equal(detailed.status,200);
+ const row=(await guestList()).find(x=>x.id===publicId);assert.deepEqual(await detailed.json(),row);
+ assert.equal(row.guestPublic,true);assert.equal(row.liked,false);assert.equal(row.photos[0].id,imageId);
+ for(const internal of ['owner_id','photos_deleting','spotId','guest_public','public_latitude','public_longitude','location_visibility'])assert.ok(!JSON.stringify(row).includes('"'+internal+'"'),'No internal fields in guest DTO');
+ if(visibility==='exact'){assert.deepEqual(row.position,{latitude:point.latitude,longitude:point.longitude,source:'map'});assert.equal(row.publicArea,null)}
+ else{assert.equal(row.position,null);assert.ok(!JSON.stringify(row).includes(String(point.latitude)));assert.ok(!JSON.stringify(row).includes(String(point.longitude)))}
+ if(visibility==='private'){assert.equal(row.location,'');assert.equal(row.locationHidden,true);assert.equal(row.publicArea,null);assert.ok(!JSON.stringify(row).includes(body.location))}
+ else{assert.equal(row.location,body.location);assert.equal(row.locationHidden,false);if(visibility==='area')assert.equal(row.publicArea.radius,8000)}
+ const photo=await photoGet.GET(request('/api/photos/'+imageId),params(imageId));assert.equal(photo.status,200);assert.match(photo.headers.get('cache-control'),/no-store/);
+ // All write routes still reject guests and leave stored rows/objects unchanged.
+ const before=JSON.stringify({rows:sql.prepare('SELECT * FROM catches').all(),photos:sql.prepare('SELECT * FROM catch_photos').all(),likes:sql.prepare('SELECT * FROM catch_likes').all(),objects:[...objects.keys()]});
+ for(const [mod,method,path,target] of [[catches,'POST','/api/catches',publicId],[entry,'PUT',`/api/catches/${publicId}`,publicId],[entry,'DELETE',`/api/catches/${publicId}`,publicId],[likes,'PUT',`/api/catches/${publicId}/like`,publicId],[likes,'DELETE',`/api/catches/${publicId}/like`,publicId],[photoPost,'POST',`/api/catches/${publicId}/photos`,publicId],[photoDelete,'DELETE',`/api/catches/${publicId}/photos/${imageId}`,imageId],[profile,'PUT','/api/profile',publicId],[spotApi,'PUT','/api/spots/1',1]])assert.equal((await mod[method](request(path,method,body),params(target))).status,401);
+ assert.equal(JSON.stringify({rows:sql.prepare('SELECT * FROM catches').all(),photos:sql.prepare('SELECT * FROM catch_photos').all(),likes:sql.prepare('SELECT * FROM catch_likes').all(),objects:[...objects.keys()]}),before);
+ // Legacy edits preserve the opt-in; explicit revocation immediately closes list/detail/photo access.
+ const edit={...body,photoAssignments:[{photoId:imageId,species:'アジ'}],featuredPhotoId:imageId};delete edit.guestPublic;
+ assert.equal((await entry.PUT(request('/api/catches/'+publicId,'PUT',edit,owner),params(publicId))).status,200);
+ assert.equal((await guestList()).find(x=>x.id===publicId).guestPublic,true);
+ assert.equal((await entry.PUT(request('/api/catches/'+publicId,'PUT',{...edit,guestPublic:false},other),params(publicId))).status,403);
+ assert.equal((await entry.PUT(request('/api/catches/'+publicId,'PUT',{...edit,guestPublic:false},owner),params(publicId))).status,200);
+ assert.ok(!(await guestList()).some(x=>x.id===publicId));
+ assert.equal((await entry.GET(request('/api/catches/'+publicId),params(publicId))).status,404);
+ assert.equal((await photoGet.GET(request('/api/photos/'+imageId),params(imageId))).status,404);
+ assert.equal((await photoGet.GET(request('/api/photos/'+imageId,'GET',undefined,other),params(imageId))).status,200);
+ assert.equal((await entry.PUT(request('/api/catches/'+publicId,'PUT',{...edit,guestPublic:true},owner),params(publicId))).status,200);
+}
+assert.deepEqual((await guestList()).map(x=>x.id).sort((a,b)=>a-b),publishedIds);
+const trending=aggregate.aggregateDiscovery(await guestList(),7,new Date());
+assert.equal(trending.fish.find(x=>x.species==='アジ').records,3);
+assert.ok(trending.featured.every(x=>publishedIds.includes(x.id)));
+for(const invalid of [null,0,1,'true','false',{},[]]) {
+ const before=JSON.stringify(sql.prepare('SELECT * FROM catches').all());
+ assert.equal((await catches.POST(request('/api/catches','POST',{...valid,guestPublic:invalid},owner))).status,400);
+ assert.equal((await entry.PUT(request('/api/catches/'+id,'PUT',{...valid,guestPublic:invalid},owner),params(id))).status,400);
+ assert.equal(JSON.stringify(sql.prepare('SELECT * FROM catches').all()),before);
+}
+const demo=await module('app/api/demo-data/route.ts');
+assert.equal((await demo.POST(request('/api/demo-data','POST',{}))).status,401);
+assert.equal((await publicProfile.GET(request('/api/profiles/google:owner'),params('google:owner'))).status,401);
+assert.equal((await spotsApi.GET(request('/api/spots'))).status,401);
+console.log('Guest access passed: opt-in defaults, list/detail/photo authorization, all location scopes, revocation, legacy edits, ranking isolation and unchanged write permissions.');
 assert.equal((await logout.POST(request('/api/auth/logout','POST',undefined,owner,'https://evil.example'))).status,403);
-assert.equal((await logout.POST(request('/api/auth/logout','POST',undefined,owner))).status,204);assert.equal((await catches.GET(request('/api/catches','GET',undefined,owner))).status,401);
-sql.prepare('UPDATE auth_sessions SET expires_at=0').run();assert.equal((await catches.GET(request('/api/catches','GET',undefined,other))).status,401);
+assert.equal((await logout.POST(request('/api/auth/logout','POST',undefined,owner))).status,204);assert.equal(await auth.getUser(request('/api/catches','GET',undefined,owner)),null);assert.equal((await profile.GET(request('/api/profile','GET',undefined,owner))).status,401);assert.equal((await catches.GET(request('/api/catches','GET',undefined,owner))).status,200);
+sql.prepare('UPDATE auth_sessions SET expires_at=0').run();assert.equal(await auth.getUser(request('/api/catches','GET',undefined,other)),null);assert.equal((await profile.GET(request('/api/profile','GET',undefined,other))).status,401);assert.equal((await catches.GET(request('/api/catches','GET',undefined,other))).status,200);
 console.log('Cloudflare auth checks passed: JWT verification, state/nonce/PKCE, replay, expiry, header spoofing, sessions, logout, CSRF, two identities, ownership, profile preservation and idempotent likes.');
