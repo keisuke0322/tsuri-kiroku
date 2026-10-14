@@ -8,7 +8,12 @@ function login(){return cy.task('session','owner',{log:false}).then(token=>{
 })}
 function visitGuest(){cy.clearCookies();cy.visit('/?guest=1');return cy.wait('@list')}
 function assertNoOverflow(){cy.document().then(doc=>expect(doc.documentElement.scrollWidth).to.be.at.most(doc.documentElement.clientWidth))}
-function checkPrompt(){cy.get(by('login-prompt-link')).should('be.visible').and('have.attr','href','/api/auth/google');cy.contains('button','ゲスト閲覧を続ける').click()}
+function checkPrompt(){
+ cy.get(by('login-prompt-link')).should('be.visible').and('have.attr','href','/api/auth/google');
+ cy.contains('button','ゲスト閲覧を続ける').click();
+ cy.get(by('login-prompt-link')).should('not.exist');
+ cy.get('[data-slot="dialog-overlay"]').should('not.exist');
+}
 
 describe('ゲストによる釣果閲覧',()=>{
  before(()=>expect(marker).to.match(/^E2E-[a-f0-9-]{36}$/));
