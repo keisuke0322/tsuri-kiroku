@@ -34,12 +34,15 @@ describe('ゲストによる釣果閲覧',()=>{
    cy.get(by('empty-samples')).click();cy.get(by('sample-notice')).should('contain','架空のデータ');
    cy.get(by('catch-card')).should('have.length',3).each($card=>expect($card).to.contain('サンプル'));
    cy.get('.ranking-list li').should('have.length',3);
-   card(-1).find('.photo-thumbnail').scrollIntoView().click();
-   cy.get('.photo-viewer').should('be.visible').and('contain','シロギス');
-   cy.get('.photo-viewer-stage img').should('have.attr','src','/shirogisu.png').and($img=>expect($img[0].naturalWidth).to.be.greaterThan(0));
-   cy.get('[aria-label="写真を閉じる"]').click();
-   // Wait for dialog teardown and focus restoration before starting another input.
-   cy.get('.photo-viewer').should('not.exist');
+   for(const [id,species,src] of [[-1,'シロギス','/images/samples/shirogisu.jpg'],[-2,'アジ','/images/samples/aji.jpg']]){
+    card(id).find('.photo-thumbnail img').should('have.attr','src',src);
+    card(id).find('.photo-thumbnail').scrollIntoView().click();
+    cy.get('.photo-viewer').should('be.visible').and('contain',species);
+    cy.get('.photo-viewer-stage img').should('have.attr','src',src).and($img=>expect($img[0].naturalWidth).to.be.greaterThan(0));
+    cy.get('[aria-label="写真を閉じる"]').click();
+    // Wait for dialog teardown and focus restoration before starting another input.
+    cy.get('.photo-viewer').should('not.exist');
+   }
    cy.get('input[aria-label="記録を検索"]').type('サビキ').should('have.value','サビキ');cy.get(by('catch-card')).should('have.length',1);card(-2).should('contain','アジ');
    cy.get('input[aria-label="記録を検索"]').clear();
    cy.get('.ranking-list button[aria-label="シロギスの釣果を一覧で見る"]').click();cy.get(by('catch-card')).should('have.length',1);
