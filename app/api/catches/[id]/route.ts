@@ -1,19 +1,13 @@
-import {readCatches} from '../read';
-import {guestPublicInput} from '../guest-public';
 import {visibilityInput,visibilityStatement} from '../location-privacy';
 import {positionInput,rememberSpot,positionStatement} from '../positions';
 import {getDb,parseCatch} from '../db';
 import {validId} from '../photos';
 import {deleteCatchPhotos,retryPhotoCleanup} from '../photo-storage';
 import {authenticate,ownedCatch,json,apiError} from '../../access';
-export async function GET(req:Request,ctx:{params:Promise<{id:string}>}){try{
- const id=validId((await ctx.params).id);if(!id)return json({error:'記録が見つかりません。'},404);
- const [row]=await readCatches(req,id);return row?json(row):json({error:'記録が見つかりません。'},404);
-}catch(e){return apiError(e)}}
 export async function PUT(req:Request,ctx:{params:Promise<{id:string}>}){try{
  const user=await authenticate(req),id=validId((await ctx.params).id);if(!id)return json({error:'記録が見つかりません。'},400);
  await ownedCatch(id,user.userId);const body=await req.json() as Record<string,unknown>,v=parseCatch(body);if(!v)return json({error:'入力内容を確認してください。'},400);
- const guestPublic=guestPublicInput(body);visibilityInput(body);const position=await positionInput(body,user.userId);
+ visibilityInput(body);const position=await positionInput(body,user.userId);
  const db=getDb(),photos=await db.prepare('SELECT id,species FROM catch_photos WHERE catch_id=? ORDER BY id').bind(id).all<{id:number,species:string|null}>();
  const assignments=new Map<number,string>();
  if(Array.isArray(body.photoAssignments))for(const raw of body.photoAssignments){if(!raw||typeof raw!=='object')return json({error:'写真の魚種を確認してください。'},400);const p=raw as Record<string,unknown>,photoId=Number(p.photoId),species=String(p.species||'').trim();if(!Number.isInteger(photoId)||!v.fish.some(f=>f.species===species)||assignments.has(photoId))return json({error:'写真の魚種を確認してください。'},400);assignments.set(photoId,species)}
@@ -23,7 +17,6 @@ export async function PUT(req:Request,ctx:{params:Promise<{id:string}>}){try{
  const featured=v.legacy?(await db.prepare('SELECT featured_photo_id AS id FROM catches WHERE id=?').bind(id).first<{id:number|null}>())?.id??null:requestedFeatured,first=v.fish[0];
  const statements=[db.prepare('DELETE FROM catch_fish WHERE catch_id=?').bind(id),...v.fish.map((fish,index)=>db.prepare('INSERT INTO catch_fish (catch_id,species,count,length,sort_order) VALUES (?,?,?,?,?)').bind(id,fish.species,fish.count,fish.length,index)),...photos.results.map(photo=>db.prepare('UPDATE catch_photos SET species=? WHERE id=? AND catch_id=?').bind(assignments.get(photo.id),photo.id,id)),db.prepare('UPDATE catches SET date=?,location=?,species=?,count=?,length=?,method=?,memo=?,featured_photo_id=? WHERE id=? AND owner_id=?').bind(v.date,v.location,first.species,first.count,first.length,v.method,v.memo,featured,id,user.userId)];
  if(position!==undefined){const spotId=position?await rememberSpot(position,v.location,user.userId):null;statements.push(positionStatement(id,position,spotId))}
- if(Object.hasOwn(body,'guestPublic'))statements.push(db.prepare('UPDATE catches SET guest_public=? WHERE id=? AND owner_id=?').bind(Number(guestPublic),id,user.userId));
  const privacy=await visibilityStatement(id,body,position);if(privacy)statements.push(privacy);
  await db.batch(statements);return json({ok:true});
 }catch(e){return apiError(e)}}

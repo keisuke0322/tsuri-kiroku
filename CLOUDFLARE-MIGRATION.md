@@ -109,6 +109,12 @@ schema変更時はdb/schema.tsを更新し、`corepack pnpm db:generate`で新�
 
 DB変更はWorkerのロールバックでは戻りません。既存データがある変更の前はD1エクスポートやTime Travelを確認し、まず追加的な変更を優先します。破壊的変更はバックアップ・戻し方を決めてから行います。
 
+Issue #37の取り消しでは、適用済みの `0008_guest_public.sql` を履歴として保持し、`0009_remove_guest_public.sql` で `guest_public` と `idx_catches_guest_date` を削除します。サンプルは静的画像・クライアント内データだけで、D1・R2には保存していません。通常の釣果・写真・ユーザー・位置情報を削除するSQLはありません。
+
+この削除だけは旧Workerとの互換性のため、通常のマイグレーション → ログイン必須のWorkerをデプロイ → 未認証アクセスの拒否を確認 → D1 Time Travelの復旧bookmarkを取得 → 削除マイグレーション → スキーマ・外部キー・アクセス確認、の順に適用します。bookmark取得に失敗した場合は削除しません。復旧bookmarkはActionsのログとステップサマリーに記録します。
+
+復旧が必要な場合は対象環境の設定を生成し、記録したbookmarkを指定して `corepack pnpm exec wrangler d1 time-travel restore DB --bookmark=<記録したbookmark> --config wrangler.deploy.json` を実行します。D1のTime Travel保持期間内に限られ、DB全体がその時点へ戻るため、その後の書き込みの退避を確認してから実施します。復旧後にゲスト版Workerを再配信せず、ログイン必須のWorkerを維持します。
+
 ## 運用と費用
 
 Workers・D1・R2の無料枠はアカウント内の他用途とも共有されます。R2の超過課金と、GitHub Actionsの非公開リポジトリの利用枠は別です。常時無料を保証する設定ではありません。使用量をダッシュボードで確認し、一般公開前にアップロード量やアクセス頻度に応じた制限を検討します。

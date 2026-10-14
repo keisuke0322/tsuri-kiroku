@@ -22,10 +22,22 @@ describe('つりめぐりのブランド表示', () => {
         cy.get(hour === 12 ? '.login-day' : '.login-night').should('exist');
         checkBrand();
         cy.get('.google-login-button').should('be.visible').and('have.attr', 'href', '/api/auth/google');
+        cy.get('[data-cy="guest-entry"]').should('not.exist');
         cy.get('meta[property="og:site_name"]').should('have.attr', 'content', 'つりめぐり');
         cy.get('link[rel="icon"]').should('have.attr', 'href', '/favicon.svg');
       });
     }
+    it(`旧ゲストURLもログイン必須 ${width}px`, () => {
+      cy.clearCookies();
+      cy.viewport(width, height);
+      cy.visit('/?guest=1');
+      cy.get('.google-login-button').should('be.visible').and('have.attr', 'href', '/api/auth/google');
+      cy.get('[data-cy="guest-entry"]').should('not.exist');
+      cy.get('[data-cy="guest-samples"]').should('not.exist');
+      for (const url of ['/api/catches', '/api/catches?guest=1', '/api/photos/1']) {
+        cy.request({url, failOnStatusCode: false, log: false}).its('status').should('equal', 401);
+      }
+    });
     it(`認証後ヘッダー ${width}px`, () => {
       cy.viewport(width, height);
       cy.task('session', 'owner', {log: false}).then(token => {
