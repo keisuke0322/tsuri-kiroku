@@ -1,9 +1,12 @@
-import {defineConfig} from 'cypress';
+import { defineConfig } from 'cypress';
 
 export default defineConfig({
   video: false,
   allowCypressEnv: false,
-  expose: {runMarker: process.env.E2E_RUN_MARKER, hasOtherUser: !!process.env.E2E_OTHER_SESSION_TOKEN},
+  expose: {
+    runMarker: process.env.E2E_RUN_MARKER,
+    hasOtherUser: !!process.env.E2E_OTHER_SESSION_TOKEN,
+  },
   screenshotOnRunFailure: true,
   viewportWidth: 1280,
   viewportHeight: 900,
@@ -15,8 +18,12 @@ export default defineConfig({
     setupNodeEvents(on) {
       on('task', {
         session(role) {
-          const token = role === 'other' ? process.env.E2E_OTHER_SESSION_TOKEN : process.env.E2E_SESSION_TOKEN;
-          if (!/^[a-f0-9]{64}$/.test(token || '')) throw Error('Run E2E through the authenticated test runner.');
+          const token =
+            role === 'other'
+              ? process.env.E2E_OTHER_SESSION_TOKEN
+              : process.env.E2E_SESSION_TOKEN;
+          if (!/^[a-f0-9]{64}$/.test(token || ''))
+            throw Error('Run E2E through the authenticated test runner.');
           return token;
         },
       });

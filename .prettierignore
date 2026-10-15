@@ -1,0 +1,21 @@
+# Third-party source is kept verbatim.
+vendor/
+components/ui/
+hooks/use-mobile.ts
+
+# Generated database files and applied SQL migrations.
+drizzle/
+
+# Generated dependency metadata.
+pnpm-lock.yaml
+
+# Build output and local tooling (also excluded by .gitignore).
+node_modules/
+dist/
+.next/
+.vinext/
+.wrangler/
+.sites-runtime/
+coverage/
+cypress/screenshots/
+cypress/videos/

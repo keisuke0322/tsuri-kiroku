@@ -1,21 +1,314 @@
 'use client';
-import {useMemo,useState} from 'react';
+
+import { useMemo, useState } from 'react';
 import GoogleMap from './google-map';
 import PositionEditor from './position-editor';
-import type {Position,Spot} from './fishing-position';
-export type MapEntry={id:number;date:string;location:string;position:Position|null;fish:{species:string;count:number;length:number|null}[];photos:{id:number;species:string}[]};
-export default function FishingMap({apiKey,items,spots,onSaveSpot,onEdit}:{apiKey:string;items:MapEntry[];spots:Spot[];onSaveSpot:(spot:Spot)=>Promise<void>;onEdit:(id:number)=>void}){
- const [species,setSpecies]=useState(''),[start,setStart]=useState(''),[end,setEnd]=useState(''),[favorites,setFavorites]=useState(false),[selected,setSelected]=useState<number|null>(null),[editing,setEditing]=useState<Spot|null>(null),[saving,setSaving]=useState(false),[error,setError]=useState('');
- const names=useMemo(()=>[...new Set(items.flatMap(x=>x.fish.map(f=>f.species)))].sort(),[items]);
- const filtered=items.filter(x=>x.position&&(!species||x.fish.some(f=>f.species===species))&&(!start||x.date>=start)&&(!end||x.date<=end)&&(!favorites||spots.some(s=>s.id===x.position?.spotId&&s.favorite)));
- const groups=useMemo(()=>{const rows=new Map<number,{id:number;name:string;latitude:number;longitude:number;entries:MapEntry[]}>();for(const x of filtered){const p=x.position!;const id=p.spotId??-x.id;const group=rows.get(id)??{id,name:spots.find(s=>s.id===id)?.name??x.location,latitude:p.latitude,longitude:p.longitude,entries:[]};group.entries.push(x);rows.set(id,group)}return [...rows.values()]},[filtered,spots]);
- const detail=groups.find(g=>g.id===selected),spot=spots.find(s=>s.id===selected),fish=detail?.entries.flatMap(x=>x.fish)??[];
- async function save(value:Spot){setSaving(true);setError('');try{await onSaveSpot(value);setEditing(null)}catch(e){setError(e instanceof Error?e.message:'釣り場を保存できませんでした。')}finally{setSaving(false)}}
- function quick(period:'month'|'three'|'year'){const today=new Date(),first=new Date(today.getFullYear(),period==='year'?0:today.getMonth()-(period==='three'?2:0),1);setStart(first.toLocaleDateString('sv-SE'));setEnd(today.toLocaleDateString('sv-SE'))}
- return <section className="fishing-map-panel" data-cy="fishing-map"><h2>自分の釣果マップ</h2><p className="photo-help">このマップには自分の正確な位置を表示します。他の人への表示は各釣行の公開範囲に従います。位置未登録の釣行は編集から追加できます。</p><div className="map-filters"><label>魚種<select data-cy="map-species" value={species} onChange={e=>setSpecies(e.target.value)}><option value="">すべて</option>{names.map(name=><option key={name}>{name}</option>)}</select></label><label>開始日<input data-cy="map-start" aria-label="地図の開始日" type="date" value={start} onChange={e=>setStart(e.target.value)}/></label><label>終了日<input aria-label="地図の終了日" type="date" value={end} onChange={e=>setEnd(e.target.value)}/></label><label className="map-check"><input data-cy="map-favorites" type="checkbox" checked={favorites} onChange={e=>setFavorites(e.target.checked)}/>お気に入りだけ</label></div><div className="map-actions"><button onClick={()=>quick('month')}>今月</button><button onClick={()=>quick('three')}>過去3か月</button><button onClick={()=>quick('year')}>今年</button><button onClick={()=>{setSpecies('');setStart('');setEnd('');setFavorites(false)}}>条件を解除</button></div>{start&&end&&start>end&&<p role="alert">終了日を開始日以降にしてください。</p>}
- <GoogleMap apiKey={apiKey} points={filtered.map(x=>({id:x.position!.spotId??-x.id,latitude:x.position!.latitude,longitude:x.position!.longitude,title:`${x.location} ${x.date}`}))} onSelect={setSelected}/><p role="status">{filtered.length}件の釣行・{groups.length}か所</p>
- <div className="spot-list">{groups.map(g=><button data-cy="map-spot" data-spot-id={g.id} key={g.id} aria-pressed={selected===g.id} onClick={()=>{setSelected(g.id);setEditing(null);setError('')}}>{spots.find(s=>s.id===g.id)?.favorite?'★ ':''}{g.name}（{g.entries.length}回）</button>)}</div>{!groups.length&&<p>この条件で位置が登録された釣行はありません。</p>}
- {detail&&<div className="spot-detail" data-cy="spot-detail"><h3>{detail.name}</h3><p>釣行 {detail.entries.length}回 ／ 最近の釣行 {detail.entries[0].date} ／ 釣果 {fish.reduce((n,f)=>n+f.count,0)}匹</p><p>{[...new Set(fish.map(f=>f.species))].join('・')} ／ 最大サイズ {fish.some(f=>f.length!==null)?Math.max(...fish.map(f=>f.length??0))+'cm':'未登録'}</p>{spot&&<div className="map-actions"><button data-cy="favorite-spot" disabled={saving} onClick={()=>void save({...spot,favorite:!spot.favorite})}>{spot.favorite?'お気に入りを解除':'お気に入りに登録'}</button><button data-cy="edit-spot" disabled={saving} onClick={()=>setEditing({...spot})}>釣り場を編集</button></div>}<p className="photo-help">釣り場を編集しても過去の釣行名・位置は変わりません。過去の記録は釣行ごとに編集してください。</p>{detail.entries.map(x=><article key={x.id} data-cy="map-trip" data-catch-id={x.id}><button onClick={()=>onEdit(x.id)}>{x.date} {x.location} — {x.fish.map(f=>`${f.species} ${f.count}匹`).join('・')}</button><p>位置：{x.position!.latitude.toFixed(6)}, {x.position!.longitude.toFixed(6)}</p>{x.photos.map(p=><img key={p.id} src={`/api/photos/${p.id}`} alt={p.species} loading="lazy"/>)}</article>)}</div>}
- {editing&&<form className="spot-edit" onSubmit={e=>{e.preventDefault();void save(editing)}}><h3>釣り場を編集</h3><label>釣り場名<input data-cy="spot-name" required maxLength={120} value={editing.name} onChange={e=>setEditing({...editing,name:e.target.value})}/></label><PositionEditor apiKey={apiKey} position={{latitude:editing.latitude,longitude:editing.longitude,source:'map'}} onChange={p=>{if(p)setEditing({...editing,latitude:p.latitude,longitude:p.longitude})}}/><button data-cy="save-spot" disabled={saving}>釣り場を保存</button><button type="button" disabled={saving} onClick={()=>setEditing(null)}>キャンセル</button></form>}{error&&<p role="alert">{error}</p>}
- </section>;
+import type { Position, Spot } from './fishing-position';
+
+export type MapEntry = {
+  id: number;
+  date: string;
+  location: string;
+  position: Position | null;
+  fish: { species: string; count: number; length: number | null }[];
+  photos: { id: number; species: string }[];
+};
+
+export default function FishingMap({
+  apiKey,
+  items,
+  spots,
+  onSaveSpot,
+  onEdit,
+}: {
+  apiKey: string;
+  items: MapEntry[];
+  spots: Spot[];
+  onSaveSpot: (spot: Spot) => Promise<void>;
+  onEdit: (id: number) => void;
+}) {
+  const [species, setSpecies] = useState(''),
+    [start, setStart] = useState(''),
+    [end, setEnd] = useState(''),
+    [favorites, setFavorites] = useState(false),
+    [selected, setSelected] = useState<number | null>(null),
+    [editing, setEditing] = useState<Spot | null>(null),
+    [saving, setSaving] = useState(false),
+    [error, setError] = useState('');
+  const names = useMemo(
+    () =>
+      [...new Set(items.flatMap((x) => x.fish.map((f) => f.species)))].sort(),
+    [items],
+  );
+  const filtered = items.filter(
+    (x) =>
+      x.position &&
+      (!species || x.fish.some((f) => f.species === species)) &&
+      (!start || x.date >= start) &&
+      (!end || x.date <= end) &&
+      (!favorites ||
+        spots.some((s) => s.id === x.position?.spotId && s.favorite)),
+  );
+  const groups = useMemo(() => {
+    const rows = new Map<
+      number,
+      {
+        id: number;
+        name: string;
+        latitude: number;
+        longitude: number;
+        entries: MapEntry[];
+      }
+    >();
+    for (const x of filtered) {
+      const p = x.position!;
+      const id = p.spotId ?? -x.id;
+      const group = rows.get(id) ?? {
+        id,
+        name: spots.find((s) => s.id === id)?.name ?? x.location,
+        latitude: p.latitude,
+        longitude: p.longitude,
+        entries: [],
+      };
+      group.entries.push(x);
+      rows.set(id, group);
+    }
+    return [...rows.values()];
+  }, [filtered, spots]);
+  const detail = groups.find((g) => g.id === selected),
+    spot = spots.find((s) => s.id === selected),
+    fish = detail?.entries.flatMap((x) => x.fish) ?? [];
+
+  async function save(value: Spot) {
+    setSaving(true);
+    setError('');
+    try {
+      await onSaveSpot(value);
+      setEditing(null);
+    } catch (e) {
+      setError(
+        e instanceof Error ? e.message : '釣り場を保存できませんでした。',
+      );
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  function quick(period: 'month' | 'three' | 'year') {
+    const today = new Date(),
+      first = new Date(
+        today.getFullYear(),
+        period === 'year' ? 0 : today.getMonth() - (period === 'three' ? 2 : 0),
+        1,
+      );
+    setStart(first.toLocaleDateString('sv-SE'));
+    setEnd(today.toLocaleDateString('sv-SE'));
+  }
+
+  return (
+    <section className="fishing-map-panel" data-cy="fishing-map">
+      <h2>自分の釣果マップ</h2>
+      <p className="photo-help">
+        このマップには自分の正確な位置を表示します。他の人への表示は各釣行の公開範囲に従います。位置未登録の釣行は編集から追加できます。
+      </p>
+      <div className="map-filters">
+        <label>
+          魚種
+          <select
+            data-cy="map-species"
+            value={species}
+            onChange={(e) => setSpecies(e.target.value)}
+          >
+            <option value="">すべて</option>
+            {names.map((name) => (
+              <option key={name}>{name}</option>
+            ))}
+          </select>
+        </label>
+        <label>
+          開始日
+          <input
+            data-cy="map-start"
+            aria-label="地図の開始日"
+            type="date"
+            value={start}
+            onChange={(e) => setStart(e.target.value)}
+          />
+        </label>
+        <label>
+          終了日
+          <input
+            aria-label="地図の終了日"
+            type="date"
+            value={end}
+            onChange={(e) => setEnd(e.target.value)}
+          />
+        </label>
+        <label className="map-check">
+          <input
+            data-cy="map-favorites"
+            type="checkbox"
+            checked={favorites}
+            onChange={(e) => setFavorites(e.target.checked)}
+          />
+          お気に入りだけ
+        </label>
+      </div>
+      <div className="map-actions">
+        <button onClick={() => quick('month')}>今月</button>
+        <button onClick={() => quick('three')}>過去3か月</button>
+        <button onClick={() => quick('year')}>今年</button>
+        <button
+          onClick={() => {
+            setSpecies('');
+            setStart('');
+            setEnd('');
+            setFavorites(false);
+          }}
+        >
+          条件を解除
+        </button>
+      </div>
+      {start && end && start > end && (
+        <p role="alert">終了日を開始日以降にしてください。</p>
+      )}
+      <GoogleMap
+        apiKey={apiKey}
+        points={filtered.map((x) => ({
+          id: x.position!.spotId ?? -x.id,
+          latitude: x.position!.latitude,
+          longitude: x.position!.longitude,
+          title: `${x.location} ${x.date}`,
+        }))}
+        onSelect={setSelected}
+      />
+      <p role="status">
+        {filtered.length}件の釣行・{groups.length}か所
+      </p>
+      <div className="spot-list">
+        {groups.map((g) => (
+          <button
+            data-cy="map-spot"
+            data-spot-id={g.id}
+            key={g.id}
+            aria-pressed={selected === g.id}
+            onClick={() => {
+              setSelected(g.id);
+              setEditing(null);
+              setError('');
+            }}
+          >
+            {spots.find((s) => s.id === g.id)?.favorite ? '★ ' : ''}
+            {g.name}（{g.entries.length}回）
+          </button>
+        ))}
+      </div>
+      {!groups.length && <p>この条件で位置が登録された釣行はありません。</p>}
+      {detail && (
+        <div className="spot-detail" data-cy="spot-detail">
+          <h3>{detail.name}</h3>
+          <p>
+            釣行 {detail.entries.length}回 ／ 最近の釣行{' '}
+            {detail.entries[0].date} ／ 釣果{' '}
+            {fish.reduce((n, f) => n + f.count, 0)}匹
+          </p>
+          <p>
+            {[...new Set(fish.map((f) => f.species))].join('・')} ／ 最大サイズ{' '}
+            {fish.some((f) => f.length !== null)
+              ? Math.max(...fish.map((f) => f.length ?? 0)) + 'cm'
+              : '未登録'}
+          </p>
+          {spot && (
+            <div className="map-actions">
+              <button
+                data-cy="favorite-spot"
+                disabled={saving}
+                onClick={() => void save({ ...spot, favorite: !spot.favorite })}
+              >
+                {spot.favorite ? 'お気に入りを解除' : 'お気に入りに登録'}
+              </button>
+              <button
+                data-cy="edit-spot"
+                disabled={saving}
+                onClick={() => setEditing({ ...spot })}
+              >
+                釣り場を編集
+              </button>
+            </div>
+          )}
+          <p className="photo-help">
+            釣り場を編集しても過去の釣行名・位置は変わりません。過去の記録は釣行ごとに編集してください。
+          </p>
+          {detail.entries.map((x) => (
+            <article key={x.id} data-cy="map-trip" data-catch-id={x.id}>
+              <button onClick={() => onEdit(x.id)}>
+                {x.date} {x.location} —{' '}
+                {x.fish.map((f) => `${f.species} ${f.count}匹`).join('・')}
+              </button>
+              <p>
+                位置：{x.position!.latitude.toFixed(6)},{' '}
+                {x.position!.longitude.toFixed(6)}
+              </p>
+              {x.photos.map((p) => (
+                <img
+                  key={p.id}
+                  src={`/api/photos/${p.id}`}
+                  alt={p.species}
+                  loading="lazy"
+                />
+              ))}
+            </article>
+          ))}
+        </div>
+      )}
+      {editing && (
+        <form
+          className="spot-edit"
+          onSubmit={(e) => {
+            e.preventDefault();
+            void save(editing);
+          }}
+        >
+          <h3>釣り場を編集</h3>
+          <label>
+            釣り場名
+            <input
+              data-cy="spot-name"
+              required
+              maxLength={120}
+              value={editing.name}
+              onChange={(e) => setEditing({ ...editing, name: e.target.value })}
+            />
+          </label>
+          <PositionEditor
+            apiKey={apiKey}
+            position={{
+              latitude: editing.latitude,
+              longitude: editing.longitude,
+              source: 'map',
+            }}
+            onChange={(p) => {
+              if (p)
+                setEditing({
+                  ...editing,
+                  latitude: p.latitude,
+                  longitude: p.longitude,
+                });
+            }}
+          />
+          <button data-cy="save-spot" disabled={saving}>
+            釣り場を保存
+          </button>
+          <button
+            type="button"
+            disabled={saving}
+            onClick={() => setEditing(null)}
+          >
+            キャンセル
+          </button>
+        </form>
+      )}
+      {error && <p role="alert">{error}</p>}
+    </section>
+  );
 }

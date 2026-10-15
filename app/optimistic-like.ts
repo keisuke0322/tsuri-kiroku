@@ -8,7 +8,10 @@ export async function updateLikeOptimistically(
   save: (liked: boolean) => Promise<LikeState>,
 ) {
   const liked = !previous.liked;
-  publish({ liked, likeCount: Math.max(0, previous.likeCount + (liked ? 1 : -1)) });
+  publish({
+    liked,
+    likeCount: Math.max(0, previous.likeCount + (liked ? 1 : -1)),
+  });
   try {
     publish(await save(liked));
   } catch (error) {

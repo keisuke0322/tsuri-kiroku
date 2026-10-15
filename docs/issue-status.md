@@ -2,13 +2,13 @@
 
 状態は [Project #7](https://github.com/users/keisuke0322/projects/7) の `Status` フィールドで管理する。
 
-| 操作 | Project Status | 担当 |
-| --- | --- | --- |
-| Issue登録 | 検討中 | Issue opened Actions、AIのproject:検討中操作 |
-| 開発着手 | 開発中 | AIのproject:開発中操作 |
-| stagingデプロイ・動作確認・E2E成功 | staging確認待ち | Deploy Cloudflareの後続ジョブ |
-| main向けPR登録 | 本番反映待ち | PRイベントActions |
-| mainへマージ後productionデプロイ・動作確認成功 | 完了 | Deploy Cloudflareの後続ジョブ（Issueも閉じる） |
+| 操作                                           | Project Status  | 担当                                           |
+| ---------------------------------------------- | --------------- | ---------------------------------------------- |
+| Issue登録                                      | 検討中          | Issue opened Actions、AIのproject:検討中操作   |
+| 開発着手                                       | 開発中          | AIのproject:開発中操作                         |
+| stagingデプロイ・動作確認・E2E成功             | staging確認待ち | Deploy Cloudflareの後続ジョブ                  |
+| main向けPR登録                                 | 本番反映待ち    | PRイベントActions                              |
+| mainへマージ後productionデプロイ・動作確認成功 | 完了            | Deploy Cloudflareの後続ジョブ（Issueも閉じる） |
 
 IssueがProjectに未登録なら自動で追加する。Status以外のフィールドや分類ラベルには触れない。Issueの通常ラベルは状態管理に使わない。
 

@@ -28,10 +28,10 @@ APIは画像のシグネチャを確認してJPEG・PNG・WebP・HEICを受け�
 
 上限はCloudflare Workersの環境変数で設定します。単位はバイトです。staging／productionで別々の値を設定できます。
 
-| 環境変数 | 未設定時の値 |
-| --- | ---: |
-| `PHOTO_STORAGE_GLOBAL_LIMIT_BYTES` | `8000000000`（8GB） |
-| `PHOTO_STORAGE_USER_LIMIT_BYTES` | `100000000`（100MB） |
+| 環境変数                           |         未設定時の値 |
+| ---------------------------------- | -------------------: |
+| `PHOTO_STORAGE_GLOBAL_LIMIT_BYTES` |  `8000000000`（8GB） |
+| `PHOTO_STORAGE_USER_LIMIT_BYTES`   | `100000000`（100MB） |
 
 GitHub Actions経由で公開する場合は、GitHubのSettings → Environments → staging／productionの**Variables**に追加してください。設定生成スクリプトがその値をWorkerの`vars`へ渡します。コードの変更は不要ですが、変更をWorkerへ反映するには当該環境への通常のデプロイが必要です。Actionsの未設定・空のVariablesは初期値を使います。Cloudflare管理画面でWorkerの変数を直接変更した場合、次回のActionsデプロイではGitHub側の値が使われるため、継続する設定はGitHub側で管理してください。
 

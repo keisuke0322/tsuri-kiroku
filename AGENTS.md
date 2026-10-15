@@ -11,6 +11,15 @@
 - production: https://tsuri-kiroku-production.keisuke0322.workers.dev
 - 詳細は[README.md](README.md)、[CLOUDFLARE-MIGRATION.md](CLOUDFLARE-MIGRATION.md)、実際の[ワークフロー](.github/workflows/cloudflare.yml)を確認する。環境やブランチ構成を推測で変更しない。
 
+## コーディング規約と整形
+
+- TypeScript・JavaScriptは[Google TypeScript Style Guide](https://google.github.io/styleguide/tsguide.html)を基本とする。既存のフレームワーク要件と、このリポジトリの明示的な設定を優先する。規約への対応を理由に、依頼と無関係な命名変更・構造変更を行わない。
+- 機械的な書式は `.prettierrc.json` を正とし、Prettierで統一する。インデントはスペース2文字、折り返し幅は80文字、文字列は原則シングルクォート（JSX属性はダブルクォート）、文末はセミコロン、改行はLFとする。URL・文字列などは80文字を超える場合がある。
+- importのまとまりと本文の間、関数・型・クラスの定義の間には空行を入れる。関数内では入力検証・データ取得・更新・戻り値など、意味のある処理のまとまりの間に必要に応じて空行を入れる。各文の間に機械的に空行を入れず、ブロックの先頭・末尾の空行や連続する空行は避ける。
+- Prettierは意味に応じた空行を自動追加しない。開発者・AIが空行を調整してから `corepack pnpm run format` を実行し、`corepack pnpm run format:check` と差分を確認する。CIでも整形チェックを実行する。
+- `.prettierignore` に指定した第三者のソース、生成ファイル、適用済みDBマイグレーションなどは整形しない。JSONCは既存スクリプトの読み込みとの互換性のため末尾カンマを付けない。
+- ESLintは既存の品質・React関連ルールを担当する。PrettierやESLintがGoogle規約全体への準拠を保証するとは扱わず、命名や構造、空行はレビューでも確認する。
+
 ## 仕様検討とIssue登録
 
 1. ユーザーと仕様を整理する。目的、期待する動作、対象外、完了条件、確認項目を明確にし、既存コードから分かることは先に調べる。

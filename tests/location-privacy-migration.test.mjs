@@ -1,18 +1,43 @@
 import assert from 'node:assert/strict';
-import {DatabaseSync} from 'node:sqlite';
-import {readFile,readdir} from 'node:fs/promises';
-const db=new DatabaseSync(':memory:');
+import { DatabaseSync } from 'node:sqlite';
+import { readFile, readdir } from 'node:fs/promises';
+
+const db = new DatabaseSync(':memory:');
 db.exec('PRAGMA foreign_keys=ON');
-for(const file of (await readdir('drizzle')).filter(f=>f.endsWith('.sql')&&f<'0007').sort())db.exec(await readFile(`drizzle/${file}`,'utf8'));
-db.prepare('INSERT INTO profiles(user_id,display_name) VALUES (?,?)').run('owner','釣り人');
-db.prepare('INSERT INTO catches(id,date,location,species,count,owner_id) VALUES (1,?,?,?,?,?)').run('2026-10-08','三浦海岸','アジ',2,'owner');
-db.prepare('INSERT INTO catch_positions(catch_id,latitude,longitude,source) VALUES (1,?,?,?)').run(35.123,139.456,'gps');
-const previous=db.prepare('SELECT * FROM catches WHERE id=1').get(),position=db.prepare('SELECT * FROM catch_positions WHERE catch_id=1').get();
-db.exec(await readFile('drizzle/0007_location_visibility.sql','utf8'));
-const {location_visibility,public_latitude,public_longitude,...after}=db.prepare('SELECT * FROM catches WHERE id=1').get();
-assert.deepEqual(after,{...previous});
-assert.deepEqual(db.prepare('SELECT * FROM catch_positions WHERE catch_id=1').get(),position);
-assert.equal(location_visibility,'area');assert.equal(public_latitude,null);assert.equal(public_longitude,null);
-assert.throws(()=>db.prepare("UPDATE catches SET location_visibility='unknown' WHERE id=1").run());
+for (const file of (await readdir('drizzle'))
+  .filter((f) => f.endsWith('.sql') && f < '0007')
+  .sort())
+  db.exec(await readFile(`drizzle/${file}`, 'utf8'));
+db.prepare('INSERT INTO profiles(user_id,display_name) VALUES (?,?)').run(
+  'owner',
+  '釣り人',
+);
+db.prepare(
+  'INSERT INTO catches(id,date,location,species,count,owner_id) VALUES (1,?,?,?,?,?)',
+).run('2026-10-08', '三浦海岸', 'アジ', 2, 'owner');
+db.prepare(
+  'INSERT INTO catch_positions(catch_id,latitude,longitude,source) VALUES (1,?,?,?)',
+).run(35.123, 139.456, 'gps');
+const previous = db.prepare('SELECT * FROM catches WHERE id=1').get(),
+  position = db.prepare('SELECT * FROM catch_positions WHERE catch_id=1').get();
+db.exec(await readFile('drizzle/0007_location_visibility.sql', 'utf8'));
+const { location_visibility, public_latitude, public_longitude, ...after } = db
+  .prepare('SELECT * FROM catches WHERE id=1')
+  .get();
+assert.deepEqual(after, { ...previous });
+assert.deepEqual(
+  db.prepare('SELECT * FROM catch_positions WHERE catch_id=1').get(),
+  position,
+);
+assert.equal(location_visibility, 'area');
+assert.equal(public_latitude, null);
+assert.equal(public_longitude, null);
+assert.throws(() =>
+  db
+    .prepare("UPDATE catches SET location_visibility='unknown' WHERE id=1")
+    .run(),
+);
 db.close();
-console.log('Location privacy migration preserved legacy names/coordinates without generating a public area.');
+console.log(
+  'Location privacy migration preserved legacy names/coordinates without generating a public area.',
+);

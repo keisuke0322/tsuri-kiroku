@@ -10,6 +10,7 @@ Googleの署名・issuer・audience・有効期限・nonceを検証し、Google�
 新規写真はブラウザーで長辺最大1,600px・JPEG品質80%へ圧縮します。元画像はアップロードしません。閲覧にもログインが必要です。
 
 確認済みテスト環境（利用者から提供）:
+
 - URL: https://tsuri-kiroku-staging.keisuke0322.workers.dev
 - D1 Database ID: bd5eb98e-edc9-4c26-8d2b-f1fd8e825ba5
 - GoogleのリダイレクトURI: https://tsuri-kiroku-staging.keisuke0322.workers.dev/api/auth/google/callback
@@ -18,10 +19,10 @@ Googleの署名・issuer・audience・有効期限・nonceを検証し、Google�
 
 Cloudflareのダッシュボードで以下を作成します。まずstagingだけで構いません。
 
-| リソース | テスト | 本番 |
-| --- | --- | --- |
-| Worker | tsuri-kiroku-staging | tsuri-kiroku-production |
-| D1 | tsuri-kiroku-staging | tsuri-kiroku-production |
+| リソース            | テスト                      | 本番                           |
+| ------------------- | --------------------------- | ------------------------------ |
+| Worker              | tsuri-kiroku-staging        | tsuri-kiroku-production        |
+| D1                  | tsuri-kiroku-staging        | tsuri-kiroku-production        |
 | R2 Standardバケット | tsuri-kiroku-photos-staging | tsuri-kiroku-photos-production |
 
 - Workersは無料プランを使用。WorkerはHello Worldから作り、表示されるworkers.dev URLを控えます。GitHubとの自動連携は不要です（後述のActionsでデプロイ）。
@@ -51,6 +52,7 @@ Googleのクライアントシークレットは、各WorkerのSettings → Vari
 各Environmentに以下を保存します。
 
 Variables:
+
 - CLOUDFLARE_ACCOUNT_ID
 - D1_DATABASE_ID（環境ごとに別）
 - APP_ORIGIN（Workerのhttps URL、末尾スラッシュなし）
@@ -59,6 +61,7 @@ Variables:
 - PHOTO_STORAGE_USER_LIMIT_BYTES（任意、バイト単位。未設定時100000000）
 
 Secrets:
+
 - CLOUDFLARE_API_TOKEN（対象アカウントでWorkersのデプロイ、D1マイグレーション、R2バインディングの構成に必要な権限だけを付与）
 
 ### 日々の開発と本番公開（1人運用）
@@ -77,6 +80,7 @@ stagingのデータを本番へコピーする処理はありません。PRチ�
 ### GitHub側で設定するmainの保護
 
 Settings → Branches → Add classic branch protection ruleでmainを対象にします（すでにルールがある場合は編集）。
+
 - Require a pull request before merging: ON
 - Require approvals: OFF（自分のPRを自分で承認できないため）
 - Require status checks to pass before merging: ON、`PR checks`を指定（PRで一度実行してから選択）
@@ -122,6 +126,7 @@ Workers・D1・R2の無料枠はアカウント内の他用途とも共有され
 写真は6枚/記録・8MiB/入力に加え、環境ごとに全体8,000,000,000バイト・ユーザー100,000,000バイトをサーバー側で制限します。既存画像の初期集計、上限変更、失敗時の回収は [PHOTO-STORAGE.md](PHOTO-STORAGE.md) を参照してください。staging・production・他バケットの合計やR2操作回数による課金を制限するものではありません。
 
 参照:
+
 - https://developers.cloudflare.com/d1/get-started/
 - https://developers.cloudflare.com/d1/reference/migrations/
 - https://developers.cloudflare.com/r2/pricing/

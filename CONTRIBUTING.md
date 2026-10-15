@@ -51,11 +51,17 @@ git merge upstream/cloudflare-migration
 
 ### 4. 検証する
 
+[Google TypeScript Style Guide](https://google.github.io/styleguide/tsguide.html)を基本とし、Prettierでコードの書式を統一します。詳しいリポジトリ規約は[AGENTS.md](AGENTS.md#コーディング規約と整形)を参照してください。変更後に整形し、差分を確認してから検証してください。CIでも `format:check` を実行します。
+
 ```sh
+corepack pnpm run format
+corepack pnpm run format:check
 corepack pnpm run typecheck
 corepack pnpm test
 corepack pnpm build
 ```
+
+インデントはスペース2文字、文字列は原則シングルクォート、折り返し幅は80文字です。関数や型の定義の間、処理のまとまりの間には空行を入れます。Prettierは意味に応じた空行を自動追加しないため、空行はコードを書く際に調整してください。第三者のソース（`components/ui/`・`hooks/use-mobile.ts`・`vendor/`）、DBの生成ファイル・適用済みマイグレーション、ロックファイルなどは `.prettierignore` で整形対象から外しています。
 
 機能変更では関連するテストを追加・更新し、PC・スマートフォンで操作を確認してください。不具合修正では、再発を検知できるテストを追加します。実行コードを変えない説明書だけの変更では、設定との整合性、リンク、差分を確認します。
 
@@ -79,12 +85,12 @@ push先は自分のforkの `origin` です。forkへのpushだけでは元リポ
 
 GitHubで元リポジトリの「Pull requests」→「New pull request」→「compare across forks」を開き、次を指定します。
 
-| 項目 | 指定する内容 |
-| --- | --- |
-| base repository | `keisuke0322/tsuri-kiroku` |
-| base branch | `cloudflare-migration` |
-| head repository | 自分のfork |
-| compare branch | `feat/your-change` などの作業ブランチ |
+| 項目            | 指定する内容                          |
+| --------------- | ------------------------------------- |
+| base repository | `keisuke0322/tsuri-kiroku`            |
+| base branch     | `cloudflare-migration`                |
+| head repository | 自分のfork                            |
+| compare branch  | `feat/your-change` などの作業ブランチ |
 
 PRには、変更の目的、変更後の動作、関連Issue、検証結果、未確認事項を記載してください。必要に応じて画面のスクリーンショットを添えます。未実行の確認は成功扱いにしないでください。
 

@@ -1,0 +1,13 @@
+{
+  "singleQuote": true,
+  "tabWidth": 2,
+  "printWidth": 80,
+  "endOfLine": "lf",
+  "embeddedLanguageFormatting": "off",
+  "overrides": [
+    {
+      "files": "*.jsonc",
+      "options": { "trailingComma": "none" }
+    }
+  ]
+}
