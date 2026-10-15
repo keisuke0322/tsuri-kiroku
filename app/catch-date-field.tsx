@@ -1,6 +1,6 @@
 'use client';
 
-import { lazy, Suspense, useState } from 'react';
+import { lazy, Suspense, useEffect, useState } from 'react';
 import { CalendarDays } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import {
@@ -9,7 +9,8 @@ import {
   PopoverTrigger,
 } from '@/components/ui/popover';
 
-const CatchCalendar = lazy(() => import('./catch-calendar'));
+const loadCalendar = () => import('./catch-calendar');
+const CatchCalendar = lazy(loadCalendar);
 
 export default function CatchDateField({
   value,
@@ -24,6 +25,12 @@ export default function CatchDateField({
 }) {
   const [open, setOpen] = useState(false),
     [draft, setDraft] = useState<Date | undefined>();
+
+  useEffect(() => {
+    // Warm the chunk when the record form opens, before date selection.
+    // Opening the calendar uses the normal Suspense loading path.
+    void loadCalendar().catch(() => {});
+  }, []);
 
   function changeOpen(next: boolean) {
     if (next) setDraft(new Date(value + 'T12:00:00'));
@@ -70,7 +77,18 @@ export default function CatchDateField({
           align="start"
           aria-label="釣行日を選択"
         >
-          <Suspense fallback={<p role="status">カレンダーを読み込み中…</p>}>
+          <Suspense
+            fallback={
+              <div
+                className="catch-date-loading"
+                data-cy="catch-date-loading"
+                role="status"
+              >
+                <CalendarDays size={24} aria-hidden="true" />
+                <span>カレンダーを準備しています…</span>
+              </div>
+            }
+          >
             <CatchCalendar
               mode="single"
               selected={draft}
@@ -78,24 +96,24 @@ export default function CatchDateField({
               defaultMonth={new Date(value + 'T12:00:00')}
               autoFocus
             />
+            <div className="catch-date-actions">
+              <Button
+                type="button"
+                variant="outline"
+                onClick={() => setOpen(false)}
+              >
+                キャンセル
+              </Button>
+              <Button
+                data-cy="confirm-catch-date"
+                type="button"
+                disabled={!draft}
+                onClick={confirm}
+              >
+                確定
+              </Button>
+            </div>
           </Suspense>
-          <div className="catch-date-actions">
-            <Button
-              type="button"
-              variant="outline"
-              onClick={() => setOpen(false)}
-            >
-              キャンセル
-            </Button>
-            <Button
-              data-cy="confirm-catch-date"
-              type="button"
-              disabled={!draft}
-              onClick={confirm}
-            >
-              確定
-            </Button>
-          </div>
         </PopoverContent>
       </Popover>
       {error && (
