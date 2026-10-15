@@ -37,7 +37,7 @@ GitHubアカウントでログインし、[既存のIssue](https://github.com/ke
 
 | 用途           | 技術                                          |
 | -------------- | --------------------------------------------- |
-| 画面・アプリ   | React、TypeScript、Vinext（Vite）             |
+| 画面・アプリ   | React、TypeScript、Next.js（App Router）、Vinext（Vite）             |
 | 実行環境       | Cloudflare Workers                            |
 | データベース   | Cloudflare D1（SQLite）、Drizzle              |
 | 写真保存       | Cloudflare R2                                 |
