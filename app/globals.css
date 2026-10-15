@@ -1,6 +1,14 @@
-@import 'tailwindcss';
+@import 'tailwindcss' source(none);
 @import 'tw-animate-css';
 @import '../vendor/shadcn-tailwind-4.13.0.css';
+@source './';
+/* Include only UI primitives used by the app (including their dependencies). */
+@source '../components/ui/button.tsx';
+@source '../components/ui/calendar.tsx';
+@source '../components/ui/dialog.tsx';
+@source '../components/ui/input.tsx';
+@source '../components/ui/popover.tsx';
+@source '../components/ui/tabs.tsx';
 :root {
   --background: #f4f8f8;
   --foreground: #163b48;

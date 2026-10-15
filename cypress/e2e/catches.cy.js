@@ -114,6 +114,29 @@ describe('釣果の主要操作', () => {
     });
   });
 
+  for (const width of [1280, 390]) {
+    it(`カレンダーを開いて日付を確定・再表示できる（${width}px）`, () => {
+      cy.viewport(width, 844);
+      visit();
+      cy.get(by('record-catch')).click();
+      cy.get(by('catch-date-trigger')).click();
+      cy.get('[data-slot="calendar"]').should('be.visible');
+      cy.get('[data-slot="calendar"] button[data-day]')
+        .not(':disabled')
+        .eq(10)
+        .click();
+      cy.get(by('confirm-catch-date')).click();
+      cy.get(by('catch-date-value'))
+        .invoke('text')
+        .then((selected) => {
+          cy.get(by('catch-date-trigger')).click();
+          cy.get('[data-selected-single="true"]').should('have.length', 1);
+          cy.get(by('confirm-catch-date')).click();
+          cy.get(by('catch-date-value')).should('have.text', selected);
+        });
+    });
+  }
+
   for (const width of [1280, 390, 414])
     it(`魚種ごとのレシピ検索とポップアップ操作（${width}px）`, () => {
       cy.viewport(width, 844);

@@ -33,7 +33,14 @@ export default function LoginScreen({
               width={1670}
               height={theme === 'day' ? 941 : 942}
               fetchPriority="high"
-              src={`/images/login/login-${theme}.webp`}
+              src={`/images/optimized/login-${theme}-1670.webp`}
+              srcSet={[640, 1024, 1670]
+                .map(
+                  (width) =>
+                    `/images/optimized/login-${theme}-${width}.webp ${width}w`,
+                )
+                .join(', ')}
+              sizes="(max-width: 750px) 100vw, min(100vw, 177.3svh)"
               alt="海辺で釣りをする人。魚との出会いが、日常を豊かにする。釣った魚、出かけた場所、あの瞬間をいつでも振り返れる。"
             />
           )}

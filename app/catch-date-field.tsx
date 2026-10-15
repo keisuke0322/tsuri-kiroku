@@ -1,15 +1,15 @@
 'use client';
 
-import { useState } from 'react';
+import { lazy, Suspense, useState } from 'react';
 import { CalendarDays } from 'lucide-react';
-import { ja } from 'date-fns/locale';
-import { Calendar } from '@/components/ui/calendar';
 import { Button } from '@/components/ui/button';
 import {
   Popover,
   PopoverContent,
   PopoverTrigger,
 } from '@/components/ui/popover';
+
+const CatchCalendar = lazy(() => import('./catch-calendar'));
 
 export default function CatchDateField({
   value,
@@ -51,6 +51,7 @@ export default function CatchDateField({
       <Popover open={open} onOpenChange={changeOpen}>
         <PopoverTrigger asChild>
           <button
+            data-cy="catch-date-trigger"
             type="button"
             className="catch-date-trigger"
             aria-required="true"
@@ -58,7 +59,9 @@ export default function CatchDateField({
             aria-describedby={error ? 'catch-error-date' : undefined}
             aria-labelledby="catch-date-label catch-date-value"
           >
-            <span id="catch-date-value">{value.replaceAll('-', '/')}</span>
+            <span id="catch-date-value" data-cy="catch-date-value">
+              {value.replaceAll('-', '/')}
+            </span>
             <CalendarDays size={18} aria-hidden="true" />
           </button>
         </PopoverTrigger>
@@ -67,14 +70,15 @@ export default function CatchDateField({
           align="start"
           aria-label="釣行日を選択"
         >
-          <Calendar
-            mode="single"
-            locale={ja}
-            selected={draft}
-            onSelect={setDraft}
-            defaultMonth={new Date(value + 'T12:00:00')}
-            autoFocus
-          />
+          <Suspense fallback={<p role="status">カレンダーを読み込み中…</p>}>
+            <CatchCalendar
+              mode="single"
+              selected={draft}
+              onSelect={setDraft}
+              defaultMonth={new Date(value + 'T12:00:00')}
+              autoFocus
+            />
+          </Suspense>
           <div className="catch-date-actions">
             <Button
               type="button"
@@ -83,7 +87,12 @@ export default function CatchDateField({
             >
               キャンセル
             </Button>
-            <Button type="button" disabled={!draft} onClick={confirm}>
+            <Button
+              data-cy="confirm-catch-date"
+              type="button"
+              disabled={!draft}
+              onClick={confirm}
+            >
               確定
             </Button>
           </div>

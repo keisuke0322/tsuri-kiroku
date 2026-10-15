@@ -32,6 +32,12 @@ describe('つりめぐりのブランド表示', () => {
         cy.visit('/');
         cy.get(hour === 12 ? '.login-day' : '.login-night').should('exist');
         checkBrand();
+        cy.get('.login-art')
+          .should('be.visible')
+          .and(($img) => {
+            expect($img[0].naturalWidth, 'artwork loaded').to.be.greaterThan(0);
+            expect($img[0].currentSrc).to.include('/images/optimized/login-');
+          });
         cy.get('.google-login-button')
           .should('be.visible')
           .and('have.attr', 'href', '/api/auth/google');
@@ -79,6 +85,15 @@ describe('つりめぐりのブランド表示', () => {
       cy.visit('/');
       cy.wait('@list').its('response.statusCode').should('equal', 200);
       checkBrand();
+      cy.get('.seasonal-hero-art img')
+        .should('be.visible')
+        .and(($img) => {
+          expect(
+            $img[0].naturalWidth,
+            'seasonal artwork loaded',
+          ).to.be.greaterThan(0);
+          expect($img[0].currentSrc).to.include('/images/optimized/hero-');
+        });
       cy.get('[data-cy="record-catch"]').should('be.visible');
     });
   }

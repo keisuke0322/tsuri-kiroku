@@ -51,7 +51,14 @@ export default function SeasonalHero({
       <div className="seasonal-hero-art">
         {season && (
           <img
-            src={`/images/hero/hero-${season}.webp`}
+            src={`/images/optimized/hero-${season}-1671.webp`}
+            srcSet={[640, 1024, 1671]
+              .map(
+                (width) =>
+                  `/images/optimized/hero-${season}-${width}.webp ${width}w`,
+              )
+              .join(', ')}
+            sizes="(min-width: 1671px) 1671px, 100vw"
             alt={descriptions[season]}
             width={1671}
             height={941}
