@@ -1,6 +1,6 @@
 name: 機能要望
 description: 新しい機能や改善を提案する
-title: "[要望] "
+title: '[要望] '
 body:
   - type: markdown
     attributes:

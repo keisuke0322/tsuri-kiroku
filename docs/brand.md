@@ -6,16 +6,16 @@
 
 `public/brand/` に魚・波・太陽を組み合わせたSVGを配置する。ネイビー `#083653`、ブルー `#009feb`、ターコイズ `#39b9d1`、太陽のオレンジ `#ffb83e` を基本色とする。
 
-| 用途 | ファイル |
-| --- | --- |
-| 横長ヘッダー | `header-color.svg` |
-| ログインカード | `login-color.svg` |
-| シンボル | `mark-color.svg` |
-| 単色版 | `header-mono.svg` / `login-mono.svg` / `mark-mono.svg` |
-| 濃色背景版 | `header-dark.svg` / `login-dark.svg` / `mark-dark.svg` |
-| 正方形アプリアイコン | `app-icon.svg` |
-| iOSホーム画面 | `apple-touch-icon.png`（180 × 180） |
-| ファビコン | `public/favicon.svg`（小サイズ用に簡略化） |
+| 用途                 | ファイル                                               |
+| -------------------- | ------------------------------------------------------ |
+| 横長ヘッダー         | `header-color.svg`                                     |
+| ログインカード       | `login-color.svg`                                      |
+| シンボル             | `mark-color.svg`                                       |
+| 単色版               | `header-mono.svg` / `login-mono.svg` / `mark-mono.svg` |
+| 濃色背景版           | `header-dark.svg` / `login-dark.svg` / `mark-dark.svg` |
+| 正方形アプリアイコン | `app-icon.svg`                                         |
+| iOSホーム画面        | `apple-touch-icon.png`（180 × 180）                    |
+| ファビコン           | `public/favicon.svg`（小サイズ用に簡略化）             |
 
 画面では `app/brand.tsx` でシンボルとテキストを組み合わせ、名称が読み上げられ、細い英字も小さな画面で読めるようにする。夜のログインカードでは濃色背景用のシンボルと文字色を使う。素材の文字部分はシステムの日本語フォントに従う。
 

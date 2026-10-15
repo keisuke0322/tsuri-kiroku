@@ -35,15 +35,15 @@ GitHubアカウントでログインし、[既存のIssue](https://github.com/ke
 
 ## 技術構成
 
-| 用途 | 技術 |
-| --- | --- |
-| 画面・アプリ | React、TypeScript、Vinext（Vite） |
-| 実行環境 | Cloudflare Workers |
-| データベース | Cloudflare D1（SQLite）、Drizzle |
-| 写真保存 | Cloudflare R2 |
-| 認証 | Google OpenID Connect、サーバー管理セッション |
-| 地図 | Google Maps JavaScript API、Geocoding API |
-| 検証・デプロイ | Node.jsテスト、Cypress、GitHub Actions |
+| 用途           | 技術                                          |
+| -------------- | --------------------------------------------- |
+| 画面・アプリ   | React、TypeScript、Vinext（Vite）             |
+| 実行環境       | Cloudflare Workers                            |
+| データベース   | Cloudflare D1（SQLite）、Drizzle              |
+| 写真保存       | Cloudflare R2                                 |
+| 認証           | Google OpenID Connect、サーバー管理セッション |
+| 地図           | Google Maps JavaScript API、Geocoding API     |
+| 検証・デプロイ | Node.jsテスト、Cypress、GitHub Actions        |
 
 ## ローカルで開発する
 
@@ -86,11 +86,11 @@ corepack pnpm dev
 
 ### 設定なしで確認できる範囲
 
-| 設定 | 確認できること |
-| --- | --- |
-| Google OAuthなし | 型チェック・テスト・ビルド、未ログイン画面。ログイン後の操作にはOAuth設定が必要です。 |
-| Google OAuthあり | ローカルDB・R2を使った釣果登録、編集、削除、写真、いいねなど。 |
-| Google Maps APIキーなし | Google地図は「地図は準備中」と表示。GPS取得・座標の手動入力・過去の釣り場などは利用できます。 |
+| 設定                    | 確認できること                                                                                                            |
+| ----------------------- | ------------------------------------------------------------------------------------------------------------------------- |
+| Google OAuthなし        | 型チェック・テスト・ビルド、未ログイン画面。ログイン後の操作にはOAuth設定が必要です。                                     |
+| Google OAuthあり        | ローカルDB・R2を使った釣果登録、編集、削除、写真、いいねなど。                                                            |
+| Google Maps APIキーなし | Google地図は「地図は準備中」と表示。GPS取得・座標の手動入力・過去の釣り場などは利用できます。                             |
 | Google Maps APIキーあり | Google地図の描画、ピン操作、場所名検索。設定方法は[地図の設定](docs/fishing-map.md#google-mapsの設定)を参照してください。 |
 
 ### 3. 変更を検証する
@@ -105,11 +105,11 @@ corepack pnpm build
 
 ## ブランチと公開の流れ
 
-| ブランチ・環境 | 役割 |
-| --- | --- |
-| 外部開発者のforkの作業ブランチ | 開発とPR提出。元サイトには自動デプロイされません。 |
-| 元リポジトリの `cloudflare-migration` | 管理者が変更を取り込み、stagingへ自動デプロイ。 |
-| 元リポジトリの `main` | 確認済みの公開PRをマージし、productionへ自動デプロイ。 |
+| ブランチ・環境                        | 役割                                                   |
+| ------------------------------------- | ------------------------------------------------------ |
+| 外部開発者のforkの作業ブランチ        | 開発とPR提出。元サイトには自動デプロイされません。     |
+| 元リポジトリの `cloudflare-migration` | 管理者が変更を取り込み、stagingへ自動デプロイ。        |
+| 元リポジトリの `main`                 | 確認済みの公開PRをマージし、productionへ自動デプロイ。 |
 
 管理者は外部PRをレビューし、開発ブランチへ取り込んでstagingを確認します。その後、`cloudflare-migration → main` のPRで公開します。stagingとproductionは別のWorkers・D1・R2を使用し、データは自動コピーしません。
 
@@ -125,14 +125,14 @@ corepack pnpm build
 
 ## 関連ドキュメント
 
-| ドキュメント | 内容 |
-| --- | --- |
-| [CONTRIBUTING.md](CONTRIBUTING.md) | 要望・不具合報告、forkからの開発・PR提出 |
+| ドキュメント                                        | 内容                                        |
+| --------------------------------------------------- | ------------------------------------------- |
+| [CONTRIBUTING.md](CONTRIBUTING.md)                  | 要望・不具合報告、forkからの開発・PR提出    |
 | [Cloudflare設定と公開手順](CLOUDFLARE-MIGRATION.md) | 環境作成、Google認証、Actions、DB変更、公開 |
-| [釣果マップ](docs/fishing-map.md) | 地図の設定、位置情報の公開範囲 |
-| [写真ストレージ](PHOTO-STORAGE.md) | 容量管理、既存写真の集計、障害復旧 |
-| [E2Eテスト](docs/e2e.md) | stagingでのCypress実行、認証、後片付け |
-| [外部提案の受付](docs/external-proposals.md) | 管理者の通知設定、受付一覧 |
-| [Issueの状態管理](docs/issue-status.md) | GitHub Project Statusの運用 |
-| [ブランド素材](docs/brand.md) | ロゴと使用方針 |
-| [AGENTS.md](AGENTS.md) | AIによる開発の作業ルール |
+| [釣果マップ](docs/fishing-map.md)                   | 地図の設定、位置情報の公開範囲              |
+| [写真ストレージ](PHOTO-STORAGE.md)                  | 容量管理、既存写真の集計、障害復旧          |
+| [E2Eテスト](docs/e2e.md)                            | stagingでのCypress実行、認証、後片付け      |
+| [外部提案の受付](docs/external-proposals.md)        | 管理者の通知設定、受付一覧                  |
+| [Issueの状態管理](docs/issue-status.md)             | GitHub Project Statusの運用                 |
+| [ブランド素材](docs/brand.md)                       | ロゴと使用方針                              |
+| [AGENTS.md](AGENTS.md)                              | AIによる開発の作業ルール                    |
