@@ -1555,6 +1555,17 @@ body,
   color: #163b48;
   z-index: 60;
 }
+.catch-date-loading {
+  width: 248px;
+  min-height: 350px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  color: #607980;
+  font-size: 14px;
+}
 .catch-date-actions {
   display: flex;
   justify-content: flex-end;

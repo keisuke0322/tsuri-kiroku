@@ -116,11 +116,30 @@ describe('釣果の主要操作', () => {
 
   for (const width of [1280, 390]) {
     it(`カレンダーを開いて日付を確定・再表示できる（${width}px）`, () => {
+      let releaseCalendar;
+      const calendarReady = new Promise((resolve) => {
+        releaseCalendar = resolve;
+      });
+      cy.then(() =>
+        Cypress.automation('remote:debugger:protocol', {
+          command: 'Network.clearBrowserCache',
+        }),
+      );
+      cy.intercept('GET', '**/catch-calendar-*.js', (request) =>
+        calendarReady.then(() => request.continue()),
+      ).as('calendarChunk');
       cy.viewport(width, 844);
       visit();
       cy.get(by('record-catch')).click();
       cy.get(by('catch-date-trigger')).click();
+      cy.get(by('catch-date-loading')).should('be.visible');
+      cy.get(by('confirm-catch-date')).should('not.exist');
+      cy.get('.catch-date-actions').should('not.exist');
+      cy.then(() => releaseCalendar());
+      cy.wait('@calendarChunk');
       cy.get('[data-slot="calendar"]').should('be.visible');
+      cy.get(by('catch-date-loading')).should('not.exist');
+      cy.get(by('confirm-catch-date')).should('be.visible');
       cy.get('[data-slot="calendar"] button[data-day]')
         .not(':disabled')
         .eq(10)
