@@ -28,8 +28,22 @@ describe('つりめぐりのブランド表示', () => {
       it(`未認証ログイン画面 ${width}px ${hour}時`, () => {
         cy.clearCookies();
         cy.viewport(width, height);
-        cy.clock(new Date(2026, 9, 12, hour).getTime(), ['Date']);
-        cy.visit('/');
+        // Set the browser's clock before app scripts execute, including hydration.
+        // Avoid cy.clock across navigations: the clock may be restored on reload.
+        const fixedTime = new Date(2026, 9, 12, hour).getTime();
+        cy.visit('/', {
+          onBeforeLoad(win) {
+            const NativeDate = win.Date;
+            win.Date = class FixedDate extends NativeDate {
+              constructor(...args) {
+                super(...(args.length ? args : [fixedTime]));
+              }
+              static now() {
+                return fixedTime;
+              }
+            };
+          },
+        });
         cy.get(hour === 12 ? '.login-day' : '.login-night').should('exist');
         checkBrand();
         cy.get('.login-art')

@@ -35,15 +35,15 @@ GitHubアカウントでログインし、[既存のIssue](https://github.com/ke
 
 ## 技術構成
 
-| 用途           | 技術                                          |
-| -------------- | --------------------------------------------- |
-| 画面・アプリ   | React、TypeScript、Vinext（Vite）             |
-| 実行環境       | Cloudflare Workers                            |
-| データベース   | Cloudflare D1（SQLite）、Drizzle              |
-| 写真保存       | Cloudflare R2                                 |
-| 認証           | Google OpenID Connect、サーバー管理セッション |
-| 地図           | Google Maps JavaScript API、Geocoding API     |
-| 検証・デプロイ | Node.jsテスト、Cypress、GitHub Actions        |
+| 用途           | 技術                                                     |
+| -------------- | -------------------------------------------------------- |
+| 画面・アプリ   | React、TypeScript、Next.js（App Router）、Vinext（Vite） |
+| 実行環境       | Cloudflare Workers                                       |
+| データベース   | Cloudflare D1（SQLite）、Drizzle                         |
+| 写真保存       | Cloudflare R2                                            |
+| 認証           | Google OpenID Connect、サーバー管理セッション            |
+| 地図           | Google Maps JavaScript API、Geocoding API                |
+| 検証・デプロイ | Node.jsテスト、Cypress、GitHub Actions                   |
 
 ## ローカルで開発する
 
