@@ -46,7 +46,9 @@ function card(id) {
 function visit() {
   cy.intercept('GET', '/api/catches').as('list');
   cy.visit('/');
-  cy.wait('@list').its('response.statusCode').should('equal', 200);
+  // The UI may hydrate from cached data without issuing a fresh list request.
+  cy.get(by('record-catch')).should('be.visible');
+  cy.request('/api/catches').its('status').should('equal', 200);
 }
 function reload() {
   cy.reload();
