@@ -18,6 +18,7 @@
     "e2e:staging": "node scripts/staging-e2e.mjs",
     "format": "prettier --write .",
     "format:check": "prettier --check .",
+    "hooks:install": "node scripts/setup-git-hooks.mjs",
     "artwork:generate": "node scripts/optimize-artwork.mjs"
   },
   "dependencies": {
