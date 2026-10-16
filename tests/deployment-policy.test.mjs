@@ -135,10 +135,11 @@ test('latest failed deployment overrides older successful deployment', async () 
 
 test('README-only change may reuse a successful ancestor staging deployment', async () => {
   const f = fixture({ sha: 'previous' });
-  f.github.rest.repos.compareCommits = 'compare';
   f.github.paginate = async (method, args) => {
     if (method === 'deployments')
-      return args.sha ? [] : [{ id: 1, sha: 'previous', environment: 'staging' }];
+      return args.sha
+        ? []
+        : [{ id: 1, sha: 'previous', environment: 'staging' }];
     if (method === 'statuses') return [{ state: 'success' }];
     return [];
   };
@@ -166,7 +167,9 @@ test('source code changes cannot reuse previous staging', async () => {
   });
   f.github.paginate = async (method, args) =>
     method === 'deployments'
-      ? args.sha ? [] : [{ id: 1, sha: 'previous', environment: 'staging' }]
+      ? args.sha
+        ? []
+        : [{ id: 1, sha: 'previous', environment: 'staging' }]
       : [{ state: 'success' }];
   await assert.rejects(checkPullRequest(f), /No successful staging/);
 });
