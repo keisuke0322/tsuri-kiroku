@@ -28,6 +28,14 @@ function fixture({
         listDeployments: 'deployments',
         listDeploymentStatuses: 'statuses',
         listPullRequestsAssociatedWithCommit: 'prs',
+        compareCommits: async () => ({
+          data: {
+            status: 'ahead',
+            files: [{ filename: 'app/page.tsx' }],
+            total_commits: 1,
+            commits: [{ sha: 'source' }],
+          },
+        }),
       },
     },
     paginate: async (method, args) => {
@@ -136,6 +144,7 @@ test('latest failed deployment overrides older successful deployment', async () 
 test('README-only change may reuse a successful ancestor staging deployment', async () => {
   const f = fixture({ sha: 'previous' });
   f.github.paginate = async (method, args) => {
+    if (method === 'prs') return [f.context.payload.pull_request];
     if (method === 'deployments')
       return args.sha
         ? []
