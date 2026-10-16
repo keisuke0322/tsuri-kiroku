@@ -17,8 +17,13 @@ function validateSource(pr, repository) {
 }
 
 function isDocumentationOnly(files) {
-  return files.length > 0 && files.every((file) =>
-    /^(?:README(?:\.[^/]*)?|[^/]+\.md|docs\/.*|\.github\/ISSUE_TEMPLATE\/.*|\.github\/PULL_REQUEST_TEMPLATE(?:\/.*|\.md))$/i.test(file.filename),
+  return (
+    files.length > 0 &&
+    files.every((file) =>
+      /^(?:README(?:\.[^/]*)?|[^/]+\.md|docs\/.*|\.github\/ISSUE_TEMPLATE\/.*|\.github\/PULL_REQUEST_TEMPLATE(?:\/.*|\.md))$/i.test(
+        file.filename,
+      ),
+    )
   );
 }
 
@@ -79,15 +84,26 @@ async function requireStaging({
           per_page: 100,
         });
         const { status, files, total_commits, commits } = comparison.data;
-        if (status !== 'ahead' || !files || files.length >= 300 ||
-            total_commits !== commits.length || !isDocumentationOnly(files)) continue;
+        if (
+          status !== 'ahead' ||
+          !files ||
+          files.length >= 300 ||
+          total_commits !== commits.length ||
+          !isDocumentationOnly(files)
+        )
+          continue;
         const statuses = await github.paginate(
           github.rest.repos.listDeploymentStatuses,
           { ...context.repo, deployment_id: candidate.id, per_page: 100 },
         );
-        if (statuses[0]?.state === 'success' ||
-            (statuses[0]?.state === 'inactive' && statuses.some((s) => s.state === 'success'))) {
-          log(`Documentation-only changes: reused successful staging ${candidate.sha} for ${sha}`);
+        if (
+          statuses[0]?.state === 'success' ||
+          (statuses[0]?.state === 'inactive' &&
+            statuses.some((s) => s.state === 'success'))
+        ) {
+          log(
+            `Documentation-only changes: reused successful staging ${candidate.sha} for ${sha}`,
+          );
           return;
         }
       }
