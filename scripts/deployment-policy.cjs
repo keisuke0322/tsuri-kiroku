@@ -16,6 +16,12 @@ function validateSource(pr, repository) {
   return pr.head.sha;
 }
 
+function isDocumentationOnly(files) {
+  return files.length > 0 && files.every((file) =>
+    /^(?:README(?:\.[^/]*)?|[^/]+\.md|docs\/.*|\.github\/ISSUE_TEMPLATE\/.*|\.github\/PULL_REQUEST_TEMPLATE(?:\/.*|\.md))$/i.test(file.filename),
+  );
+}
+
 async function requireStaging({
   github,
   context,
@@ -56,6 +62,35 @@ async function requireStaging({
       }
       if (state === 'failure' || state === 'error')
         throw new Error(`Staging failed for ${sha}. Re-run staging first.`);
+    }
+    // Documentation-only commits may reuse a successful staging deployment
+    // of an ancestor. Application, workflow and test changes never qualify.
+    if (!latest) {
+      const candidates = await github.paginate(
+        github.rest.repos.listDeployments,
+        { ...context.repo, environment: 'staging', per_page: 100 },
+      );
+      for (const candidate of candidates.sort((a, b) => b.id - a.id)) {
+        if (!candidate.sha || candidate.sha === sha) continue;
+        const comparison = await github.rest.repos.compareCommits({
+          ...context.repo,
+          base: candidate.sha,
+          head: sha,
+          per_page: 100,
+        });
+        const { status, files, total_commits, commits } = comparison.data;
+        if (status !== 'ahead' || !files || files.length >= 300 ||
+            total_commits !== commits.length || !isDocumentationOnly(files)) continue;
+        const statuses = await github.paginate(
+          github.rest.repos.listDeploymentStatuses,
+          { ...context.repo, deployment_id: candidate.id, per_page: 100 },
+        );
+        if (statuses[0]?.state === 'success' ||
+            (statuses[0]?.state === 'inactive' && statuses.some((s) => s.state === 'success'))) {
+          log(`Documentation-only changes: reused successful staging ${candidate.sha} for ${sha}`);
+          return;
+        }
+      }
     }
     if (attempt + 1 < attempts) {
       log(`Waiting for staging ${sha} (${attempt + 1}/${attempts})`);
