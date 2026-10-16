@@ -30,6 +30,9 @@ describe('つりめぐりのブランド表示', () => {
         cy.viewport(width, height);
         cy.clock(new Date(2026, 9, 12, hour).getTime(), ['Date']);
         cy.visit('/');
+        // Retry the initial page load once to avoid a cold-start hydration race.
+        cy.get('.google-login-button').should('be.visible');
+        cy.reload();
         cy.get(hour === 12 ? '.login-day' : '.login-night').should('exist');
         checkBrand();
         cy.get('.login-art')
