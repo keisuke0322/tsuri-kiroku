@@ -1,0 +1,10 @@
+#!/bin/sh
+# Block pushes when the repository does not match its Prettier configuration.
+set -eu
+cd "$(git rev-parse --show-toplevel)"
+if ! command -v corepack >/dev/null 2>&1; then
+  echo "pre-push: corepack is required. Install Node.js and run pnpm install." >&2
+  exit 1
+fi
+echo "pre-push: checking formatting..."
+corepack pnpm run format:check
