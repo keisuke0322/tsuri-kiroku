@@ -513,10 +513,37 @@ export function CombinationEditor({
             allowCreate
           />
           <label>
+            釣り方の候補
+            <select
+              data-cy="combination-method-choice"
+              value=""
+              onChange={(e) => {
+                if (e.target.value) update(index, { method: e.target.value });
+              }}
+            >
+              <option value="">候補から選ぶ（自由入力もできます）</option>
+              {[
+                ...new Set([
+                  'テンヤ',
+                  '浮き釣り',
+                  'サビキ',
+                  'ルアー',
+                  '投げ釣り',
+                  ...sets.map((s) => s.method),
+                ]),
+              ]
+                .filter(Boolean)
+                .map((m) => (
+                  <option key={m} value={m}>
+                    {m}
+                  </option>
+                ))}
+            </select>
+          </label>
+          <label>
             この組み合わせの釣り方
             <Input
               data-cy="combination-method"
-              list="gear-methods"
               value={c.method}
               maxLength={200}
               placeholder="候補を選択、または自由入力"
@@ -545,23 +572,6 @@ export function CombinationEditor({
           </div>
         </div>
       ))}
-      <datalist id="gear-methods">
-        {[
-          ...new Set([
-            'テンヤ',
-            '浮き釣り',
-            'サビキ',
-            'ルアー',
-            '投げ釣り',
-            ...sets.map((s) => s.method),
-            ...value.map((c) => c.method),
-          ]),
-        ]
-          .filter(Boolean)
-          .map((m) => (
-            <option key={m} value={m} />
-          ))}
-      </datalist>
       <div className="gear-actions">
         <Button
           type="button"
