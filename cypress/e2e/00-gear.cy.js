@@ -132,25 +132,45 @@ describe('所有道具・基本セット・当日の組み合わせ', () => {
           cy.task('checkpoint', 'gear:record-start');
           cy.get(by('nav-records')).click();
           cy.get(by('record-catch')).click();
+          cy.task('checkpoint', 'gear:form-open');
           cy.get(by('catch-location')).type(`${marker}-${width}-draft`);
           cy.get(by('fish-species')).type('タチウオ');
+          cy.task('checkpoint', 'gear:fish-entered');
           cy.get(by('combination-species'))
             .should('be.checked')
             .uncheck()
             .should('not.be.checked')
             .check();
-          cy.get(by('combination-set')).select(String(setResponse.body.id));
+          cy.task('checkpoint', 'gear:species-toggled');
+          cy.get(by('combination-set'))
+            .scrollIntoView()
+            .select(String(setResponse.body.id));
+          cy.task('checkpoint', 'gear:set-selected');
           cy.get(by('selected-gear')).should('contain', item.name);
           cy.get(by('combination-method')).type('テンヤ');
-          cy.contains('button', 'この組み合わせを複製').click();
+          cy.task('checkpoint', 'gear:method-entered');
+          cy.contains('button', 'この組み合わせを複製')
+            .scrollIntoView()
+            .click();
+          cy.task('checkpoint', 'gear:duplicated');
           cy.get(by('combination-editor'))
             .should('have.length', 2)
             .last()
             .within(() => {
               cy.get(by('combination-method')).clear().type('浮き釣り');
-              cy.contains('button', '見つからない道具を追加').click();
-              cy.get(by('inline-gear-name')).type(`${marker}-borrowed`);
-              cy.contains('label', '今回の記録だけ').find('input').check();
+              cy.contains('button', '見つからない道具を追加')
+                .scrollIntoView()
+                .click();
+              cy.task('checkpoint', 'gear:inline-open');
+              cy.get(by('inline-gear-name'))
+                .scrollIntoView()
+                .type(`${marker}-borrowed`);
+              cy.task('checkpoint', 'gear:inline-name-entered');
+              cy.contains('label', '今回の記録だけ')
+                .find('input')
+                .scrollIntoView()
+                .check();
+              cy.task('checkpoint', 'gear:temporary-selected');
               cy.contains('button', 'この道具を追加').click();
               cy.get(by('selected-gear')).should('contain', '今回だけ');
             });
