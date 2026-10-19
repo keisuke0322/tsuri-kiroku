@@ -79,12 +79,13 @@ describe('所有道具・基本セット・当日の組み合わせ', () => {
         .should('be.oneOf', [200, 404]);
   });
   for (const width of [1280, 390]) {
-    it(`道具登録、基本セット、複製、入力保持、保存後の使用履歴（${width}px）`, () => {
+    it(`道具登録と基本セットの保存（${width}px）`, () => {
       cy.viewport(width, 900);
       visit();
       cy.get(by('nav-gear'))
         .click()
         .should('have.attr', 'aria-current', 'page');
+      cy.task('checkpoint', 'gear:management-start');
       cy.get(by('new-gear')).click();
       cy.get(by('gear-name')).type(`${marker}-${width}-rod`);
       cy.get(by('gear-spec')).type('PE 0.8号');
@@ -94,6 +95,7 @@ describe('所有道具・基本セット・当日の組み合わせ', () => {
       cy.wait('@saveGear').then(({ response }) => {
         expect(response.statusCode).to.equal(201);
         const item = response.body;
+        cy.task('checkpoint', 'gear:item-saved');
         cy.get(`[data-gear-id="${item.id}"]`).should('contain', item.name);
         cy.contains('button', '基本セット').click();
         cy.get(by('new-gear-set')).click();
@@ -106,6 +108,28 @@ describe('所有道具・基本セット・当日の組み合わせ', () => {
         cy.get(by('save-gear-set')).click();
         cy.wait('@saveSet').then(({ response: setResponse }) => {
           expect(setResponse.statusCode).to.equal(201);
+          cy.task('checkpoint', 'gear:management-saved');
+          cy.reload();
+          cy.wait('@gearList').its('response.statusCode').should('equal', 200);
+          cy.get(by('nav-gear')).click();
+          cy.contains('button', '基本セット').click();
+          cy.get(`[data-set-id="${setResponse.body.id}"]`).should(
+            'contain',
+            item.name,
+          );
+        });
+      });
+    });
+    it(`組み合わせの複製、入力保持、保存後の使用履歴（${width}px）`, () => {
+      cy.viewport(width, 900);
+      gear('record-' + width).then((item) => {
+        request('POST', '/api/gear-sets', {
+          name: `${marker}-${width}-record-set`,
+          gear: [item],
+        }).then((setResponse) => {
+          expect(setResponse.status).to.equal(201);
+          visit();
+          cy.task('checkpoint', 'gear:record-start');
           cy.get(by('nav-records')).click();
           cy.get(by('record-catch')).click();
           cy.get(by('catch-location')).type(`${marker}-${width}-draft`);
@@ -130,6 +154,7 @@ describe('所有道具・基本セット・当日の組み合わせ', () => {
               cy.contains('button', 'この道具を追加').click();
               cy.get(by('selected-gear')).should('contain', '今回だけ');
             });
+          cy.task('checkpoint', 'gear:combinations-ready');
           cy.get(by('catch-memo')).type(marker);
           cy.contains('button', '道具画面へ（入力を保持）').click();
           cy.get(by('gear-search')).type(`${marker}-${width}`);
@@ -143,12 +168,14 @@ describe('所有道具・基本セット・当日の組み合わせ', () => {
             `${marker}-${width}-draft`,
           );
           cy.get(by('combination-editor')).should('have.length', 2);
+          cy.task('checkpoint', 'gear:draft-restored');
           cy.intercept('POST', '/api/catches').as('saveCatch');
           cy.get(by('save-catch')).click();
           cy.wait('@saveCatch').then(({ response: catchResponse }) => {
             expect(catchResponse.statusCode).to.equal(201);
             const id = catchResponse.body.id;
             catchIds.push(id);
+            cy.task('checkpoint', 'gear:record-saved');
             cy.reload();
             cy.get(`[data-catch-id="${id}"]`).within(() => {
               cy.contains('summary', '使用した道具').click();
