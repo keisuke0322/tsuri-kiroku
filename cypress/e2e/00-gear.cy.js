@@ -137,10 +137,11 @@ describe('所有道具・基本セット・当日の組み合わせ', () => {
           cy.get(by('fish-species')).type('タチウオ');
           cy.task('checkpoint', 'gear:fish-entered');
           cy.get(by('combination-species'))
-            .should('be.checked')
-            .uncheck()
-            .should('not.be.checked')
-            .check();
+            .scrollIntoView()
+            .should('be.checked');
+          cy.get(by('combination-species')).uncheck();
+          cy.get(by('combination-species')).should('not.be.checked');
+          cy.get(by('combination-species')).check();
           cy.task('checkpoint', 'gear:species-toggled');
           cy.get(by('combination-set'))
             .scrollIntoView()
