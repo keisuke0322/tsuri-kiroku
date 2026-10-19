@@ -1095,6 +1095,385 @@ assert.equal(
 console.log(
   'Fishing map API passed: private coordinates/spots, CSRF, ownership, coordinate validation, reuse, favorites, immutable snapshots, legacy edits, clear and delete.',
 );
+// Issue #7: real routes, SQLite migrations, two authenticated identities.
+const gearApi = await module('app/api/gear/route.ts'),
+  gearEditApi = await module('app/api/gear/[id]/route.ts'),
+  setsApi = await module('app/api/gear-sets/route.ts'),
+  setEditApi = await module('app/api/gear-sets/[id]/route.ts'),
+  historyApi = await module('app/api/gear-history/route.ts');
+const send = (api, method, path, value, identity = owner, id = 1) =>
+  api[method](request(path, method, value, identity), params(id));
+for (const api of [gearApi, setsApi, historyApi]) {
+  assert.equal((await api.GET(request('/api/gear'))).status, 401);
+}
+const gearValue = {
+  kind: 'ロッド',
+  name: '記録時のロッド',
+  spec: 'PE 0.8号',
+  memo: 'PRIVATE-GEAR-MEMO',
+  favorite: true,
+};
+for (const value of [
+  { ...gearValue, name: '' },
+  { ...gearValue, kind: '不明' },
+  { ...gearValue, spec: 'x'.repeat(301) },
+  { ...gearValue, favorite: 'true' },
+])
+  assert.equal((await send(gearApi, 'POST', '/api/gear', value)).status, 400);
+assert.equal(
+  (
+    await gearApi.POST(
+      request('/api/gear', 'POST', gearValue, owner, 'https://evil.example'),
+    )
+  ).status,
+  403,
+);
+const gearResponse = await send(gearApi, 'POST', '/api/gear', gearValue);
+assert.equal(gearResponse.status, 201);
+const ownedGear = await gearResponse.json();
+const setValue = {
+  name: '堤防用',
+  gear: [ownedGear],
+  method: 'テンヤ',
+  favorite: true,
+};
+const setResponse = await send(setsApi, 'POST', '/api/gear-sets', setValue);
+assert.equal(setResponse.status, 201);
+const ownedSet = await setResponse.json();
+assert.equal(
+  (
+    await send(setsApi, 'POST', '/api/gear-sets', {
+      name: 'ロッドだけ',
+      gear: [ownedGear],
+    })
+  ).status,
+  201,
+);
+assert.equal(
+  (await send(setsApi, 'POST', '/api/gear-sets', { name: '未登録', gear: [] }))
+    .status,
+  201,
+);
+assert.equal(
+  (await send(setsApi, 'POST', '/api/gear-sets', setValue, other)).status,
+  403,
+);
+assert.equal(
+  (
+    await send(
+      gearEditApi,
+      'PUT',
+      '/api/gear/' + ownedGear.id,
+      gearValue,
+      other,
+      ownedGear.id,
+    )
+  ).status,
+  404,
+);
+assert.equal(
+  (
+    await send(
+      setEditApi,
+      'PUT',
+      '/api/gear-sets/' + ownedSet.id,
+      setValue,
+      other,
+      ownedSet.id,
+    )
+  ).status,
+  404,
+);
+assert.equal(
+  (
+    await (
+      await gearApi.GET(request('/api/gear', 'GET', undefined, other))
+    ).json()
+  ).some((g) => g.id === ownedGear.id),
+  false,
+);
+assert.equal(
+  (
+    await (
+      await setsApi.GET(request('/api/gear-sets', 'GET', undefined, other))
+    ).json()
+  ).some((g) => g.id === ownedSet.id),
+  false,
+);
+const combo = {
+  setId: ownedSet.id,
+  setName: ownedSet.name,
+  method: 'テンヤ',
+  gear: [ownedGear],
+  species: ['タチウオ'],
+};
+const temp = {
+  id: null,
+  kind: '仕掛け',
+  name: '借りた仕掛け',
+  manufacturer: '',
+  model: '',
+  spec: '20g',
+  memo: 'NEVER-PUBLISH',
+};
+const recordPayload = {
+  date: '2026-10-19',
+  location: '港',
+  fish: [{ species: 'タチウオ', count: 5, length: 90 }],
+  memo: 'gear-test',
+  combinations: [
+    combo,
+    { ...combo, method: '浮き釣り', gear: [ownedGear, temp] },
+  ],
+};
+assert.equal(
+  (await send(catches, 'POST', '/api/catches', recordPayload, other)).status,
+  403,
+);
+assert.equal(
+  (
+    await send(catches, 'POST', '/api/catches', {
+      ...recordPayload,
+      combinations: [
+        { ...combo, setId: null, gear: [temp], species: ['アジ'] },
+      ],
+    })
+  ).status,
+  400,
+);
+const catchResponse = await send(
+  catches,
+  'POST',
+  '/api/catches',
+  recordPayload,
+);
+assert.equal(catchResponse.status, 201);
+const gearCatchId = (await catchResponse.json()).id;
+const getGearRecord = async (identity = owner) =>
+  (
+    await (
+      await catches.GET(request('/api/catches', 'GET', undefined, identity))
+    ).json()
+  ).find((c) => c.id === gearCatchId);
+const originalGearRecord = await getGearRecord();
+assert.equal(originalGearRecord.combinations.length, 2);
+assert.equal(
+  JSON.stringify(originalGearRecord).includes('PRIVATE-GEAR-MEMO'),
+  false,
+);
+assert.equal(
+  JSON.stringify(originalGearRecord).includes('NEVER-PUBLISH'),
+  false,
+);
+assert.deepEqual(
+  (await getGearRecord(other)).combinations,
+  originalGearRecord.combinations,
+);
+assert.equal(
+  (
+    await send(
+      gearEditApi,
+      'PUT',
+      '/api/gear/' + ownedGear.id,
+      { ...ownedGear, name: '変更済み', spec: 'PE 2号', retired: true },
+      owner,
+      ownedGear.id,
+    )
+  ).status,
+  200,
+);
+assert.equal(
+  (
+    await send(
+      setEditApi,
+      'PUT',
+      '/api/gear-sets/' + ownedSet.id,
+      { ...ownedSet, name: '変更済みセット', retired: true },
+      owner,
+      ownedSet.id,
+    )
+  ).status,
+  200,
+);
+assert.deepEqual(
+  (await getGearRecord()).combinations,
+  originalGearRecord.combinations,
+);
+const history = async (query = '', identity = owner) =>
+  (
+    await historyApi.GET(
+      request('/api/gear-history' + query, 'GET', undefined, identity),
+    )
+  ).json();
+assert.equal((await history('?gearId=' + ownedGear.id)).items.length, 2);
+assert.equal(
+  (
+    await history(
+      '?setId=' + ownedSet.id + '&species=' + encodeURIComponent('タチウオ'),
+    )
+  ).items.length,
+  2,
+);
+assert.equal(
+  (await history('?species=' + encodeURIComponent('アジ'))).items.length,
+  0,
+);
+assert.equal((await history('?gearId=' + ownedGear.id, other)).items.length, 0);
+const previous = (await history('?gearId=' + ownedGear.id)).items;
+const exact = await history('?combinationId=' + previous[0].id);
+assert.equal(exact.items.length, 1);
+assert.equal(
+  'count' in exact.items[0],
+  false,
+  'history must not attribute catch totals to a combination',
+);
+const copied = await send(catches, 'POST', '/api/catches', {
+  ...recordPayload,
+  combinations: [{ ...previous[0], method: '別の釣り方' }],
+});
+assert.equal(copied.status, 201, 'retired gear and removed sets can be reused');
+assert.deepEqual(
+  (await getGearRecord()).combinations,
+  originalGearRecord.combinations,
+);
+assert.equal(
+  (
+    await send(setsApi, 'POST', '/api/gear-sets', {
+      name: '履歴から保存',
+      gear: previous[1].gear,
+      method: previous[1].method,
+    })
+  ).status,
+  201,
+);
+const updatePayload = {
+  ...recordPayload,
+  fish: [{ species: 'アジ', count: 1 }],
+  photoAssignments: [],
+  featuredPhotoId: null,
+};
+delete updatePayload.combinations;
+assert.equal(
+  (
+    await send(
+      entry,
+      'PUT',
+      '/api/catches/' + gearCatchId,
+      updatePayload,
+      owner,
+      gearCatchId,
+    )
+  ).status,
+  200,
+);
+const afterLegacyEdit = await getGearRecord();
+assert.deepEqual(
+  afterLegacyEdit.combinations[0].gear,
+  originalGearRecord.combinations[0].gear,
+);
+assert.equal(
+  afterLegacyEdit.combinations[0].species.length,
+  0,
+  'removed fish cannot leave stale associations',
+);
+assert.equal(
+  (
+    await send(
+      entry,
+      'DELETE',
+      '/api/catches/' + gearCatchId,
+      undefined,
+      owner,
+      gearCatchId,
+    )
+  ).status,
+  200,
+);
+assert.equal(
+  sql
+    .prepare('SELECT COUNT(*) n FROM catch_combinations WHERE catch_id=?')
+    .get(gearCatchId).n,
+  0,
+);
+for (const combinations of [
+  Array.from({ length: 21 }, () => combo),
+  [{ ...combo, gear: [ownedGear, ownedGear] }],
+  [
+    {
+      ...combo,
+      gear: Array.from({ length: 31 }, (_, i) => ({
+        ...temp,
+        name: 'temp' + i,
+      })),
+    },
+  ],
+]) {
+  assert.equal(
+    (
+      await send(catches, 'POST', '/api/catches', {
+        ...recordPayload,
+        combinations,
+      })
+    ).status,
+    400,
+  );
+}
+const maxPayload = {
+  ...recordPayload,
+  fish: Array.from({ length: 20 }, (_, i) => ({ species: '魚' + i, count: 1 })),
+  combinations: Array.from({ length: 20 }, (_, i) => ({
+    ...combo,
+    species: ['魚' + i],
+    gear: Array.from({ length: 30 }, (_, j) => ({ ...temp, name: '道具' + j })),
+  })),
+};
+const maxResponse = await send(catches, 'POST', '/api/catches', maxPayload);
+assert.equal(
+  maxResponse.status,
+  201,
+  'maximum fish/combination/gear counts can be stored together',
+);
+const maxId = (await maxResponse.json()).id;
+assert.equal(
+  sql
+    .prepare('SELECT COUNT(*) n FROM catch_combinations WHERE catch_id=?')
+    .get(maxId).n,
+  20,
+);
+assert.equal(
+  sql.prepare('SELECT COUNT(*) n FROM catch_fish WHERE catch_id=?').get(maxId)
+    .n,
+  20,
+);
+assert.equal(
+  (
+    await send(
+      entry,
+      'PUT',
+      '/api/catches/' + maxId,
+      { ...maxPayload, photoAssignments: [], featuredPhotoId: null },
+      owner,
+      maxId,
+    )
+  ).status,
+  200,
+);
+const storageApi = await module('app/api/profile/storage/route.ts');
+assert.equal(
+  (await storageApi.GET(request('/api/profile/storage'))).status,
+  401,
+);
+assert.equal(
+  (
+    await storageApi.GET(
+      request('/api/profile/storage', 'GET', undefined, owner),
+    )
+  ).status,
+  200,
+);
+console.log(
+  'Gear API passed: validation, ownership, CSRF, shared snapshots without private memos, retired reuse, independent sets and copies, history filters and cascade cleanup.',
+);
 assert.equal(
   (
     await logout.POST(

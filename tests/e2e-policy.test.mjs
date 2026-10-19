@@ -12,6 +12,7 @@ import {
   createRunMarker,
   cleanupQuery,
   cleanupSpotsQuery,
+  cleanupGearQueries,
 } from '../scripts/e2e-policy.mjs';
 
 const config = {
@@ -129,5 +130,38 @@ test('map cleanup deletes only generated spot names for the test owner', () => {
     [2, 3, 4],
   );
   assert.throws(() => cleanupSpotsQuery('google:123', '%'));
+  db.close();
+});
+
+test('gear cleanup leaves other owners and unmarked existing gear and sets intact', () => {
+  const db = new DatabaseSync(':memory:');
+  db.exec(
+    'CREATE TABLE gear (id INTEGER,owner_id TEXT,name TEXT,memo TEXT); CREATE TABLE gear_sets(id INTEGER,owner_id TEXT,name TEXT)',
+  );
+  const marker = createRunMarker();
+  const insert = db.prepare('INSERT INTO gear VALUES (?,?,?,?)');
+  insert.run(1, 'google:123', marker + '-rod', marker);
+  insert.run(2, 'google:123', 'existing', 'keep');
+  insert.run(3, 'google:456', marker + '-rod', marker);
+  const sets = db.prepare('INSERT INTO gear_sets VALUES (?,?,?)');
+  sets.run(1, 'google:123', marker + '-set');
+  sets.run(2, 'google:123', 'existing');
+  sets.run(3, 'google:456', marker + '-set');
+  for (const query of cleanupGearQueries('google:123', marker)) db.exec(query);
+  assert.deepEqual(
+    db
+      .prepare('SELECT id FROM gear ORDER BY id')
+      .all()
+      .map((r) => r.id),
+    [2, 3],
+  );
+  assert.deepEqual(
+    db
+      .prepare('SELECT id FROM gear_sets ORDER BY id')
+      .all()
+      .map((r) => r.id),
+    [2, 3],
+  );
+  assert.throws(() => cleanupGearQueries('google:123', '%'));
   db.close();
 });

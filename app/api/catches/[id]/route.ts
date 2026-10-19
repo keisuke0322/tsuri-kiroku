@@ -1,3 +1,9 @@
+import {
+  combinationsInput,
+  combinationStatements,
+  readCombination,
+  type CombinationRow,
+} from '../../gear/storage';
 import { visibilityInput, visibilityStatement } from '../location-privacy';
 import { positionInput, rememberSpot, positionStatement } from '../positions';
 import { getDb, parseCatch } from '../db';
@@ -17,6 +23,23 @@ export async function PUT(
     const body = (await req.json()) as Record<string, unknown>,
       v = parseCatch(body);
     if (!v) return json({ error: '入力内容を確認してください。' }, 400);
+    let combinations = await combinationsInput(
+      body.combinations,
+      user.userId,
+      v.fish.map((f) => f.species),
+    );
+    if (combinations === undefined) {
+      const rows = await getDb()
+        .prepare(
+          'SELECT * FROM catch_combinations WHERE catch_id=? ORDER BY sort_order',
+        )
+        .bind(id)
+        .all<CombinationRow>();
+      combinations = rows.results.map(readCombination).map((c) => ({
+        ...c,
+        species: c.species.filter((s) => v.fish.some((f) => f.species === s)),
+      }));
+    }
     visibilityInput(body);
     const position = await positionInput(body, user.userId);
     const db = getDb(),
@@ -70,6 +93,7 @@ export async function PUT(
         : requestedFeatured,
       first = v.fish[0];
     const statements = [
+      ...combinationStatements(id, combinations),
       db.prepare('DELETE FROM catch_fish WHERE catch_id=?').bind(id),
       ...v.fish.map((fish, index) =>
         db

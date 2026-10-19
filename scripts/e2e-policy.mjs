@@ -50,3 +50,11 @@ export function cleanupSpotsQuery(userId, marker) {
   cleanupQuery(userId, marker); // Reuse strict owner and generated marker validation.
   return `DELETE FROM fishing_spots WHERE owner_id='${userId}' AND name LIKE '${marker}-%'`;
 }
+
+export function cleanupGearQueries(userId, marker) {
+  cleanupQuery(userId, marker);
+  return [
+    `DELETE FROM gear_sets WHERE owner_id='${userId}' AND name LIKE '${marker}-%'`,
+    `DELETE FROM gear WHERE owner_id='${userId}' AND (memo='${marker}' OR name LIKE '${marker}-%')`,
+  ];
+}

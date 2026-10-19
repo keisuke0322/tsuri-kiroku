@@ -1,3 +1,9 @@
+import {
+  combinationsInput,
+  combinationStatements,
+  readCombination,
+  type CombinationRow,
+} from '../gear/storage';
 import { visibilityInput } from './location-privacy';
 import { approximateArea } from '../../location-privacy';
 import { positionInput, rememberSpot, positionStatement } from './positions';
@@ -59,6 +65,9 @@ export async function GET(req: Request) {
         longitude: number;
         source: string;
       }>();
+    const combinations = await db
+      .prepare('SELECT * FROM catch_combinations ORDER BY catch_id,sort_order')
+      .all<CombinationRow>();
     return json(
       r.results.map((row) => {
         const rows = fish.results.filter((f) => f.catch_id === row.id),
@@ -112,6 +121,9 @@ export async function GET(req: Request) {
                 ...(own ? { spotId: p.spot_id } : {}),
               }
             : null,
+          combinations: combinations.results
+            .filter((c) => c.catch_id === row.id)
+            .map(readCombination),
           liked: !!row.liked,
           fish: catchFish.map(({ id, species, count, length }) => ({
             id,
@@ -135,6 +147,11 @@ export async function POST(req: Request) {
       body = (await req.json()) as Record<string, unknown>,
       v = parseCatch(body);
     if (!v) return json({ error: '入力内容を確認してください。' }, 400);
+    const combinations = await combinationsInput(
+      body.combinations,
+      user.userId,
+      v.fish.map((f) => f.species),
+    );
     const visibility = visibilityInput(body),
       position = await positionInput(body, user.userId);
     await ensureProfile(user);
@@ -166,6 +183,7 @@ export async function POST(req: Request) {
         .run(),
       id = Number(r.meta.last_row_id);
     await db.batch([
+      ...combinationStatements(id, combinations),
       ...v.fish.map((fish, index) =>
         db
           .prepare(

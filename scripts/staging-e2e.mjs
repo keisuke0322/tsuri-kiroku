@@ -6,6 +6,7 @@ import {
   createRunMarker,
   cleanupQuery,
   cleanupSpotsQuery,
+  cleanupGearQueries,
 } from './e2e-policy.mjs';
 
 const config = JSON.parse(await readFile('wrangler.deploy.json', 'utf8'));
@@ -116,6 +117,15 @@ try {
   } catch {
     console.error(
       'Test spot cleanup failed; inspect spots with marker ' + marker,
+    );
+    failed = true;
+  }
+  try {
+    for (const query of cleanupGearQueries(sessions[0].userId, marker))
+      await sql(query);
+  } catch {
+    console.error(
+      'Test gear cleanup failed; inspect gear with marker ' + marker,
     );
     failed = true;
   }

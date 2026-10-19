@@ -2170,3 +2170,250 @@ button.featured-photo {
   padding-right: 24px;
   overflow-wrap: anywhere;
 }
+
+/* Persistent sections keep drafts and filters while the primary navigation changes. */
+[hidden] {
+  display: none !important;
+}
+.primary-nav {
+  display: flex;
+  justify-content: center;
+  gap: 12px;
+  padding: 10px 20px;
+  background: #fff;
+  border-bottom: 1px solid #dce8e9;
+}
+.primary-nav button {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 10px 24px;
+  border-radius: 10px;
+  color: #546d75;
+  min-height: 44px;
+}
+.primary-nav button[aria-current='page'],
+.gear-tabs button[aria-selected='true'] {
+  background: #e0f3f2;
+  color: #087b87;
+  font-weight: 700;
+}
+.primary-nav button:focus-visible,
+.gear-tabs button:focus-visible {
+  outline: 2px solid #087b87;
+  outline-offset: 2px;
+}
+.gear-manager,
+.my-page {
+  padding-top: 30px;
+  padding-bottom: 40px;
+}
+.gear-manager h1,
+.my-page h1 {
+  font-size: 26px;
+  font-weight: 800;
+  margin-bottom: 12px;
+}
+.gear-manager h2,
+.my-page h2 {
+  font-size: 19px;
+  font-weight: 700;
+  margin: 14px 0;
+}
+.gear-manager h3 {
+  font-weight: 700;
+}
+.gear-tabs,
+.gear-actions,
+.gear-filters {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 10px;
+  margin: 14px 0;
+}
+.gear-tabs button {
+  min-height: 44px;
+  padding: 10px 18px;
+  border-radius: 10px;
+}
+.gear-filters > input {
+  max-width: 340px;
+}
+.gear-manager select,
+.gear-picker select,
+.combination-editor select {
+  width: 100%;
+  min-height: 42px;
+  padding: 8px;
+  border: 1px solid #cbdcde;
+  border-radius: 8px;
+  background: #fff;
+}
+.gear-filters select {
+  width: auto;
+}
+.gear-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 300px), 1fr));
+  gap: 16px;
+}
+.gear-card,
+.gear-edit,
+.gear-history-card,
+.combination-card {
+  min-width: 0;
+  background: #fff;
+  padding: 18px;
+  border: 1px solid #dce8e9;
+  border-radius: 12px;
+  margin: 14px 0;
+  overflow-wrap: anywhere;
+}
+.gear-edit {
+  max-width: 720px;
+}
+.gear-card p,
+.combination-summary p {
+  white-space: pre-wrap;
+  margin: 8px 0;
+}
+.gear-check,
+.gear-options label,
+.gear-species label {
+  display: flex !important;
+  align-items: center;
+  gap: 8px;
+  min-height: 40px;
+  font-weight: 400;
+}
+.gear-check input,
+.gear-options input,
+.gear-species input {
+  width: 18px;
+  height: 18px;
+  flex-shrink: 0;
+}
+.gear-help {
+  font-size: 13px;
+  line-height: 1.6;
+  color: #586d75;
+  margin: 8px 0;
+}
+.gear-picker {
+  display: grid;
+  gap: 10px;
+}
+.gear-options {
+  max-height: 200px;
+  overflow-y: auto;
+  border: 1px solid #e1ebec;
+  border-radius: 8px;
+  padding: 8px;
+}
+.gear-chip {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  background: #edf7f6;
+  padding: 6px 10px;
+  border-radius: 8px;
+  margin: 4px 0;
+  font-size: 13px;
+}
+.gear-chip button {
+  min-width: 36px;
+  min-height: 36px;
+  font-size: 20px;
+}
+.retired-note {
+  display: block;
+  color: #9a4916;
+  font-size: 13px;
+}
+.gear-inline-add,
+.combination-card {
+  display: grid;
+  gap: 12px;
+}
+.combination-editor {
+  border: 1px solid #cbdcde;
+  padding: 12px;
+  border-radius: 12px;
+  min-width: 0;
+}
+.combination-editor legend {
+  font-weight: 700;
+  padding: 0 6px;
+}
+.gear-actions > button {
+  min-height: 40px;
+  white-space: normal;
+  height: auto;
+}
+.gear-private-memo {
+  color: #586d75;
+  font-size: 13px;
+}
+.gear-history {
+  padding-top: 12px;
+}
+.gear-history > label {
+  display: grid;
+  gap: 8px;
+}
+.gear-species {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 10px;
+}
+.combination-summary {
+  border-left: 3px solid #aad8d4;
+  padding: 10px;
+  margin: 10px 0;
+  font-size: 13px;
+}
+.catch-combinations summary {
+  cursor: pointer;
+  padding: 8px 0;
+  font-size: 13px;
+  color: #087b87;
+}
+.my-page progress {
+  width: 100%;
+  accent-color: #087b87;
+}
+@media (max-width: 650px) {
+  .app-shell {
+    padding-bottom: calc(80px + env(safe-area-inset-bottom));
+  }
+  .primary-nav {
+    position: fixed;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    z-index: 30;
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    padding: 8px 10px calc(8px + env(safe-area-inset-bottom));
+    border-top: 1px solid #dce8e9;
+    box-shadow: 0 -2px 12px #163b4810;
+    gap: 6px;
+  }
+  .primary-nav button {
+    flex-direction: column;
+    gap: 4px;
+    padding: 8px 4px;
+    font-size: 12px;
+  }
+  .gear-manager,
+  .my-page {
+    padding-top: 20px;
+  }
+  .gear-actions > button {
+    max-width: 100%;
+  }
+}
