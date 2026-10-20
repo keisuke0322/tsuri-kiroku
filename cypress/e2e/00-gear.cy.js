@@ -88,7 +88,12 @@ describe('所有道具・基本セット・当日の組み合わせ', () => {
       cy.get(by('catch-location')).type(`${marker}-${width}-method`);
       cy.get(by('fish-species')).type('タチウオ');
       cy.get(by('catch-memo')).type(marker);
-      cy.get(by('combination-details-toggle')).scrollIntoView().focus();
+      cy.window().then((win) => win.focus());
+      cy.get(by('combination-details-toggle'))
+        .scrollIntoView()
+        .focus()
+        .should('be.focused');
+      cy.document().should((doc) => expect(doc.hasFocus()).to.equal(true));
       // Use native keyboard events so Enter activates the focused button.
       cy.press(Cypress.Keyboard.Keys.ENTER);
       cy.get(by('combination-details')).should(
