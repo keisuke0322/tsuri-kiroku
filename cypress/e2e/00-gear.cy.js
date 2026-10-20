@@ -87,6 +87,18 @@ function pressKey(key) {
   });
 }
 
+function typeMethod(text) {
+  cy.get(by('combination-method')).focus().should('be.focused');
+  // Base UI treats synthetic input without inputType as autofill and keeps
+  // suggestions closed. Insert native text as a Japanese IME would.
+  return cy.then(() =>
+    Cypress.automation('remote:debugger:protocol', {
+      command: 'Input.insertText',
+      params: { text },
+    }),
+  );
+}
+
 describe('所有道具・基本セット・当日の組み合わせ', () => {
   beforeEach(() => {
     catchIds = [];
@@ -120,14 +132,14 @@ describe('所有道具・基本セット・当日の組み合わせ', () => {
         'data-state',
         'open',
       );
-      cy.get(by('combination-method'))
-        .should('have.attr', 'role', 'combobox')
-        .type('サビ');
+      cy.get(by('combination-method')).should('have.attr', 'role', 'combobox');
+      typeMethod('サビ');
       cy.get(by('method-option')).contains('サビキ').click();
       cy.get(by('combination-method')).should('have.value', 'サビキ');
       cy.get(by('save-catch')).should('exist');
       cy.get(by('combination-method')).clear();
-      cy.get(by('combination-method')).should('have.value', '').type('テン');
+      cy.get(by('combination-method')).should('have.value', '');
+      typeMethod('テン');
       cy.get(by('combination-method'))
         .should('have.value', 'テン')
         .and('have.attr', 'aria-expanded', 'true')
@@ -142,9 +154,8 @@ describe('所有道具・基本セット・当日の組み合わせ', () => {
         .should('have.value', 'テンヤ')
         .and('have.attr', 'aria-expanded', 'false');
       cy.get(by('combination-method')).clear();
-      cy.get(by('combination-method'))
-        .should('have.value', '')
-        .type('ちょい投げ、6号');
+      cy.get(by('combination-method')).should('have.value', '');
+      typeMethod('ちょい投げ、6号');
       cy.get(by('combination-method'))
         .should('have.value', 'ちょい投げ、6号')
         .and('have.attr', 'aria-expanded', 'true')
@@ -508,7 +519,20 @@ describe('所有道具・基本セット・当日の組み合わせ', () => {
             });
             cy.get(by('nav-gear')).click();
             cy.contains('button', '使用履歴').first().click();
+            cy.intercept({
+              method: 'GET',
+              pathname: '/api/gear-history',
+              query: { species: 'タチウオ' },
+            }).as('speciesHistory');
             cy.get(by('history-species')).type('タチウオ');
+            cy.wait('@speciesHistory', { responseTimeout: 30000 }).then(
+              ({ response }) => {
+                expect(response.statusCode).to.equal(200);
+                expect(
+                  response.body.items.filter((entry) => entry.catchId === id),
+                ).to.have.length(2);
+              },
+            );
             cy.get(by('gear-history-card'))
               .filter(`:contains("${item.name}")`)
               .should('have.length.at.least', 2);
