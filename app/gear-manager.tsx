@@ -4,6 +4,12 @@ import { useRef, useState, type ReactNode } from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import {
+  Accordion,
+  AccordionItem,
+  AccordionTrigger,
+  AccordionContent,
+} from '@/components/ui/accordion';
+import {
   Dialog,
   DialogContent,
   DialogHeader,
@@ -127,6 +133,7 @@ export default function GearManager({
     [kind, setKind] = useState(''),
     [status, setStatus] = useState('active'),
     [favorite, setFavorite] = useState(false),
+    [expandedKinds, setExpandedKinds] = useState<string[]>([...gearKinds]),
     [draft, setGearDraft] = useState<Gear | null>(null),
     [gearDialogOpen, setGearDialogOpen] = useState(false),
     [busy, setBusy] = useState(false),
@@ -160,6 +167,9 @@ export default function GearManager({
       );
       onUpdated(g);
       if (fromEditor) {
+        setExpandedKinds((current) =>
+          current.includes(g.kind) ? current : [...current, g.kind],
+        );
         setGearDraft(null);
         setGearDialogOpen(false);
       }
@@ -244,12 +254,18 @@ export default function GearManager({
             data-cy="gear-search"
             value={query}
             placeholder="名前で検索"
-            onChange={(e) => setQuery(e.target.value)}
+            onChange={(e) => {
+              setQuery(e.target.value);
+              setExpandedKinds([...gearKinds]);
+            }}
           />
           <select
             aria-label="状態"
             value={status}
-            onChange={(e) => setStatus(e.target.value)}
+            onChange={(e) => {
+              setStatus(e.target.value);
+              setExpandedKinds([...gearKinds]);
+            }}
           >
             <option value="active">使用中</option>
             <option value="retired">使用終了・登録解除</option>
@@ -259,7 +275,10 @@ export default function GearManager({
             <input
               type="checkbox"
               checked={favorite}
-              onChange={(e) => setFavorite(e.target.checked)}
+              onChange={(e) => {
+                setFavorite(e.target.checked);
+                setExpandedKinds([...gearKinds]);
+              }}
             />
             ★ お気に入りだけ
           </label>
@@ -267,7 +286,10 @@ export default function GearManager({
             <select
               aria-label="道具の種類"
               value={kind}
-              onChange={(e) => setKind(e.target.value)}
+              onChange={(e) => {
+                setKind(e.target.value);
+                setExpandedKinds([...gearKinds]);
+              }}
             >
               <option value="">すべての種類</option>
               {gearKinds.map((k) => (
@@ -291,75 +313,106 @@ export default function GearManager({
           {draft ? '道具の入力を再開' : '道具を登録'}
         </Button>
 
-        {gearKinds
-          .filter((k) => !kind || kind === k)
-          .map((k) => {
-            const rows = gear.filter((g) => g.kind === k && visible(g));
-            return (
-              rows.length > 0 && (
-                <section key={k}>
-                  <h2>{k}</h2>
-                  <div className="gear-grid">
-                    {rows.map((g) => (
-                      <article
-                        key={g.id}
-                        className="gear-card"
-                        data-cy="gear-card"
-                        data-gear-id={g.id}
-                      >
-                        <h3>
-                          {g.name}
-                          {g.retired && <small>（使用終了）</small>}
-                        </h3>
-                        <p>
-                          {[g.manufacturer, g.model, g.spec]
-                            .filter(Boolean)
-                            .join(' ／ ')}
-                        </p>
-                        {g.memo && (
-                          <p className="gear-private-memo">{g.memo}</p>
-                        )}
-                        <div className="gear-actions">
-                          <button
-                            type="button"
-                            disabled={busy}
-                            aria-label={`${g.name}のお気に入り`}
-                            aria-pressed={g.favorite}
-                            onClick={() =>
-                              saveGear({ ...g, favorite: !g.favorite })
-                            }
+        <Accordion
+          type="multiple"
+          className="gear-kind-list"
+          value={expandedKinds}
+          onValueChange={setExpandedKinds}
+        >
+          {gearKinds
+            .filter((k) => !kind || kind === k)
+            .map((k) => {
+              const rows = gear.filter((g) => g.kind === k && visible(g));
+              return (
+                rows.length > 0 && (
+                  <AccordionItem
+                    key={k}
+                    value={k}
+                    className="gear-kind-group"
+                    data-cy="gear-kind-group"
+                    data-gear-kind={k}
+                  >
+                    <AccordionTrigger
+                      className="gear-kind-toggle"
+                      data-cy="gear-kind-toggle"
+                    >
+                      <span className="gear-kind-title">
+                        <span>{k}</span>
+                        <span
+                          className="gear-kind-count"
+                          data-cy="gear-kind-count"
+                        >
+                          {rows.length}点
+                        </span>
+                      </span>
+                    </AccordionTrigger>
+                    <AccordionContent
+                      className="gear-kind-content"
+                      data-cy="gear-kind-content"
+                    >
+                      <div className="gear-grid">
+                        {rows.map((g) => (
+                          <article
+                            key={g.id}
+                            className="gear-card"
+                            data-cy="gear-card"
+                            data-gear-id={g.id}
                           >
-                            {g.favorite ? '★' : '☆'}
-                          </button>
-                          <Button
-                            type="button"
-                            variant="outline"
-                            onClick={() => {
-                              rememberTrigger();
-                              setGearDraft(
-                                draft?.id === g.id ? draft : { ...g },
-                              );
-                              setGearDialogOpen(true);
-                              setFormError('');
-                            }}
-                          >
-                            編集
-                          </Button>
-                          <Button
-                            type="button"
-                            variant="outline"
-                            onClick={() => showHistory(String(g.id))}
-                          >
-                            使用履歴
-                          </Button>
-                        </div>
-                      </article>
-                    ))}
-                  </div>
-                </section>
-              )
-            );
-          })}
+                            <h3>
+                              {g.name}
+                              {g.retired && <small>（使用終了）</small>}
+                            </h3>
+                            <p>
+                              {[g.manufacturer, g.model, g.spec]
+                                .filter(Boolean)
+                                .join(' ／ ')}
+                            </p>
+                            {g.memo && (
+                              <p className="gear-private-memo">{g.memo}</p>
+                            )}
+                            <div className="gear-actions">
+                              <button
+                                type="button"
+                                disabled={busy}
+                                aria-label={`${g.name}のお気に入り`}
+                                aria-pressed={g.favorite}
+                                onClick={() =>
+                                  saveGear({ ...g, favorite: !g.favorite })
+                                }
+                              >
+                                {g.favorite ? '★' : '☆'}
+                              </button>
+                              <Button
+                                type="button"
+                                variant="outline"
+                                onClick={() => {
+                                  rememberTrigger();
+                                  setGearDraft(
+                                    draft?.id === g.id ? draft : { ...g },
+                                  );
+                                  setGearDialogOpen(true);
+                                  setFormError('');
+                                }}
+                              >
+                                編集
+                              </Button>
+                              <Button
+                                type="button"
+                                variant="outline"
+                                onClick={() => showHistory(String(g.id))}
+                              >
+                                使用履歴
+                              </Button>
+                            </div>
+                          </article>
+                        ))}
+                      </div>
+                    </AccordionContent>
+                  </AccordionItem>
+                )
+              );
+            })}
+        </Accordion>
         {!gear.some((g) => visible(g) && (!kind || g.kind === kind)) && (
           <p>該当する道具はありません。</p>
         )}
@@ -467,6 +520,7 @@ export default function GearManager({
                 <label>
                   種類 ※
                   <select
+                    data-cy="gear-kind"
                     value={draft.kind}
                     onChange={(e) =>
                       setGearDraft({

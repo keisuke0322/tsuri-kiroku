@@ -7,6 +7,7 @@
 @source '../components/ui/calendar.tsx';
 @source '../components/ui/dialog.tsx';
 @source '../components/ui/collapsible.tsx';
+@source '../components/ui/accordion.tsx';
 @source '../components/ui/combobox.tsx';
 @source '../components/ui/input-group.tsx';
 @source '../components/ui/textarea.tsx';
@@ -2259,6 +2260,40 @@ button.featured-photo {
 }
 .gear-filters select {
   width: auto;
+}
+.gear-kind-list {
+  margin-top: 16px;
+}
+.gear-kind-group {
+  border-color: #dce8e9;
+}
+.gear-kind-group > h3 {
+  margin: 0;
+}
+.gear-kind-toggle {
+  min-height: 56px;
+  align-items: center;
+  padding: 14px 4px;
+  font-size: 18px;
+  font-weight: 700;
+}
+.gear-kind-title {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  min-width: 0;
+}
+.gear-kind-count {
+  padding: 2px 8px;
+  border-radius: 999px;
+  background: #e0f3f2;
+  color: #087b87;
+  font-size: 12px;
+  font-weight: 600;
+  white-space: nowrap;
+}
+.gear-kind-content .gear-card {
+  margin: 0;
 }
 .gear-grid {
   display: grid;

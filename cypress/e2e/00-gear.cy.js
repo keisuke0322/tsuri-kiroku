@@ -112,6 +112,77 @@ describe('所有道具・基本セット・当日の組み合わせ', () => {
         .should('be.oneOf', [200, 404]);
   });
   for (const width of [1280, 390]) {
+    it(`所有道具を種類ごとに開閉し検索・編集できる（${width}px）`, () => {
+      cy.viewport(width, 900);
+      const prefix = `accordion-${width}`;
+      const group = (kind) =>
+        cy.get(`${by('gear-kind-group')}[data-gear-kind="${kind}"]`);
+      const toggle = (kind) => group(kind).find(by('gear-kind-toggle'));
+      gear(`${prefix}-rod`).then((rod) => {
+        gear(`${prefix}-reel`, { kind: 'リール' }).then((reel) => {
+          visit();
+          cy.get(by('nav-gear')).click();
+          cy.get(by('gear-search')).type(`${marker}-${prefix}`);
+          for (const kind of ['ロッド', 'リール']) {
+            group(kind).find(by('gear-kind-count')).should('have.text', '1点');
+            toggle(kind).should('have.attr', 'aria-expanded', 'true');
+          }
+          toggle('ロッド').click();
+          group('ロッド').should(($group) => {
+            expect(
+              $group.find(by('gear-card')).filter(':visible'),
+            ).to.have.length(0);
+          });
+          cy.get(`[data-gear-id="${reel.id}"]`).should('be.visible');
+          toggle('リール').click();
+          cy.get(by('nav-profile')).click();
+          cy.get(by('nav-gear')).click();
+          for (const kind of ['ロッド', 'リール']) {
+            toggle(kind).should('have.attr', 'aria-expanded', 'false');
+            group(kind).find(by('gear-kind-count')).should('have.text', '1点');
+          }
+          cy.window().then((win) => win.focus());
+          toggle('ロッド').scrollIntoView().focus().should('be.focused');
+          pressKey('Enter');
+          cy.get(`[data-gear-id="${rod.id}"]`).should('be.visible');
+          toggle('リール').should('have.attr', 'aria-expanded', 'false');
+          pressKey('ArrowDown');
+          toggle('リール').should('be.focused');
+          pressKey('Enter');
+          cy.get(`[data-gear-id="${reel.id}"]`).should('be.visible');
+          toggle('ロッド').click();
+          toggle('リール').click();
+          cy.get(by('gear-search')).clear().type(rod.name);
+          cy.get(`[data-gear-id="${rod.id}"]`).should('be.visible');
+          group('リール').should('not.exist');
+          cy.get(by('gear-search')).clear().type(`${marker}-${prefix}`);
+          cy.get('select[aria-label="道具の種類"]').select('ロッド');
+          cy.get(`[data-gear-id="${rod.id}"]`).should('be.visible');
+          group('リール').should('not.exist');
+          cy.get('select[aria-label="道具の種類"]').select('');
+          toggle('リール').click();
+          cy.get(`[data-gear-id="${rod.id}"]`)
+            .contains('button', '編集')
+            .click();
+          cy.get(by('gear-kind')).select('リール');
+          cy.intercept('PUT', `/api/gear/${rod.id}`).as('moveGearKind');
+          cy.get(by('save-gear')).click();
+          cy.wait('@moveGearKind')
+            .its('response.statusCode')
+            .should('equal', 200);
+          group('ロッド').should('not.exist');
+          toggle('リール').should('have.attr', 'aria-expanded', 'true');
+          group('リール')
+            .find(by('gear-kind-count'))
+            .should('have.text', '2点');
+          cy.get(`[data-gear-id="${rod.id}"]`).should('be.visible');
+          cy.get(`[data-gear-id="${reel.id}"]`).should('be.visible');
+          cy.get(by('gear-search')).clear().type(`${marker}-no-matching-gear`);
+          cy.get(by('gear-kind-group')).should('not.exist');
+          cy.contains('該当する道具はありません。').should('be.visible');
+        });
+      });
+    });
     it(`釣り方・仕掛けを1つのComboboxで選択・自由入力・保存（${width}px）`, () => {
       cy.viewport(width, 900);
       visit();
