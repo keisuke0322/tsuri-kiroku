@@ -37,13 +37,14 @@ function gear(label, patch = {}) {
     return r.body;
   });
 }
-function createCatch(combinations) {
+function createCatch(combinations, patch = {}) {
   return request('POST', '/api/catches', {
     date: '2026-10-19',
     location: `${marker}-gear`,
     fish: [{ species: 'タチウオ', count: 3, length: 80 }],
     memo: marker,
     combinations,
+    ...patch,
   }).then((r) => {
     expect(r.status).to.equal(201);
     catchIds.push(r.body.id);
@@ -79,6 +80,98 @@ describe('所有道具・基本セット・当日の組み合わせ', () => {
         .should('be.oneOf', [200, 404]);
   });
   for (const width of [1280, 390]) {
+    it(`釣り方・仕掛けを1つのComboboxで選択・自由入力・保存（${width}px）`, () => {
+      cy.viewport(width, 900);
+      visit();
+      cy.get(by('record-catch')).click();
+      cy.get(by('legacy-method')).should('not.exist');
+      cy.get(by('catch-location')).type(`${marker}-${width}-method`);
+      cy.get(by('fish-species')).type('タチウオ');
+      cy.get(by('catch-memo')).type(marker);
+      cy.get(by('combination-details-toggle'))
+        .scrollIntoView()
+        .focus()
+        .type('{enter}');
+      cy.get(by('combination-details')).should(
+        'have.attr',
+        'data-state',
+        'open',
+      );
+      cy.get(by('combination-method'))
+        .should('have.attr', 'role', 'combobox')
+        .type('サビ');
+      cy.get(by('method-option')).contains('サビキ').click();
+      cy.get(by('combination-method')).should('have.value', 'サビキ');
+      cy.get(by('save-catch')).should('exist');
+      cy.get(by('combination-method')).clear().type('テン{downarrow}{enter}');
+      cy.get(by('combination-method')).should('have.value', 'テンヤ');
+      cy.get(by('combination-method')).clear().type('ちょい投げ、6号{esc}');
+      cy.get(by('combination-method')).should('have.value', 'ちょい投げ、6号');
+      cy.get(by('save-catch')).should('exist');
+      cy.get(by('combination-details-toggle')).scrollIntoView().click();
+      cy.get(by('combination-details')).should('not.be.visible');
+      cy.get(by('combination-details-toggle')).click();
+      cy.get(by('combination-method')).should('have.value', 'ちょい投げ、6号');
+      cy.intercept('POST', '/api/catches').as('saveMethodCatch');
+      cy.get(by('save-catch')).scrollIntoView().click();
+      cy.wait('@saveMethodCatch').then(({ response }) => {
+        expect(response.statusCode).to.equal(201);
+        catchIds.push(response.body.id);
+        request('GET', '/api/catches').then(({ body }) => {
+          const entry = body.find((c) => c.id === response.body.id);
+          expect(entry.method).to.equal('');
+          expect(entry.combinations[0].method).to.equal('ちょい投げ、6号');
+        });
+        cy.reload();
+        cy.get(by('catch-search')).type('ちょい投げ、6号');
+        cy.get(`[data-catch-id="${response.body.id}"]`).should('be.visible');
+        cy.get(`[data-catch-id="${response.body.id}"]`)
+          .find(by('edit-catch'))
+          .click();
+        cy.get(by('combination-details-toggle')).scrollIntoView().click();
+        cy.get(by('combination-method')).should(
+          'have.value',
+          'ちょい投げ、6号',
+        );
+      });
+    });
+    it(`以前の釣り方・仕掛けと組み合わせを別々に保持して編集（${width}px）`, () => {
+      cy.viewport(width, 900);
+      createCatch(
+        [
+          {
+            setId: null,
+            setName: '',
+            gear: [],
+            method: 'テンヤ',
+            species: ['タチウオ'],
+          },
+        ],
+        { method: 'ちょい投げ、6号' },
+      ).then((id) => {
+        visit();
+        cy.get(`[data-catch-id="${id}"]`).find(by('edit-catch')).click();
+        cy.get(by('legacy-method'))
+          .scrollIntoView()
+          .should('have.value', 'ちょい投げ、6号');
+        cy.get(by('legacy-method')).clear().type('胴突き、3本針');
+        cy.get(by('combination-details-toggle')).scrollIntoView().click();
+        cy.get(by('combination-method')).should('have.value', 'テンヤ');
+        cy.get(by('combination-method')).clear().type('テンヤ、浅場');
+        cy.intercept('PUT', `/api/catches/${id}`).as('editLegacyMethod');
+        cy.get(by('save-catch')).scrollIntoView().click();
+        cy.wait('@editLegacyMethod')
+          .its('response.statusCode')
+          .should('equal', 200);
+        cy.reload();
+        cy.get(`[data-catch-id="${id}"]`).find(by('edit-catch')).click();
+        cy.get(by('legacy-method'))
+          .scrollIntoView()
+          .should('have.value', '胴突き、3本針');
+        cy.get(by('combination-details-toggle')).scrollIntoView().click();
+        cy.get(by('combination-method')).should('have.value', 'テンヤ、浅場');
+      });
+    });
     it(`道具登録と基本セットの保存（${width}px）`, () => {
       cy.viewport(width, 900);
       visit();

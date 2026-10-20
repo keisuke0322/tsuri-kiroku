@@ -57,6 +57,7 @@ import {
   type GearSet,
 } from './gear';
 import MyPage from './my-page';
+import MethodField from './method-field';
 import { toast, Toaster } from 'sonner';
 
 type FishLine = {
@@ -594,7 +595,7 @@ export default function FishingLog({
     (x) =>
       (speciesFilter === 'すべて' ||
         x.fish.some((f) => f.species === speciesFilter)) &&
-      `${x.location} ${x.fish.map((f) => f.species).join(' ')} ${x.method} ${x.memo}`
+      `${x.location} ${x.fish.map((f) => f.species).join(' ')} ${x.method} ${(x.combinations || []).map((c) => c.method).join(' ')} ${x.memo}`
         .toLowerCase()
         .includes(query.toLowerCase()),
   );
@@ -707,6 +708,11 @@ export default function FishingLog({
     if (validated) setFieldErrors(validateCatch(next).errors);
   }
 
+  const methodSuggestions = items
+    .filter((x) => x.owner_id === userId)
+    .flatMap((x) => [x.method, ...(x.combinations || []).map((c) => c.method)]);
+  const legacyMethodVisible =
+    !!editing && !!items.find((x) => x.id === editing)?.method;
   const fishNames = form.fish.map((f) => f.species.trim()).filter(Boolean);
 
   async function submit(e: React.FormEvent) {
@@ -961,7 +967,19 @@ export default function FishingLog({
               setOpen(value);
             }}
           >
-            <DialogContent className="form-dialog">
+            <DialogContent
+              className="form-dialog"
+              onEscapeKeyDown={(e) => {
+                // Close a method's suggestions before dismissing the record dialog.
+                if (
+                  e.target instanceof Element &&
+                  e.target
+                    .closest('[data-method-field]')
+                    ?.querySelector('[role="combobox"][aria-expanded="true"]')
+                )
+                  e.preventDefault();
+              }}
+            >
               <DialogHeader>
                 <DialogTitle>
                   {editing ? '記録を編集' : '新しい釣果を記録'}
@@ -1115,18 +1133,6 @@ export default function FishingLog({
                   </Button>
                 </fieldset>
                 <label>
-                  釣り方・仕掛け
-                  <Input
-                    {...fieldProps('method')}
-                    placeholder="例：ちょい投げ、6号"
-                    value={form.method}
-                    onChange={(e) =>
-                      setForm({ ...form, method: e.target.value })
-                    }
-                  />
-                  {fieldError('method')}
-                </label>
-                <label>
                   メモ
                   <textarea
                     data-cy="catch-memo"
@@ -1256,6 +1262,25 @@ export default function FishingLog({
                 </div>
                 <CombinationEditor
                   value={form.combinations}
+                  methods={methodSuggestions}
+                  legacyMethod={
+                    legacyMethodVisible ? (
+                      <div className="legacy-method">
+                        <MethodField
+                          label="以前の釣り方・仕掛け（記録全体）"
+                          dataCy="legacy-method"
+                          value={form.method}
+                          onChange={(method) => setForm({ ...form, method })}
+                          suggestions={methodSuggestions}
+                          inputProps={fieldProps('method')}
+                        />
+                        <p className="gear-help">
+                          以前の記録で入力した内容です。各組み合わせとは別に保持します。
+                        </p>
+                        {fieldError('method')}
+                      </div>
+                    ) : null
+                  }
                   onChange={(combinations) =>
                     setForm({ ...form, combinations })
                   }
@@ -1388,6 +1413,7 @@ export default function FishingLog({
                 <Search size={18} />
                 <input
                   aria-label="記録を検索"
+                  data-cy="catch-search"
                   placeholder="場所・魚種・メモを検索"
                   value={query}
                   onChange={(e) => setQuery(e.target.value)}
@@ -1482,7 +1508,7 @@ export default function FishingLog({
                         {!!x.combinations?.length && (
                           <details className="catch-combinations">
                             <summary>
-                              使用した道具・組み合わせ（{x.combinations.length}
+                              釣り方・使用した道具（{x.combinations.length}
                               組）
                             </summary>
                             {x.combinations.map((c, i) => (

@@ -6,6 +6,10 @@
 @source '../components/ui/button.tsx';
 @source '../components/ui/calendar.tsx';
 @source '../components/ui/dialog.tsx';
+@source '../components/ui/collapsible.tsx';
+@source '../components/ui/combobox.tsx';
+@source '../components/ui/input-group.tsx';
+@source '../components/ui/textarea.tsx';
 @source '../components/ui/alert-dialog.tsx';
 @source '../components/ui/dropdown-menu.tsx';
 @source '../components/ui/input.tsx';
@@ -2505,4 +2509,44 @@ button.featured-photo {
 .gear-dialog-footer > button {
   flex: 1;
   min-height: 44px;
+}
+
+.method-field {
+  display: grid;
+  gap: 7px;
+  min-width: 0;
+}
+.method-field > [data-slot='input-group'] {
+  width: 100%;
+  min-height: 44px;
+  height: auto;
+}
+.method-field [data-slot='input-group-addon']:empty {
+  display: none;
+}
+.method-trigger {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 44px;
+  min-height: 44px;
+  flex-shrink: 0;
+}
+.method-options [data-slot='combobox-item'] {
+  min-height: 44px;
+}
+.method-options [data-slot='combobox-list'] {
+  max-height: min(240px, var(--available-height));
+}
+.combination-chevron {
+  flex-shrink: 0;
+  transition: transform 150ms;
+}
+.combination-chevron.expanded {
+  transform: rotate(180deg);
+}
+.legacy-method {
+  padding: 12px;
+  border: 1px solid #dce8e9;
+  border-radius: 8px;
 }
