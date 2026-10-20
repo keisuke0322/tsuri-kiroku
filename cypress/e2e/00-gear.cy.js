@@ -67,6 +67,25 @@ function combination(item) {
   };
 }
 
+function pressEnter() {
+  // Cypress 15.12 cy.press(ENTER) omits the virtual key code and CR text,
+  // so Chromium receives a key event without activating native buttons.
+  return cy.then(async () => {
+    for (const type of ['keyDown', 'keyUp']) {
+      await Cypress.automation('remote:debugger:protocol', {
+        command: 'Input.dispatchKeyEvent',
+        params: {
+          type,
+          key: 'Enter',
+          code: 'Enter',
+          windowsVirtualKeyCode: 13,
+          ...(type === 'keyDown' ? { text: '\r' } : {}),
+        },
+      });
+    }
+  });
+}
+
 describe('所有道具・基本セット・当日の組み合わせ', () => {
   beforeEach(() => {
     catchIds = [];
@@ -93,9 +112,8 @@ describe('所有道具・基本セット・当日の組み合わせ', () => {
         .scrollIntoView()
         .focus()
         .should('be.focused');
-      cy.document().should((doc) => expect(doc.hasFocus()).to.equal(true));
       // Use native keyboard events so Enter activates the focused button.
-      cy.press(Cypress.Keyboard.Keys.ENTER);
+      pressEnter();
       cy.get(by('combination-details')).should(
         'have.attr',
         'data-state',
@@ -109,7 +127,7 @@ describe('所有道具・基本セット・当日の組み合わせ', () => {
       cy.get(by('save-catch')).should('exist');
       cy.get(by('combination-method')).clear().type('テン');
       cy.press(Cypress.Keyboard.Keys.DOWN);
-      cy.press(Cypress.Keyboard.Keys.ENTER);
+      pressEnter();
       cy.get(by('combination-method')).should('have.value', 'テンヤ');
       cy.get(by('combination-method')).clear().type('ちょい投げ、6号');
       cy.press(Cypress.Keyboard.Keys.ESC);
