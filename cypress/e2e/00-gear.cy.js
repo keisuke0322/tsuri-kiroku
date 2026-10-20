@@ -88,10 +88,9 @@ describe('所有道具・基本セット・当日の組み合わせ', () => {
       cy.get(by('catch-location')).type(`${marker}-${width}-method`);
       cy.get(by('fish-species')).type('タチウオ');
       cy.get(by('catch-memo')).type(marker);
-      cy.get(by('combination-details-toggle'))
-        .scrollIntoView()
-        .focus()
-        .type('{enter}');
+      cy.get(by('combination-details-toggle')).scrollIntoView().focus();
+      // Use native keyboard events so Enter activates the focused button.
+      cy.press(Cypress.Keyboard.Keys.ENTER);
       cy.get(by('combination-details')).should(
         'have.attr',
         'data-state',
@@ -103,9 +102,12 @@ describe('所有道具・基本セット・当日の組み合わせ', () => {
       cy.get(by('method-option')).contains('サビキ').click();
       cy.get(by('combination-method')).should('have.value', 'サビキ');
       cy.get(by('save-catch')).should('exist');
-      cy.get(by('combination-method')).clear().type('テン{downarrow}{enter}');
+      cy.get(by('combination-method')).clear().type('テン');
+      cy.press(Cypress.Keyboard.Keys.DOWN);
+      cy.press(Cypress.Keyboard.Keys.ENTER);
       cy.get(by('combination-method')).should('have.value', 'テンヤ');
-      cy.get(by('combination-method')).clear().type('ちょい投げ、6号{esc}');
+      cy.get(by('combination-method')).clear().type('ちょい投げ、6号');
+      cy.press(Cypress.Keyboard.Keys.ESC);
       cy.get(by('combination-method')).should('have.value', 'ちょい投げ、6号');
       cy.get(by('save-catch')).should('exist');
       cy.get(by('combination-details-toggle')).scrollIntoView().click();
