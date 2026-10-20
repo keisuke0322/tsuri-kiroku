@@ -153,9 +153,20 @@ describe('所有道具・基本セット・当日の組み合わせ', () => {
       cy.get(by('gear-name')).type('{esc}');
       cy.get(by('gear-form')).should('not.exist');
       cy.get(by('new-gear')).click();
-      // Click the visible backdrop at the screen edge. Selecting the fixed
-      // overlay itself makes Cypress test its covered center for visibility.
-      cy.get('body').click(1, 1);
+      cy.get('[data-slot=dialog-overlay][data-state=open]')
+        .should('have.css', 'opacity', '1')
+        .then(($overlay) => {
+          const overlay = $overlay[0];
+          const rect = overlay.getBoundingClientRect();
+          // Cypress tests the fixed overlay's covered center even for an edge
+          // click. Prove the actual click point is exposed before bypassing
+          // that center check; the dismissal and draft assertions still run.
+          expect(
+            overlay.ownerDocument.elementFromPoint(rect.left + 1, rect.top + 1),
+          ).to.equal(overlay);
+          expect(getComputedStyle(overlay).pointerEvents).to.equal('auto');
+          cy.wrap(overlay).click(1, 1, { force: true });
+        });
       cy.get(by('gear-form')).should('not.exist');
       cy.get(by('new-gear')).click();
       cy.get(by('gear-name')).should('have.value', `${marker}-${width}-dialog`);
