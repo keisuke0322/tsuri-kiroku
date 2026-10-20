@@ -2,6 +2,9 @@ import { defineConfig } from 'cypress';
 
 export default defineConfig({
   video: false,
+  // Long forms keep many DOM snapshots. Allow Chromium to collect snapshots
+  // during a test instead of exhausting the runner before an assertion completes.
+  experimentalMemoryManagement: true,
   allowCypressEnv: false,
   expose: {
     runMarker: process.env.E2E_RUN_MARKER,
@@ -17,6 +20,11 @@ export default defineConfig({
     specPattern: 'cypress/e2e/**/*.cy.js',
     setupNodeEvents(on) {
       on('task', {
+        checkpoint(label) {
+          if (!/^gear:[a-z-]+$/.test(label)) throw Error('Invalid checkpoint.');
+          console.info('E2E checkpoint: ' + label);
+          return null;
+        },
         session(role) {
           const token =
             role === 'other'

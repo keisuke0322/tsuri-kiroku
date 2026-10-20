@@ -190,3 +190,62 @@ export const catchPositions = sqliteTable('catch_positions', {
   longitude: real('longitude').notNull(),
   source: text('source', { enum: ['gps', 'map', 'saved'] }).notNull(),
 });
+
+// Master gear is private; catch combinations hold public, immutable-by-default snapshots.
+export const gear = sqliteTable(
+  'gear',
+  {
+    id: integer('id').primaryKey({ autoIncrement: true }),
+    ownerId: text('owner_id')
+      .notNull()
+      .references(() => profiles.userId, { onDelete: 'cascade' }),
+    kind: text('kind').notNull(),
+    name: text('name').notNull(),
+    manufacturer: text('manufacturer').notNull().default(''),
+    model: text('model').notNull().default(''),
+    spec: text('spec').notNull().default(''),
+    memo: text('memo').notNull().default(''),
+    favorite: integer('favorite').notNull().default(0),
+    retired: integer('retired').notNull().default(0),
+  },
+  (t) => [index('idx_gear_owner').on(t.ownerId)],
+);
+
+export const gearSets = sqliteTable(
+  'gear_sets',
+  {
+    id: integer('id').primaryKey({ autoIncrement: true }),
+    ownerId: text('owner_id')
+      .notNull()
+      .references(() => profiles.userId, { onDelete: 'cascade' }),
+    name: text('name').notNull(),
+    targetSpecies: text('target_species').notNull().default(''),
+    method: text('method').notNull().default(''),
+    gearJson: text('gear_json').notNull(),
+    favorite: integer('favorite').notNull().default(0),
+    retired: integer('retired').notNull().default(0),
+  },
+  (t) => [index('idx_gear_sets_owner').on(t.ownerId)],
+);
+
+export const catchCombinations = sqliteTable(
+  'catch_combinations',
+  {
+    id: integer('id').primaryKey({ autoIncrement: true }),
+    catchId: integer('catch_id')
+      .notNull()
+      .references(() => catches.id, { onDelete: 'cascade' }),
+    setId: integer('set_id').references(() => gearSets.id),
+    setName: text('set_name').notNull().default(''),
+    method: text('method').notNull().default(''),
+    gearJson: text('gear_json').notNull(),
+    speciesJson: text('species_json').notNull(),
+    signature: text('signature').notNull(),
+    sortOrder: integer('sort_order').notNull(),
+  },
+  (t) => [
+    index('idx_combinations_catch').on(t.catchId, t.sortOrder),
+    index('idx_combinations_set').on(t.setId, t.catchId),
+    index('idx_combinations_signature').on(t.signature, t.catchId),
+  ],
+);

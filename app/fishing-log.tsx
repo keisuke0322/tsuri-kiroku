@@ -14,6 +14,8 @@ import {
   X,
   Heart,
   LogOut,
+  Backpack,
+  UserRound,
 } from 'lucide-react';
 import {
   Dialog,
@@ -41,6 +43,21 @@ import PositionEditor from './position-editor';
 import LocationMapDialog from './location-map-dialog';
 import type { LocationEntry, LocationVisibility } from './location-privacy';
 import type { Position, Spot } from './fishing-position';
+import GearManager, { emptySet } from './gear-manager';
+import {
+  CombinationEditor,
+  CombinationDisplay,
+  gearRequest,
+} from './gear-controls';
+import {
+  emptyCombination,
+  reconcileSpecies,
+  type Combination,
+  type Gear,
+  type GearSet,
+} from './gear';
+import MyPage from './my-page';
+import MethodField from './method-field';
 import { toast, Toaster } from 'sonner';
 
 type FishLine = {
@@ -73,6 +90,7 @@ type Entry = LocationEntry & {
   authorName: string;
   likeCount: number;
   liked: boolean;
+  combinations?: Combination[];
 };
 
 type PendingPhoto = {
@@ -90,6 +108,7 @@ const makeEmpty = () => ({
   fish: [{ species: '', count: 1, length: '' }] as FishForm[],
   method: '',
   memo: '',
+  combinations: [emptyCombination()],
 });
 
 export default function FishingLog({
@@ -107,6 +126,120 @@ export default function FishingLog({
   signOutPath: string;
   signInPath: string;
 }) {
+  const [section, setSection] = useState('records');
+  const [gear, setGear] = useState<Gear[]>([]),
+    [sets, setSets] = useState<GearSet[]>([]),
+    [gearError, setGearError] = useState(''),
+    [setDraft, setSetDraft] = useState<GearSet | null>(null),
+    [setDialogOpen, setSetDialogOpen] = useState(false);
+  const returnToCatch = useRef(false);
+  const scrollPositions = useRef<Record<string, number>>({
+    records: 0,
+    gear: 0,
+    profile: 0,
+  });
+
+  function navigate(next: string) {
+    scrollPositions.current[section] = window.scrollY;
+    setSection(next);
+    requestAnimationFrame(() =>
+      window.scrollTo({
+        top: scrollPositions.current[next] || 0,
+        behavior: 'instant',
+      }),
+    );
+  }
+
+  function putGear(item: Gear) {
+    setGear((current) => [...current.filter((g) => g.id !== item.id), item]);
+  }
+
+  function putSet(item: GearSet) {
+    setSets((current) => [...current.filter((s) => s.id !== item.id), item]);
+  }
+
+  async function refreshGear() {
+    try {
+      const [g, s] = await Promise.all([
+        gearRequest<Gear[]>('/api/gear'),
+        gearRequest<GearSet[]>('/api/gear-sets'),
+      ]);
+      if (!leaving.current) {
+        setGear(g);
+        setSets(s);
+        setGearError('');
+      }
+    } catch (e) {
+      if (!leaving.current) setGearError((e as Error).message);
+    }
+  }
+
+  function changeSetDialog(open: boolean) {
+    setSetDialogOpen(open);
+    if (!open && returnToCatch.current) {
+      returnToCatch.current = false;
+      navigate('records');
+      setOpen(true);
+    }
+  }
+
+  function updateSetDraft(draft: GearSet | null) {
+    setSetDraft(draft);
+    changeSetDialog(!!draft);
+  }
+
+  function saveCombinationSet(c: Combination) {
+    returnToCatch.current = true;
+    setOpen(false);
+    setSetDialogOpen(true);
+    setSetDraft({
+      ...emptySet(),
+      name: c.setName,
+      method: c.method,
+      targetSpecies: c.species.join('・').slice(0, 80),
+      gear: structuredClone(c.gear),
+    });
+    navigate('gear');
+  }
+
+  function copyCombination(c: Combination) {
+    if (saving) return;
+    const next = structuredClone(c);
+    const currentFish = form.fish.map((f) => f.species.trim()).filter(Boolean);
+    if (currentFish.length === 1) next.species = [...currentFish];
+    else next.species = next.species.filter((s) => currentFish.includes(s));
+    const blank = form.combinations.findIndex(
+      (v) => !v.gear.length && !v.setId && !v.method,
+    );
+    if (blank < 0 && form.combinations.length >= 20)
+      return toast.error('組み合わせは20組までです。');
+    setForm({
+      ...form,
+      combinations:
+        blank >= 0
+          ? form.combinations.map((v, i) => (i === blank ? next : v))
+          : [...form.combinations, next],
+    });
+    setOpen(true);
+    navigate('records');
+    toast.success(
+      '組み合わせをコピーしました。魚種との紐づけを確認してください。',
+    );
+  }
+
+  function viewHistoryCatch(id: number) {
+    setScope('mine');
+    setQuery('');
+    setSpeciesFilter('すべて');
+    setOpen(false);
+    navigate('records');
+    requestAnimationFrame(() =>
+      document
+        .querySelector(`[data-catch-id="${id}"]`)
+        ?.scrollIntoView({ block: 'center' }),
+    );
+  }
+
   const [spots, setSpots] = useState<Spot[]>([]),
     [mapOpen, setMapOpen] = useState(false);
   const [profile, setProfile] = useState<Profile>({
@@ -384,9 +517,11 @@ export default function FishingLog({
 
   const refreshOnMount = useEffectEvent(() => {
     void refresh();
+    void refreshGear();
   });
   useEffect(() => {
-    refreshOnMount();
+    const timer = window.setTimeout(refreshOnMount, 0);
+    return () => window.clearTimeout(timer);
   }, []);
   useEffect(() => {
     const context = (
@@ -460,7 +595,7 @@ export default function FishingLog({
     (x) =>
       (speciesFilter === 'すべて' ||
         x.fish.some((f) => f.species === speciesFilter)) &&
-      `${x.location} ${x.fish.map((f) => f.species).join(' ')} ${x.method} ${x.memo}`
+      `${x.location} ${x.fish.map((f) => f.species).join(' ')} ${x.method} ${(x.combinations || []).map((c) => c.method).join(' ')} ${x.memo}`
         .toLowerCase()
         .includes(query.toLowerCase()),
   );
@@ -485,6 +620,9 @@ export default function FishingLog({
       fish: x.fish.map((f) => ({ ...f, length: f.length?.toString() ?? '' })),
       method: x.method,
       memo: x.memo,
+      combinations: x.combinations?.length
+        ? structuredClone(x.combinations)
+        : [emptyCombination(x.fish.map((f) => f.species))],
     });
     setOpen(true);
   }
@@ -505,7 +643,16 @@ export default function FishingLog({
       next = form.fish.map((fish, i) =>
         i === index ? { ...fish, ...patch } : fish,
       );
-    setForm({ ...form, fish: next });
+    setForm({
+      ...form,
+      fish: next,
+      combinations: reconcileSpecies(
+        form.combinations,
+        form.fish.map((f) => f.species),
+        next.map((f) => f.species),
+        typeof patch.species === 'string' ? [before, patch.species] : undefined,
+      ),
+    });
     if (
       typeof patch.species === 'string' &&
       before &&
@@ -547,11 +694,25 @@ export default function FishingLog({
       return toast.error(
         'この魚種の写真を別の魚種へ変更してから削除してください。',
       );
-    const next = { ...form, fish: form.fish.filter((_, i) => i !== index) };
+    const remaining = form.fish.filter((_, i) => i !== index);
+    const next = {
+      ...form,
+      fish: remaining,
+      combinations: reconcileSpecies(
+        form.combinations,
+        form.fish.map((f) => f.species),
+        remaining.map((f) => f.species),
+      ),
+    };
     setForm(next);
     if (validated) setFieldErrors(validateCatch(next).errors);
   }
 
+  const methodSuggestions = items
+    .filter((x) => x.owner_id === userId)
+    .flatMap((x) => [x.method, ...(x.combinations || []).map((c) => c.method)]);
+  const legacyMethodVisible =
+    !!editing && !!items.find((x) => x.id === editing)?.method;
   const fishNames = form.fish.map((f) => f.species.trim()).filter(Boolean);
 
   async function submit(e: React.FormEvent) {
@@ -574,6 +735,14 @@ export default function FishingLog({
       const current = editing ? items.find((x) => x.id === editing) : null,
         payload = {
           ...checked.data,
+          combinations: form.combinations
+            .filter((c) => c.gear.length || c.setId || c.method)
+            .map((c) => ({
+              ...c,
+              species: c.species.filter((s) =>
+                checked.data.fish.some((f) => f.species === s),
+              ),
+            })),
           position: form.position,
           locationVisibility: form.locationVisibility,
           photoAssignments: existingPhotos.map((p) => ({
@@ -621,6 +790,8 @@ export default function FishingLog({
       }
       clearPending();
       setOpen(false);
+      setForm(makeEmpty());
+      setEditing(null);
       await refresh();
       if (failed)
         toast.error(
@@ -735,7 +906,7 @@ export default function FishingLog({
         <nav className="account-nav" aria-label="アカウント">
           <button
             className="profile-button"
-            onClick={() => showProfile(userId)}
+            onClick={() => navigate('profile')}
           >
             <Avatar name={profile.displayName} />
             <span>{profile.displayName}</span>
@@ -753,7 +924,25 @@ export default function FishingLog({
           </a>
         </nav>
       </header>
-      <main>
+      <nav className="primary-nav" aria-label="メインナビゲーション">
+        {[
+          { key: 'records', label: '釣り記録', Icon: Fish },
+          { key: 'gear', label: '道具', Icon: Backpack },
+          { key: 'profile', label: 'マイページ', Icon: UserRound },
+        ].map(({ key, label, Icon }) => (
+          <button
+            type="button"
+            key={key}
+            data-cy={`nav-${key}`}
+            aria-current={section === key ? 'page' : undefined}
+            onClick={() => navigate(key)}
+          >
+            <Icon size={21} />
+            <span>{label}</span>
+          </button>
+        ))}
+      </nav>
+      <main hidden={section !== 'records'}>
         <SeasonalHero
           onRecord={startNew}
           onView={() => {
@@ -771,14 +960,26 @@ export default function FishingLog({
         />
         <div className="container">
           <Dialog
-            open={open}
+            open={open && section === 'records'}
             onOpenChange={(value) => {
               if (saving) return;
               if (!value) cancelPhotoTask();
               setOpen(value);
             }}
           >
-            <DialogContent className="form-dialog">
+            <DialogContent
+              className="form-dialog"
+              onEscapeKeyDown={(e) => {
+                // Close a method's suggestions before dismissing the record dialog.
+                if (
+                  e.target instanceof Element &&
+                  e.target
+                    .closest('[data-method-field]')
+                    ?.querySelector('[role="combobox"][aria-expanded="true"]')
+                )
+                  e.preventDefault();
+              }}
+            >
               <DialogHeader>
                 <DialogTitle>
                   {editing ? '記録を編集' : '新しい釣果を記録'}
@@ -787,6 +988,21 @@ export default function FishingLog({
               <form noValidate onSubmit={submit} className="entry-form">
                 <p className="required-note">※は必須項目です</p>
                 {fieldError('form')}
+                <Button
+                  type="button"
+                  variant="outline"
+                  onClick={() => navigate('gear')}
+                >
+                  道具画面へ（入力を保持）
+                </Button>
+                {gearError && (
+                  <p role="alert">
+                    {gearError}
+                    <Button type="button" onClick={refreshGear}>
+                      道具を再読み込み
+                    </Button>
+                  </p>
+                )}
                 <div className="form-grid">
                   <CatchDateField
                     value={form.date}
@@ -917,18 +1133,6 @@ export default function FishingLog({
                   </Button>
                 </fieldset>
                 <label>
-                  釣り方・仕掛け
-                  <Input
-                    {...fieldProps('method')}
-                    placeholder="例：ちょい投げ、6号"
-                    value={form.method}
-                    onChange={(e) =>
-                      setForm({ ...form, method: e.target.value })
-                    }
-                  />
-                  {fieldError('method')}
-                </label>
-                <label>
                   メモ
                   <textarea
                     data-cy="catch-memo"
@@ -1056,6 +1260,36 @@ export default function FishingLog({
                       : '写真はアップロード前に自動圧縮します。'}
                   </p>
                 </div>
+                <CombinationEditor
+                  value={form.combinations}
+                  methods={methodSuggestions}
+                  legacyMethod={
+                    legacyMethodVisible ? (
+                      <div className="legacy-method">
+                        <MethodField
+                          label="以前の釣り方・仕掛け（記録全体）"
+                          dataCy="legacy-method"
+                          value={form.method}
+                          onChange={(method) => setForm({ ...form, method })}
+                          suggestions={methodSuggestions}
+                          inputProps={fieldProps('method')}
+                        />
+                        <p className="gear-help">
+                          以前の記録で入力した内容です。各組み合わせとは別に保持します。
+                        </p>
+                        {fieldError('method')}
+                      </div>
+                    ) : null
+                  }
+                  onChange={(combinations) =>
+                    setForm({ ...form, combinations })
+                  }
+                  fish={[...new Set(fishNames)]}
+                  gear={gear}
+                  sets={sets}
+                  onCreated={putGear}
+                  onSaveSet={saveCombinationSet}
+                />
                 <Button
                   data-cy="save-catch"
                   disabled={saving || compressing}
@@ -1179,6 +1413,7 @@ export default function FishingLog({
                 <Search size={18} />
                 <input
                   aria-label="記録を検索"
+                  data-cy="catch-search"
                   placeholder="場所・魚種・メモを検索"
                   value={query}
                   onChange={(e) => setQuery(e.target.value)}
@@ -1270,6 +1505,17 @@ export default function FishingLog({
                         </div>
                         <LocationMapDialog entry={x} apiKey={mapsApiKey} />
                         {x.method && <p className="details">{x.method}</p>}
+                        {!!x.combinations?.length && (
+                          <details className="catch-combinations">
+                            <summary>
+                              釣り方・使用した道具（{x.combinations.length}
+                              組）
+                            </summary>
+                            {x.combinations.map((c, i) => (
+                              <CombinationDisplay key={i} value={c} />
+                            ))}
+                          </details>
+                        )}
                         {x.memo && <p className="memo">{x.memo}</p>}
                         {x.photos.length > 0 && (
                           <div className="photo-grid card-photos">
@@ -1336,6 +1582,32 @@ export default function FishingLog({
           {canManageDemo && <DemoControls onChange={refresh} />}
         </div>
       </main>
+      <div hidden={section !== 'gear'}>
+        <GearManager
+          active={section === 'gear'}
+          gear={gear}
+          sets={sets}
+          onCreated={putGear}
+          onUpdated={putGear}
+          onSetUpdated={putSet}
+          onCopy={copyCombination}
+          setDraft={setDraft}
+          onSetDraft={updateSetDraft}
+          setDialogOpen={setDialogOpen}
+          onSetDialogOpenChange={changeSetDialog}
+          onViewCatch={viewHistoryCatch}
+          error={gearError}
+          onReload={refreshGear}
+        />
+      </div>
+      <div hidden={section !== 'profile'}>
+        <MyPage
+          profile={profile}
+          active={section === 'profile'}
+          onSave={saveProfile}
+          onLogout={logout}
+        />
+      </div>
       {viewProfile && (
         <ProfileDialog
           key={viewProfile.userId}

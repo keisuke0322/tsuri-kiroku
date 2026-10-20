@@ -6,6 +6,13 @@
 @source '../components/ui/button.tsx';
 @source '../components/ui/calendar.tsx';
 @source '../components/ui/dialog.tsx';
+@source '../components/ui/collapsible.tsx';
+@source '../components/ui/accordion.tsx';
+@source '../components/ui/combobox.tsx';
+@source '../components/ui/input-group.tsx';
+@source '../components/ui/textarea.tsx';
+@source '../components/ui/alert-dialog.tsx';
+@source '../components/ui/dropdown-menu.tsx';
 @source '../components/ui/input.tsx';
 @source '../components/ui/popover.tsx';
 @source '../components/ui/tabs.tsx';
@@ -2169,4 +2176,412 @@ button.featured-photo {
 .location-map-dialog [data-slot='dialog-title'] {
   padding-right: 24px;
   overflow-wrap: anywhere;
+}
+
+/* Persistent sections keep drafts and filters while the primary navigation changes. */
+[hidden] {
+  display: none !important;
+}
+.primary-nav {
+  display: flex;
+  justify-content: center;
+  gap: 12px;
+  padding: 10px 20px;
+  background: #fff;
+  border-bottom: 1px solid #dce8e9;
+}
+.primary-nav button {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 10px 24px;
+  border-radius: 10px;
+  color: #546d75;
+  min-height: 44px;
+}
+.primary-nav button[aria-current='page'],
+.gear-tabs button[aria-selected='true'] {
+  background: #e0f3f2;
+  color: #087b87;
+  font-weight: 700;
+}
+.primary-nav button:focus-visible,
+.gear-tabs button:focus-visible {
+  outline: 2px solid #087b87;
+  outline-offset: 2px;
+}
+.gear-manager,
+.my-page {
+  padding-top: 30px;
+  padding-bottom: 40px;
+}
+.gear-manager h1,
+.my-page h1 {
+  font-size: 26px;
+  font-weight: 800;
+  margin-bottom: 12px;
+}
+.gear-manager h2,
+.my-page h2 {
+  font-size: 19px;
+  font-weight: 700;
+  margin: 14px 0;
+}
+.gear-manager h3 {
+  font-weight: 700;
+}
+.gear-tabs,
+.gear-actions,
+.gear-filters {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 10px;
+  margin: 14px 0;
+}
+.gear-tabs button {
+  min-height: 44px;
+  padding: 10px 18px;
+  border-radius: 10px;
+}
+.gear-filters > input {
+  max-width: 340px;
+}
+.gear-manager select,
+.gear-picker select,
+.combination-editor select {
+  width: 100%;
+  min-height: 42px;
+  padding: 8px;
+  border: 1px solid #cbdcde;
+  border-radius: 8px;
+  background: #fff;
+}
+.gear-filters select {
+  width: auto;
+}
+.gear-kind-list {
+  margin-top: 16px;
+}
+.gear-kind-group {
+  border-color: #dce8e9;
+}
+.gear-kind-group > h3 {
+  margin: 0;
+}
+.gear-kind-toggle {
+  min-height: 56px;
+  align-items: center;
+  padding: 14px 4px;
+  font-size: 18px;
+  font-weight: 700;
+}
+.gear-kind-title {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  min-width: 0;
+}
+.gear-kind-count {
+  padding: 2px 8px;
+  border-radius: 999px;
+  background: #e0f3f2;
+  color: #087b87;
+  font-size: 12px;
+  font-weight: 600;
+  white-space: nowrap;
+}
+.gear-kind-content .gear-card {
+  margin: 0;
+}
+.gear-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 300px), 1fr));
+  gap: 16px;
+}
+.gear-card,
+.gear-edit,
+.gear-history-card,
+.combination-card {
+  min-width: 0;
+  background: #fff;
+  padding: 18px;
+  border: 1px solid #dce8e9;
+  border-radius: 12px;
+  margin: 14px 0;
+  overflow-wrap: anywhere;
+}
+.gear-edit {
+  max-width: 720px;
+}
+.gear-card p,
+.combination-summary p {
+  white-space: pre-wrap;
+  margin: 8px 0;
+}
+.gear-check,
+.gear-options label,
+.gear-species label {
+  display: flex !important;
+  align-items: center;
+  gap: 8px;
+  min-height: 40px;
+  font-weight: 400;
+}
+.gear-check input,
+.gear-options input,
+.gear-species input {
+  width: 18px;
+  height: 18px;
+  flex-shrink: 0;
+}
+.gear-help {
+  font-size: 13px;
+  line-height: 1.6;
+  color: #586d75;
+  margin: 8px 0;
+}
+.gear-picker {
+  display: grid;
+  gap: 10px;
+}
+.gear-options {
+  max-height: 200px;
+  overflow-y: auto;
+  border: 1px solid #e1ebec;
+  border-radius: 8px;
+  padding: 8px;
+}
+.gear-chip {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  background: #edf7f6;
+  padding: 6px 10px;
+  border-radius: 8px;
+  margin: 4px 0;
+  font-size: 13px;
+}
+.gear-chip button {
+  min-width: 36px;
+  min-height: 36px;
+  font-size: 20px;
+}
+.retired-note {
+  display: block;
+  color: #9a4916;
+  font-size: 13px;
+}
+.gear-inline-add,
+.combination-card {
+  display: grid;
+  gap: 12px;
+}
+.combination-editor {
+  border: 1px solid #cbdcde;
+  padding: 12px;
+  border-radius: 12px;
+  min-width: 0;
+}
+.combination-editor legend {
+  font-weight: 700;
+  padding: 0 6px;
+}
+.gear-actions > button {
+  min-height: 40px;
+  white-space: normal;
+  height: auto;
+}
+.gear-private-memo {
+  color: #586d75;
+  font-size: 13px;
+}
+.gear-history {
+  padding-top: 12px;
+}
+.gear-history > label {
+  display: grid;
+  gap: 8px;
+}
+.gear-species {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 10px;
+}
+.combination-summary {
+  border-left: 3px solid #aad8d4;
+  padding: 10px;
+  margin: 10px 0;
+  font-size: 13px;
+}
+.catch-combinations summary {
+  cursor: pointer;
+  padding: 8px 0;
+  font-size: 13px;
+  color: #087b87;
+}
+.my-page progress {
+  width: 100%;
+  accent-color: #087b87;
+}
+@media (max-width: 650px) {
+  .app-shell {
+    padding-bottom: calc(80px + env(safe-area-inset-bottom));
+  }
+  .primary-nav {
+    position: fixed;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    z-index: 30;
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    padding: 8px 10px calc(8px + env(safe-area-inset-bottom));
+    border-top: 1px solid #dce8e9;
+    box-shadow: 0 -2px 12px #163b4810;
+    gap: 6px;
+  }
+  .primary-nav button {
+    flex-direction: column;
+    gap: 4px;
+    padding: 8px 4px;
+    font-size: 12px;
+  }
+  .gear-manager,
+  .my-page {
+    padding-top: 20px;
+  }
+  .gear-actions > button {
+    max-width: 100%;
+  }
+}
+
+/* Keep optional equipment details compact and edit actions reachable on phones. */
+.combination-heading {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+.combination-heading button,
+.combination-card > button {
+  min-height: 44px;
+  white-space: normal;
+  height: auto;
+}
+.combination-overview {
+  color: #586d75;
+  font-size: 13px;
+  line-height: 1.7;
+}
+.combination-details:not([hidden]) {
+  display: grid;
+  gap: 12px;
+}
+.gear-edit-dialog {
+  display: flex;
+  flex-direction: column;
+  width: min(720px, calc(100% - 24px));
+  max-width: 720px;
+  max-height: calc(
+    100dvh - 24px - env(safe-area-inset-top) - env(safe-area-inset-bottom)
+  );
+  overflow: clip;
+}
+.gear-edit-dialog [data-slot='dialog-header'] {
+  flex-shrink: 0;
+  padding-right: 60px;
+  text-align: left;
+}
+.gear-dialog-close {
+  position: absolute;
+  top: 12px;
+  right: 12px;
+  min-height: 44px;
+}
+.gear-edit-dialog .gear-edit {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  min-height: 0;
+  overflow: clip;
+  padding: 0;
+  margin: 0;
+  border: 0;
+  max-width: none;
+}
+.gear-dialog-fieldset {
+  display: contents;
+}
+.gear-dialog-fields {
+  display: grid;
+  align-content: start;
+  flex: 1;
+  gap: 16px;
+  min-width: 0;
+  min-height: 0;
+  overflow-y: auto;
+  padding: 0 4px 4px 0;
+  scroll-padding: 8px;
+}
+.gear-edit-dialog select {
+  width: 100%;
+  min-height: 44px;
+  padding: 8px;
+  border: 1px solid #cbdcde;
+  border-radius: 8px;
+  background: #fff;
+}
+.gear-edit-dialog .gear-dialog-footer {
+  flex-shrink: 0;
+  margin: 0;
+  padding: 12px 0 0;
+  border-top: 1px solid #dce8e9;
+}
+.gear-dialog-footer > button {
+  flex: 1;
+  min-height: 44px;
+}
+
+.method-field {
+  display: grid;
+  gap: 7px;
+  min-width: 0;
+}
+.method-field > [data-slot='input-group'] {
+  width: 100%;
+  min-height: 44px;
+  height: auto;
+}
+.method-field [data-slot='input-group-addon']:empty {
+  display: none;
+}
+.method-trigger {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 44px;
+  min-height: 44px;
+  flex-shrink: 0;
+}
+.method-options [data-slot='combobox-item'] {
+  min-height: 44px;
+}
+.method-options [data-slot='combobox-list'] {
+  max-height: min(240px, var(--available-height));
+}
+.combination-chevron {
+  flex-shrink: 0;
+  transition: transform 150ms;
+}
+.combination-chevron.expanded {
+  transform: rotate(180deg);
+}
+.legacy-method {
+  padding: 12px;
+  border: 1px solid #dce8e9;
+  border-radius: 8px;
 }

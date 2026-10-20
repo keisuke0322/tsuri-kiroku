@@ -237,3 +237,19 @@ export async function deleteCatchPhotos(id: number) {
   for (const row of rows.results) await discardPhoto(row.object_key);
   // Pending writers remain charged, then attachment fails and they self-clean.
 }
+
+export async function photoStorageSummary(ownerId: string) {
+  const db = getDb();
+  const settings = await db
+    .prepare('SELECT initialized FROM photo_storage_settings WHERE id=1')
+    .first<{ initialized: number }>();
+  const usage = await db
+    .prepare('SELECT used_bytes FROM photo_storage_users WHERE owner_id=?')
+    .bind(ownerId)
+    .first<{ used_bytes: number }>();
+  return {
+    usedBytes: usage?.used_bytes ?? 0,
+    limitBytes: storageLimit(env.PHOTO_STORAGE_USER_LIMIT_BYTES, 100000000),
+    initialized: !!settings?.initialized,
+  };
+}
