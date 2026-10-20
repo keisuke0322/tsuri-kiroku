@@ -6,6 +6,8 @@
 @source '../components/ui/button.tsx';
 @source '../components/ui/calendar.tsx';
 @source '../components/ui/dialog.tsx';
+@source '../components/ui/alert-dialog.tsx';
+@source '../components/ui/dropdown-menu.tsx';
 @source '../components/ui/input.tsx';
 @source '../components/ui/popover.tsx';
 @source '../components/ui/tabs.tsx';
@@ -2416,4 +2418,78 @@ button.featured-photo {
   .gear-actions > button {
     max-width: 100%;
   }
+}
+
+/* Keep optional equipment details compact and edit actions reachable on phones. */
+.combination-heading {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+.combination-heading button,
+.combination-card > button {
+  min-height: 44px;
+  white-space: normal;
+  height: auto;
+}
+.combination-overview {
+  color: #586d75;
+  font-size: 13px;
+  line-height: 1.7;
+}
+.combination-details:not([hidden]) {
+  display: grid;
+  gap: 12px;
+}
+.gear-edit-dialog {
+  width: min(720px, calc(100% - 24px));
+  max-width: 720px;
+  max-height: calc(
+    100dvh - 24px - env(safe-area-inset-top) - env(safe-area-inset-bottom)
+  );
+  overflow-y: auto;
+  scroll-padding: 80px 0;
+}
+.gear-edit-dialog [data-slot='dialog-header'] {
+  padding-right: 60px;
+  text-align: left;
+}
+.gear-dialog-close {
+  position: absolute;
+  top: 12px;
+  right: 12px;
+  min-height: 44px;
+}
+.gear-edit-dialog .gear-edit {
+  padding: 0;
+  margin: 0;
+  border: 0;
+  max-width: none;
+}
+.gear-dialog-fields {
+  display: grid;
+  gap: 16px;
+  min-width: 0;
+}
+.gear-edit-dialog select {
+  width: 100%;
+  min-height: 44px;
+  padding: 8px;
+  border: 1px solid #cbdcde;
+  border-radius: 8px;
+  background: #fff;
+}
+.gear-edit-dialog .gear-dialog-footer {
+  position: sticky;
+  bottom: -24px;
+  z-index: 1;
+  background: #fff;
+  margin: 0 -4px -24px;
+  padding: 12px 4px 24px;
+  border-top: 1px solid #dce8e9;
+}
+.gear-dialog-footer > button {
+  flex: 1;
+  min-height: 44px;
 }

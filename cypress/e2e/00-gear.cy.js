@@ -117,6 +117,150 @@ describe('所有道具・基本セット・当日の組み合わせ', () => {
             'contain',
             item.name,
           );
+          cy.get(`[data-set-id="${setResponse.body.id}"]`)
+            .contains('button', '編集')
+            .click();
+          cy.get(by('set-name')).clear().type(`${marker}-${width}-edited-set`);
+          cy.intercept('PUT', `/api/gear-sets/${setResponse.body.id}`).as(
+            'editSet',
+          );
+          cy.get(by('save-gear-set')).click();
+          cy.wait('@editSet').its('response.statusCode').should('equal', 200);
+          cy.reload();
+          cy.wait('@gearList');
+          cy.get(by('nav-gear')).click();
+          cy.contains('button', '基本セット').click();
+          cy.get(`[data-set-id="${setResponse.body.id}"]`).should(
+            'contain',
+            `${marker}-${width}-edited-set`,
+          );
+        });
+      });
+    });
+    it(`編集ダイアログの下書き保持・保存失敗からの再試行（${width}px）`, () => {
+      cy.viewport(width, 700);
+      visit();
+      cy.get(by('nav-gear')).click();
+      cy.get(by('new-gear')).click();
+      cy.get(by('gear-form')).should('be.visible');
+      cy.get(by('gear-name')).type(`${marker}-${width}-dialog`);
+      cy.get(by('close-gear-dialog')).click();
+      cy.get(by('gear-form')).should('not.exist');
+      cy.get(by('nav-profile')).click();
+      cy.get(by('nav-gear')).click();
+      cy.get(by('new-gear')).should('contain', '入力を再開').click();
+      cy.get(by('gear-name')).should('have.value', `${marker}-${width}-dialog`);
+      cy.get(by('gear-name')).type('{esc}');
+      cy.get(by('gear-form')).should('not.exist');
+      cy.get(by('new-gear')).click();
+      cy.get('[data-slot=dialog-overlay]').click('topLeft');
+      cy.get(by('gear-form')).should('not.exist');
+      cy.get(by('new-gear')).click();
+      cy.get(by('gear-name')).should('have.value', `${marker}-${width}-dialog`);
+      cy.intercept(
+        { method: 'POST', url: '/api/gear', times: 1 },
+        {
+          statusCode: 503,
+          body: { error: 'テスト用の保存失敗' },
+        },
+      ).as('failedSave');
+      cy.get(by('save-gear')).click();
+      cy.wait('@failedSave');
+      cy.get(by('gear-form')).should('contain', 'テスト用の保存失敗');
+      cy.get(by('gear-name')).should('have.value', `${marker}-${width}-dialog`);
+      cy.intercept('POST', '/api/gear').as('retrySave');
+      cy.get(by('save-gear')).click();
+      cy.wait('@retrySave').then(({ response }) => {
+        expect(response.statusCode).to.equal(201);
+        const item = response.body;
+        cy.get(by('gear-form')).should('not.exist');
+        cy.get(`[data-gear-id="${item.id}"]`)
+          .contains('button', '編集')
+          .click();
+        cy.get(by('gear-name')).clear().type(`${marker}-${width}-edited`);
+        cy.intercept('PUT', `/api/gear/${item.id}`).as('editGear');
+        cy.get(by('save-gear')).click();
+        cy.wait('@editGear').its('response.statusCode').should('equal', 200);
+        cy.reload();
+        cy.get(by('nav-gear')).click();
+        cy.get(`[data-gear-id="${item.id}"]`).should(
+          'contain',
+          `${marker}-${width}-edited`,
+        );
+      });
+      cy.contains('button', '基本セット').click();
+      cy.get(by('new-gear-set')).click();
+      cy.get(by('set-name')).type(`${marker}-${width}-set-draft`);
+      cy.get(by('close-gear-dialog')).click();
+      cy.get(by('new-gear-set')).click();
+      cy.get(by('set-name')).should(
+        'have.value',
+        `${marker}-${width}-set-draft`,
+      );
+      cy.get(by('set-form')).contains('button', 'キャンセル').click();
+      cy.get(by('new-gear-set')).click();
+      cy.get(by('set-name')).should('have.value', '');
+      cy.get(by('set-form')).contains('button', 'キャンセル').click();
+    });
+    it(`セットの置き換え確認と組み合わせの折りたたみ（${width}px）`, () => {
+      cy.viewport(width, 900);
+      gear('replace-' + width).then((item) => {
+        request('POST', '/api/gear-sets', {
+          name: `${marker}-${width}-replace-set`,
+          gear: [item],
+          method: '浮き釣り',
+        }).then(({ body: set }) => {
+          visit();
+          cy.get(by('record-catch')).click();
+          cy.get(by('fish-species')).type('タチウオ');
+          cy.get(by('combination-details')).should('not.be.visible');
+          cy.get(by('combination-set')).select(String(set.id));
+          cy.get(by('replace-set-dialog')).should('not.exist');
+          cy.get(by('combination-overview'))
+            .should('contain', item.name)
+            .and('contain', 'タチウオ');
+          cy.get(by('combination-details-toggle')).click();
+          cy.get(by('combination-method')).clear().type('テンヤ');
+          cy.get(by('combination-set')).select('');
+          cy.get(by('combination-method')).should('have.value', 'テンヤ');
+          cy.get(by('combination-set')).select(String(set.id));
+          cy.get(by('replace-set-dialog'))
+            .should('be.visible')
+            .and('contain', set.name);
+          cy.get(by('cancel-replace-set')).should('be.focused').click();
+          cy.get(by('combination-set')).should('have.value', '');
+          cy.get(by('combination-method')).should('have.value', 'テンヤ');
+          cy.get(by('combination-set')).select(String(set.id));
+          cy.get(by('confirm-replace-set')).click();
+          cy.get(by('combination-method')).should('have.value', '浮き釣り');
+          cy.get(by('combination-species')).should('be.checked');
+          cy.get(by('combination-details-toggle')).click();
+          cy.get(by('combination-details')).should('not.be.visible');
+          cy.get(by('combination-details-toggle')).click();
+          cy.get(by('combination-method')).should('have.value', '浮き釣り');
+          cy.get(by('add-combination')).click();
+          cy.get(by('combination-editor'))
+            .last()
+            .within(() => {
+              cy.get(by('combination-details-toggle')).should(
+                'have.attr',
+                'aria-expanded',
+                'true',
+              );
+              cy.get(by('combination-method')).type('投げ釣り');
+            });
+          cy.get(by('combination-editor'))
+            .first()
+            .find(by('combination-actions'))
+            .click();
+          cy.get(by('delete-combination')).click();
+          cy.get(by('combination-editor')).should('have.length', 1);
+          cy.get(by('combination-details-toggle')).should(
+            'have.attr',
+            'aria-expanded',
+            'true',
+          );
+          cy.get(by('combination-method')).should('have.value', '投げ釣り');
         });
       });
     });
@@ -136,6 +280,7 @@ describe('所有道具・基本セット・当日の組み合わせ', () => {
           cy.get(by('catch-location')).type(`${marker}-${width}-draft`);
           cy.get(by('fish-species')).type('タチウオ');
           cy.task('checkpoint', 'gear:fish-entered');
+          cy.get(by('combination-details-toggle')).click();
           cy.get(by('combination-species'))
             .scrollIntoView()
             .should('be.checked');
@@ -150,9 +295,9 @@ describe('所有道具・基本セット・当日の組み合わせ', () => {
           cy.get(by('selected-gear')).should('contain', item.name);
           cy.get(by('combination-method')).type('テンヤ');
           cy.task('checkpoint', 'gear:method-entered');
-          cy.contains('button', 'この組み合わせを複製')
-            .scrollIntoView()
-            .click();
+          cy.get(by('combination-actions')).scrollIntoView().click();
+          cy.get(by('duplicate-combination')).click();
+          cy.get(by('duplicate-combination')).should('not.exist');
           cy.task('checkpoint', 'gear:duplicated');
           cy.get(by('combination-editor'))
             .should('have.length', 2)
@@ -219,6 +364,55 @@ describe('所有道具・基本セット・当日の組み合わせ', () => {
       });
     });
   }
+  for (const width of [1280, 390]) {
+    it(`釣果の下書きを保持して履歴から基本セットを保存・キャンセル（${width}px）`, () => {
+      cy.viewport(width, 900);
+      gear('return-' + width).then((item) => {
+        createCatch([combination(item)]);
+        visit();
+        cy.get(by('record-catch')).click();
+        cy.get(by('catch-location')).type(`${marker}-${width}-return`);
+        cy.get(by('fish-species')).type('タチウオ');
+        cy.contains('button', '過去の組み合わせを再利用')
+          .scrollIntoView()
+          .click();
+        const history = () =>
+          cy
+            .get(by('gear-history-card'))
+            .filter(`:contains("${item.name}")`)
+            .first();
+        history().contains('button', '基本セットとして保存').click();
+        cy.get('[role="dialog"]:visible').should('have.length', 1);
+        cy.get(by('set-name')).type(`${marker}-${width}-return-set`);
+        cy.get(by('set-form')).contains('button', 'キャンセル').click();
+        cy.get(by('catch-location')).should(
+          'have.value',
+          `${marker}-${width}-return`,
+        );
+        cy.contains('button', '過去の組み合わせを再利用')
+          .scrollIntoView()
+          .click();
+        history().contains('button', '基本セットとして保存').click();
+        cy.get(by('set-name')).type(`${marker}-${width}-return-set`);
+        cy.intercept('POST', '/api/gear-sets').as('returnSet');
+        cy.get(by('save-gear-set')).click();
+        cy.wait('@returnSet').then(({ response }) => {
+          expect(response.statusCode).to.equal(201);
+          cy.get(by('catch-location')).should(
+            'have.value',
+            `${marker}-${width}-return`,
+          );
+          cy.get(by('fish-species')).should('have.value', 'タチウオ');
+          cy.get('[role="dialog"]:visible').should('have.length', 1);
+          request('GET', '/api/gear-sets').then(({ body }) =>
+            expect(body.find((s) => s.id === response.body.id).name).to.equal(
+              `${marker}-${width}-return-set`,
+            ),
+          );
+        });
+      });
+    });
+  }
   it('使用終了後も履歴を保持し、独立したコピーと基本セットを保存できる', () => {
     gear('history').then((item) => {
       const original = combination(item);
@@ -245,6 +439,8 @@ describe('所有道具・基本セット・当日の組み合わせ', () => {
         cy.get(by('save-gear-set')).click();
         cy.wait('@historySet').its('response.statusCode').should('equal', 201);
         cy.get('@history').contains('button', '今回の記録へコピー').click();
+        cy.get(by('combination-overview')).should('contain', item.name);
+        cy.get(by('combination-details-toggle')).click();
         cy.get(by('selected-gear')).should('contain', '使用終了');
         cy.get(by('combination-method')).clear().type('投げ釣り');
         request('GET', '/api/catches').then((r) =>

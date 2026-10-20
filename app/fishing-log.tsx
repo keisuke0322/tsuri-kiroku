@@ -129,7 +129,9 @@ export default function FishingLog({
   const [gear, setGear] = useState<Gear[]>([]),
     [sets, setSets] = useState<GearSet[]>([]),
     [gearError, setGearError] = useState(''),
-    [setDraft, setSetDraft] = useState<GearSet | null>(null);
+    [setDraft, setSetDraft] = useState<GearSet | null>(null),
+    [setDialogOpen, setSetDialogOpen] = useState(false);
+  const returnToCatch = useRef(false);
   const scrollPositions = useRef<Record<string, number>>({
     records: 0,
     gear: 0,
@@ -171,7 +173,24 @@ export default function FishingLog({
     }
   }
 
+  function changeSetDialog(open: boolean) {
+    setSetDialogOpen(open);
+    if (!open && returnToCatch.current) {
+      returnToCatch.current = false;
+      navigate('records');
+      setOpen(true);
+    }
+  }
+
+  function updateSetDraft(draft: GearSet | null) {
+    setSetDraft(draft);
+    changeSetDialog(!!draft);
+  }
+
   function saveCombinationSet(c: Combination) {
+    returnToCatch.current = true;
+    setOpen(false);
+    setSetDialogOpen(true);
     setSetDraft({
       ...emptySet(),
       name: c.setName,
@@ -1547,7 +1566,9 @@ export default function FishingLog({
           onSetUpdated={putSet}
           onCopy={copyCombination}
           setDraft={setDraft}
-          onSetDraft={setSetDraft}
+          onSetDraft={updateSetDraft}
+          setDialogOpen={setDialogOpen}
+          onSetDialogOpenChange={changeSetDialog}
           onViewCatch={viewHistoryCatch}
           error={gearError}
           onReload={refreshGear}

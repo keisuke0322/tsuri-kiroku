@@ -1,10 +1,27 @@
 'use client';
 
-import { useEffect, useEffectEvent, useState } from 'react';
+import { useEffect, useEffectEvent, useId, useRef, useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import {
+  AlertDialog,
+  AlertDialogContent,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogCancel,
+  AlertDialogAction,
+} from '@/components/ui/alert-dialog';
+import {
+  DropdownMenu,
+  DropdownMenuTrigger,
+  DropdownMenuContent,
+  DropdownMenuItem,
+} from '@/components/ui/dropdown-menu';
+import {
   gearKinds,
+  emptyCombination,
   snapshot,
   type Gear,
   type GearSnapshot,
@@ -402,6 +419,279 @@ export function GearHistoryPanel({
   );
 }
 
+function CombinationCard({
+  value: c,
+  index,
+  gear,
+  sets,
+  fish,
+  onChange,
+  onCreated,
+  onDuplicate,
+  onDelete,
+  canDuplicate,
+  initiallyOpen,
+}: {
+  value: Combination;
+  index: number;
+  gear: Gear[];
+  sets: GearSet[];
+  fish: string[];
+  onChange: (patch: Partial<Combination>) => void;
+  onCreated: (g: Gear) => void;
+  onDuplicate: () => void;
+  onDelete: () => void;
+  canDuplicate: boolean;
+  initiallyOpen: boolean;
+}) {
+  const [expanded, setExpanded] = useState(initiallyOpen);
+  const [pending, setPending] = useState<Partial<Combination> | null>(null);
+  const detailsId = useId();
+  const card = useRef<HTMLDivElement>(null);
+  const toggle = useRef<HTMLButtonElement>(null);
+  const setSelect = useRef<HTMLSelectElement>(null);
+  const menuAction = useRef(false);
+  useEffect(() => {
+    if (initiallyOpen) {
+      card.current?.scrollIntoView({ block: 'nearest' });
+      toggle.current?.focus({ preventScroll: true });
+    }
+  }, [initiallyOpen]);
+
+  function selectSet(id: string) {
+    const s = sets.find((s) => String(s.id) === id);
+    if (!s) return onChange({ setId: null, setName: '' });
+    const next = {
+      setId: s.id,
+      setName: s.name,
+      method: s.method,
+      gear: s.gear.map((g) => snapshot(gear.find((v) => v.id === g.id) || g)),
+    };
+    // Compare the full snapshots so changed specs are also protected.
+    const equipmentKey = (items: GearSnapshot[]) =>
+      JSON.stringify(items.map((g) => JSON.stringify(snapshot(g))).sort());
+    const changes =
+      c.method !== next.method ||
+      equipmentKey(c.gear) !== equipmentKey(next.gear);
+    if ((c.gear.length || c.method) && changes) setPending(next);
+    else onChange(next);
+  }
+
+  const retired = c.gear.filter(
+    (g) => gear.find((v) => v.id === g.id)?.retired,
+  );
+  return (
+    <div className="combination-card" ref={card} data-cy="combination-editor">
+      <div className="combination-heading">
+        <strong>組み合わせ {index + 1}</strong>
+        <DropdownMenu>
+          <DropdownMenuTrigger asChild>
+            <Button
+              type="button"
+              variant="ghost"
+              data-cy="combination-actions"
+              aria-label={`組み合わせ ${index + 1}のその他の操作`}
+            >
+              その他の操作
+            </Button>
+          </DropdownMenuTrigger>
+          <DropdownMenuContent
+            align="end"
+            onCloseAutoFocus={(e) => {
+              if (menuAction.current) e.preventDefault();
+              menuAction.current = false;
+            }}
+          >
+            <DropdownMenuItem
+              disabled={!canDuplicate}
+              onSelect={() => {
+                menuAction.current = true;
+                onDuplicate();
+              }}
+              data-cy="duplicate-combination"
+            >
+              この組み合わせを複製
+            </DropdownMenuItem>
+            <DropdownMenuItem
+              variant="destructive"
+              onSelect={() => {
+                menuAction.current = true;
+                onDelete();
+              }}
+              data-cy="delete-combination"
+            >
+              削除
+            </DropdownMenuItem>
+          </DropdownMenuContent>
+        </DropdownMenu>
+      </div>
+      <label>
+        基本セット
+        <select
+          ref={setSelect}
+          data-cy="combination-set"
+          value={c.setId ?? ''}
+          onChange={(e) => selectSet(e.target.value)}
+        >
+          <option value="">基本セットを使わず選択</option>
+          {sets
+            .filter((s) => !s.retired || s.id === c.setId)
+            .sort((a, b) => Number(b.favorite) - Number(a.favorite))
+            .map((s) => (
+              <option key={s.id} value={s.id}>
+                {s.favorite && '★ '}
+                {s.name}
+                {s.retired && '（登録解除）'}
+              </option>
+            ))}
+        </select>
+      </label>
+      <div className="combination-overview" data-cy="combination-overview">
+        <p>
+          道具：
+          {c.gear
+            .slice(0, 3)
+            .map((g) => `${g.name}${g.id === null ? '（今回だけ）' : ''}`)
+            .join('・') || '未選択'}
+          {c.gear.length > 3 && ` ほか${c.gear.length - 3}点`}
+        </p>
+        <p>釣り方：{c.method || '未入力'}</p>
+        <p>対象魚種：{c.species.join('・') || '指定なし'}</p>
+      </div>
+      {!!retired.length && (
+        <p className="retired-note">
+          使用終了：{retired.map((g) => g.name).join('・')}
+          。差し替え・取り外しを確認してください。
+        </p>
+      )}
+      {c.setId && sets.find((s) => s.id === c.setId)?.retired && (
+        <p className="retired-note">
+          登録解除したセットです。使用内容は保持しています。
+        </p>
+      )}
+      <Button
+        ref={toggle}
+        type="button"
+        variant="outline"
+        data-cy="combination-details-toggle"
+        aria-expanded={expanded}
+        aria-controls={detailsId}
+        onClick={() => setExpanded(!expanded)}
+      >
+        {expanded ? '詳細を閉じる' : '道具・詳細を変更'}
+      </Button>
+      <div
+        id={detailsId}
+        hidden={!expanded}
+        className="combination-details"
+        data-cy="combination-details"
+      >
+        <GearPicker
+          gear={gear}
+          value={c.gear}
+          onChange={(gear) => onChange({ gear })}
+          onCreated={onCreated}
+          allowCreate
+        />
+        <label>
+          釣り方の候補
+          <select
+            data-cy="combination-method-choice"
+            value=""
+            onChange={(e) => {
+              if (e.target.value) onChange({ method: e.target.value });
+            }}
+          >
+            <option value="">候補から選ぶ（自由入力もできます）</option>
+            {[
+              ...new Set([
+                'テンヤ',
+                '浮き釣り',
+                'サビキ',
+                'ルアー',
+                '投げ釣り',
+                ...sets.map((s) => s.method),
+              ]),
+            ]
+              .filter(Boolean)
+              .map((m) => (
+                <option key={m} value={m}>
+                  {m}
+                </option>
+              ))}
+          </select>
+        </label>
+        <label>
+          この組み合わせの釣り方
+          <Input
+            data-cy="combination-method"
+            value={c.method}
+            maxLength={200}
+            placeholder="候補を選択、または自由入力"
+            onChange={(e) => onChange({ method: e.target.value })}
+          />
+        </label>
+        <div className="gear-species">
+          <span>魚種との紐づけ（任意）</span>
+          {fish.map((name) => (
+            <label key={name}>
+              <input
+                data-cy="combination-species"
+                type="checkbox"
+                checked={c.species.includes(name)}
+                onChange={(e) =>
+                  onChange({
+                    species: e.target.checked
+                      ? [...c.species, name]
+                      : c.species.filter((s) => s !== name),
+                  })
+                }
+              />
+              {name}
+            </label>
+          ))}
+        </div>
+      </div>
+      <AlertDialog
+        open={!!pending}
+        onOpenChange={(open) => {
+          if (!open) setPending(null);
+        }}
+      >
+        <AlertDialogContent
+          data-cy="replace-set-dialog"
+          onCloseAutoFocus={(e) => {
+            e.preventDefault();
+            setSelect.current?.focus();
+          }}
+        >
+          <AlertDialogHeader>
+            <AlertDialogTitle>基本セットを変更しますか？</AlertDialogTitle>
+            <AlertDialogDescription>
+              道具と釣り方を「{pending?.setName}
+              」の内容に置き換えます。魚種の紐づけは維持します。
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel data-cy="cancel-replace-set">
+              キャンセル
+            </AlertDialogCancel>
+            <AlertDialogAction
+              data-cy="confirm-replace-set"
+              onClick={() => {
+                if (pending) onChange(pending);
+                setPending(null);
+              }}
+            >
+              置き換える
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+    </div>
+  );
+}
+
 export function CombinationEditor({
   value,
   onChange,
@@ -420,175 +710,89 @@ export function CombinationEditor({
   onSaveSet: (c: Combination) => void;
 }) {
   const [historyOpen, setHistoryOpen] = useState(false);
-  function update(index: number, patch: Partial<Combination>) {
-    onChange(value.map((c, i) => (i === index ? { ...c, ...patch } : c)));
+  // UI-only identities keep each card's draft and expansion attached on removal.
+  const [keys, setKeys] = useState(() => value.map(() => crypto.randomUUID()));
+  const [newKey, setNewKey] = useState('');
+  const editor = useRef<HTMLFieldSetElement>(null);
+
+  function insert(c: Combination, replace = -1) {
+    if (replace < 0 && value.length >= 20) return;
+    const key = crypto.randomUUID();
+    setNewKey(key);
+    setKeys(
+      replace < 0
+        ? [...keys, key]
+        : keys.map((v, i) => (i === replace ? key : v)),
+    );
+    onChange(
+      replace < 0
+        ? [...value, c]
+        : value.map((v, i) => (i === replace ? c : v)),
+    );
   }
 
   function copy(c: Combination) {
-    const next = {
-      ...structuredClone(c),
-      species:
-        fish.length === 1
-          ? [...fish]
-          : c.species.filter((s) => fish.includes(s)),
-    };
-    const blank = value.findIndex(
-      (v) => !v.gear.length && !v.setId && !v.method,
+    insert(
+      {
+        ...structuredClone(c),
+        species:
+          fish.length === 1
+            ? [...fish]
+            : c.species.filter((s) => fish.includes(s)),
+      },
+      value.findIndex((v) => !v.gear.length && !v.setId && !v.method),
     );
-    if (blank >= 0) onChange(value.map((v, i) => (i === blank ? next : v)));
-    else if (value.length < 20) onChange([...value, next]);
     setHistoryOpen(false);
   }
+
   return (
-    <fieldset className="combination-editor">
+    <fieldset ref={editor} className="combination-editor">
       <legend>当日の組み合わせ（任意）</legend>
       <p className="gear-help">
         基本セットは変更せず、この記録だけ道具を差し替えられます。最大20組・各30点。
       </p>
       {value.map((c, index) => (
-        <div
-          className="combination-card"
-          key={index}
-          data-cy="combination-editor"
-        >
-          <div className="gear-actions">
-            <strong>組み合わせ {index + 1}</strong>
-            <Button
-              type="button"
-              variant="outline"
-              disabled={value.length >= 20}
-              onClick={() => onChange([...value, structuredClone(c)])}
-            >
-              この組み合わせを複製
-            </Button>
-            <Button
-              type="button"
-              variant="outline"
-              onClick={() => onChange(value.filter((_, i) => i !== index))}
-            >
-              削除
-            </Button>
-          </div>
-          <label>
-            基本セット
-            <select
-              data-cy="combination-set"
-              value={c.setId ?? ''}
-              onChange={(e) => {
-                const s = sets.find((s) => String(s.id) === e.target.value);
-                if (!s) return update(index, { setId: null, setName: '' });
-                update(index, {
-                  setId: s.id,
-                  setName: s.name,
-                  method: s.method,
-                  gear: s.gear.map((g) =>
-                    snapshot(gear.find((v) => v.id === g.id) || g),
-                  ),
-                });
-              }}
-            >
-              <option value="">基本セットを使わず選択</option>
-              {sets
-                .filter((s) => !s.retired || s.id === c.setId)
-                .sort((a, b) => Number(b.favorite) - Number(a.favorite))
-                .map((s) => (
-                  <option key={s.id} value={s.id}>
-                    {s.favorite && '★ '}
-                    {s.name}
-                    {s.retired && '（登録解除）'}
-                  </option>
-                ))}
-            </select>
-          </label>
-          {c.setId && sets.find((s) => s.id === c.setId)?.retired && (
-            <p className="retired-note">
-              登録解除したセットです。使用内容は保持しています。
-            </p>
-          )}
-          <GearPicker
-            gear={gear}
-            value={c.gear}
-            onChange={(gear) => update(index, { gear })}
-            onCreated={onCreated}
-            allowCreate
-          />
-          <label>
-            釣り方の候補
-            <select
-              data-cy="combination-method-choice"
-              value=""
-              onChange={(e) => {
-                if (e.target.value) update(index, { method: e.target.value });
-              }}
-            >
-              <option value="">候補から選ぶ（自由入力もできます）</option>
-              {[
-                ...new Set([
-                  'テンヤ',
-                  '浮き釣り',
-                  'サビキ',
-                  'ルアー',
-                  '投げ釣り',
-                  ...sets.map((s) => s.method),
-                ]),
-              ]
-                .filter(Boolean)
-                .map((m) => (
-                  <option key={m} value={m}>
-                    {m}
-                  </option>
-                ))}
-            </select>
-          </label>
-          <label>
-            この組み合わせの釣り方
-            <Input
-              data-cy="combination-method"
-              value={c.method}
-              maxLength={200}
-              placeholder="候補を選択、または自由入力"
-              onChange={(e) => update(index, { method: e.target.value })}
-            />
-          </label>
-          <div className="gear-species">
-            <span>魚種との紐づけ（任意）</span>
-            {fish.map((name) => (
-              <label key={name}>
-                <input
-                  data-cy="combination-species"
-                  type="checkbox"
-                  checked={c.species.includes(name)}
-                  onChange={(e) =>
-                    update(index, {
-                      species: e.target.checked
-                        ? [...c.species, name]
-                        : c.species.filter((s) => s !== name),
-                    })
-                  }
-                />
-                {name}
-              </label>
-            ))}
-          </div>
-        </div>
+        <CombinationCard
+          key={keys[index]}
+          value={c}
+          index={index}
+          gear={gear}
+          sets={sets}
+          fish={fish}
+          onCreated={onCreated}
+          initiallyOpen={keys[index] === newKey}
+          canDuplicate={value.length < 20}
+          onChange={(patch) =>
+            onChange(
+              value.map((v, i) => (i === index ? { ...v, ...patch } : v)),
+            )
+          }
+          onDuplicate={() => insert(structuredClone(c))}
+          onDelete={() => {
+            setKeys(keys.filter((_, i) => i !== index));
+            onChange(value.filter((_, i) => i !== index));
+            requestAnimationFrame(() => {
+              const toggles =
+                editor.current?.querySelectorAll<HTMLButtonElement>(
+                  '[data-cy="combination-details-toggle"]',
+                );
+              (
+                toggles?.[Math.min(index, (toggles?.length || 1) - 1)] ||
+                editor.current?.querySelector<HTMLButtonElement>(
+                  '[data-cy="add-combination"]',
+                )
+              )?.focus();
+            });
+          }}
+        />
       ))}
       <div className="gear-actions">
         <Button
           type="button"
           variant="outline"
+          data-cy="add-combination"
           disabled={value.length >= 20}
-          onClick={() =>
-            onChange([
-              ...value,
-              {
-                setId: null,
-                setName: '',
-                method: '',
-                gear: [],
-                species: fish.length === 1 ? [...fish] : [],
-              },
-            ])
-          }
+          onClick={() => insert(emptyCombination(fish))}
         >
           ＋組み合わせを追加
         </Button>
