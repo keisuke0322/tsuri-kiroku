@@ -462,77 +462,79 @@ export default function GearManager({
               void saveGear(draft, true);
             }}
           >
-            <fieldset disabled={busy} className="gear-dialog-fields">
-              <label>
-                種類 ※
-                <select
-                  value={draft.kind}
-                  onChange={(e) =>
-                    setGearDraft({
-                      ...draft,
-                      kind: e.target.value as Gear['kind'],
-                    })
-                  }
-                >
-                  {gearKinds.map((k) => (
-                    <option key={k}>{k}</option>
-                  ))}
-                </select>
-              </label>
-              {(
-                [
-                  ['name', '名前 ※', 120],
-                  ['manufacturer', 'メーカー', 120],
-                  ['model', '型番', 120],
-                  ['spec', 'スペック', 300],
-                ] as const
-              ).map(([key, label, max]) => (
-                <label key={key}>
-                  {label}
-                  <Input
-                    data-cy={`gear-${key}`}
-                    value={draft[key]}
-                    maxLength={max}
-                    required={key === 'name'}
+            <fieldset disabled={busy} className="gear-dialog-fieldset">
+              <div className="gear-dialog-fields">
+                <label>
+                  種類 ※
+                  <select
+                    value={draft.kind}
                     onChange={(e) =>
-                      setGearDraft({ ...draft, [key]: e.target.value })
+                      setGearDraft({
+                        ...draft,
+                        kind: e.target.value as Gear['kind'],
+                      })
+                    }
+                  >
+                    {gearKinds.map((k) => (
+                      <option key={k}>{k}</option>
+                    ))}
+                  </select>
+                </label>
+                {(
+                  [
+                    ['name', '名前 ※', 120],
+                    ['manufacturer', 'メーカー', 120],
+                    ['model', '型番', 120],
+                    ['spec', 'スペック', 300],
+                  ] as const
+                ).map(([key, label, max]) => (
+                  <label key={key}>
+                    {label}
+                    <Input
+                      data-cy={`gear-${key}`}
+                      value={draft[key]}
+                      maxLength={max}
+                      required={key === 'name'}
+                      onChange={(e) =>
+                        setGearDraft({ ...draft, [key]: e.target.value })
+                      }
+                    />
+                  </label>
+                ))}
+                <label>
+                  管理用メモ（本人限定）
+                  <textarea
+                    data-cy="gear-memo"
+                    value={draft.memo}
+                    maxLength={2000}
+                    onChange={(e) =>
+                      setGearDraft({ ...draft, memo: e.target.value })
                     }
                   />
                 </label>
-              ))}
-              <label>
-                管理用メモ（本人限定）
-                <textarea
-                  data-cy="gear-memo"
-                  value={draft.memo}
-                  maxLength={2000}
-                  onChange={(e) =>
-                    setGearDraft({ ...draft, memo: e.target.value })
-                  }
-                />
-              </label>
-              <label className="gear-check">
-                <input
-                  type="checkbox"
-                  checked={draft.favorite}
-                  onChange={(e) =>
-                    setGearDraft({ ...draft, favorite: e.target.checked })
-                  }
-                />
-                ★ お気に入り
-              </label>
-              <label className="gear-check">
-                <input
-                  type="checkbox"
-                  checked={draft.retired}
-                  onChange={(e) =>
-                    setGearDraft({ ...draft, retired: e.target.checked })
-                  }
-                />
-                使用終了
-              </label>
-              {formError && <p role="alert">{formError}</p>}
+                <label className="gear-check">
+                  <input
+                    type="checkbox"
+                    checked={draft.favorite}
+                    onChange={(e) =>
+                      setGearDraft({ ...draft, favorite: e.target.checked })
+                    }
+                  />
+                  ★ お気に入り
+                </label>
+                <label className="gear-check">
+                  <input
+                    type="checkbox"
+                    checked={draft.retired}
+                    onChange={(e) =>
+                      setGearDraft({ ...draft, retired: e.target.checked })
+                    }
+                  />
+                  使用終了
+                </label>
+              </div>
             </fieldset>
+            {formError && <p role="alert">{formError}</p>}
             <div className="gear-actions gear-dialog-footer">
               <Button data-cy="save-gear" disabled={busy}>
                 保存する
@@ -568,67 +570,69 @@ export default function GearManager({
               void saveSet(setDraft, true);
             }}
           >
-            <fieldset disabled={busy} className="gear-dialog-fields">
-              <label>
-                セット名 ※
-                <Input
-                  data-cy="set-name"
-                  value={setDraft.name}
-                  required
-                  maxLength={120}
-                  onChange={(e) =>
-                    onSetDraft({ ...setDraft, name: e.target.value })
-                  }
+            <fieldset disabled={busy} className="gear-dialog-fieldset">
+              <div className="gear-dialog-fields">
+                <label>
+                  セット名 ※
+                  <Input
+                    data-cy="set-name"
+                    value={setDraft.name}
+                    required
+                    maxLength={120}
+                    onChange={(e) =>
+                      onSetDraft({ ...setDraft, name: e.target.value })
+                    }
+                  />
+                </label>
+                <label>
+                  対象魚種
+                  <Input
+                    value={setDraft.targetSpecies}
+                    maxLength={80}
+                    onChange={(e) =>
+                      onSetDraft({ ...setDraft, targetSpecies: e.target.value })
+                    }
+                  />
+                </label>
+                <label>
+                  釣り方
+                  <Input
+                    value={setDraft.method}
+                    maxLength={200}
+                    onChange={(e) =>
+                      onSetDraft({ ...setDraft, method: e.target.value })
+                    }
+                  />
+                </label>
+                <GearPicker
+                  gear={gear}
+                  value={setDraft.gear}
+                  onChange={(gear) => onSetDraft({ ...setDraft, gear })}
+                  onCreated={onCreated}
                 />
-              </label>
-              <label>
-                対象魚種
-                <Input
-                  value={setDraft.targetSpecies}
-                  maxLength={80}
-                  onChange={(e) =>
-                    onSetDraft({ ...setDraft, targetSpecies: e.target.value })
-                  }
-                />
-              </label>
-              <label>
-                釣り方
-                <Input
-                  value={setDraft.method}
-                  maxLength={200}
-                  onChange={(e) =>
-                    onSetDraft({ ...setDraft, method: e.target.value })
-                  }
-                />
-              </label>
-              <GearPicker
-                gear={gear}
-                value={setDraft.gear}
-                onChange={(gear) => onSetDraft({ ...setDraft, gear })}
-                onCreated={onCreated}
-              />
-              <label className="gear-check">
-                <input
-                  type="checkbox"
-                  checked={setDraft.favorite}
-                  onChange={(e) =>
-                    onSetDraft({ ...setDraft, favorite: e.target.checked })
-                  }
-                />
-                ★ お気に入り
-              </label>
-              <label className="gear-check">
-                <input
-                  type="checkbox"
-                  checked={setDraft.retired}
-                  onChange={(e) =>
-                    onSetDraft({ ...setDraft, retired: e.target.checked })
-                  }
-                />
-                登録解除（過去の使用履歴は保持）
-              </label>
-              {formError && <p role="alert">{formError}</p>}
+                <label className="gear-check">
+                  <input
+                    type="checkbox"
+                    checked={setDraft.favorite}
+                    onChange={(e) =>
+                      onSetDraft({ ...setDraft, favorite: e.target.checked })
+                    }
+                  />
+                  ★ お気に入り
+                </label>
+                <label className="gear-check">
+                  <input
+                    type="checkbox"
+                    checked={setDraft.retired}
+                    onChange={(e) =>
+                      onSetDraft({ ...setDraft, retired: e.target.checked })
+                    }
+                  />
+                  登録解除（過去の使用履歴は保持）
+                </label>
+              </div>
             </fieldset>
+            {formError && <p role="alert">{formError}</p>}
             <div className="gear-actions gear-dialog-footer">
               <Button data-cy="save-gear-set" disabled={busy}>
                 保存する

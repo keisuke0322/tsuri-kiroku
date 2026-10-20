@@ -205,15 +205,18 @@ describe('所有道具・基本セット・当日の組み合わせ', () => {
       cy.get(by('new-gear-set')).click();
       cy.get(by('set-name')).type(`${marker}-${width}-set-draft`);
       cy.get(by('close-gear-dialog')).click();
+      cy.get(by('set-form')).should('not.exist');
       cy.get(by('new-gear-set')).click();
       cy.get(by('set-name')).should(
         'have.value',
         `${marker}-${width}-set-draft`,
       );
       cy.get(by('set-form')).contains('button', 'キャンセル').click();
+      cy.get(by('set-form')).should('not.exist');
       cy.get(by('new-gear-set')).click();
       cy.get(by('set-name')).should('have.value', '');
       cy.get(by('set-form')).contains('button', 'キャンセル').click();
+      cy.get(by('set-form')).should('not.exist');
     });
     it(`セットの置き換え確認と組み合わせの折りたたみ（${width}px）`, () => {
       cy.viewport(width, 900);
@@ -398,6 +401,7 @@ describe('所有道具・基本セット・当日の組み合わせ', () => {
         cy.get('[role="dialog"]:visible').should('have.length', 1);
         cy.get(by('set-name')).type(`${marker}-${width}-return-set`);
         cy.get(by('set-form')).contains('button', 'キャンセル').click();
+        cy.get(by('set-form')).should('not.exist');
         cy.get(by('catch-location')).should(
           'have.value',
           `${marker}-${width}-return`,
