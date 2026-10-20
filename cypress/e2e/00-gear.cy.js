@@ -67,19 +67,20 @@ function combination(item) {
   };
 }
 
-function pressEnter() {
-  // Cypress 15.12 cy.press(ENTER) omits the virtual key code and CR text,
-  // so Chromium receives a key event without activating native buttons.
+function pressKey(key) {
+  // Cypress 15.12 cy.press omits virtual key codes and Enter's CR text,
+  // so Chromium receives incomplete native keyboard events.
+  const virtualKeyCode = { Enter: 13, ArrowDown: 40, Escape: 27 }[key];
   return cy.then(async () => {
     for (const type of ['keyDown', 'keyUp']) {
       await Cypress.automation('remote:debugger:protocol', {
         command: 'Input.dispatchKeyEvent',
         params: {
           type,
-          key: 'Enter',
-          code: 'Enter',
-          windowsVirtualKeyCode: 13,
-          ...(type === 'keyDown' ? { text: '\r' } : {}),
+          key,
+          code: key,
+          windowsVirtualKeyCode: virtualKeyCode,
+          ...(type === 'keyDown' && key === 'Enter' ? { text: '\r' } : {}),
         },
       });
     }
@@ -113,7 +114,7 @@ describe('所有道具・基本セット・当日の組み合わせ', () => {
         .focus()
         .should('be.focused');
       // Use native keyboard events so Enter activates the focused button.
-      pressEnter();
+      pressKey('Enter');
       cy.get(by('combination-details')).should(
         'have.attr',
         'data-state',
@@ -125,12 +126,35 @@ describe('所有道具・基本セット・当日の組み合わせ', () => {
       cy.get(by('method-option')).contains('サビキ').click();
       cy.get(by('combination-method')).should('have.value', 'サビキ');
       cy.get(by('save-catch')).should('exist');
-      cy.get(by('combination-method')).clear().type('テン');
-      cy.press(Cypress.Keyboard.Keys.DOWN);
-      pressEnter();
-      cy.get(by('combination-method')).should('have.value', 'テンヤ');
-      cy.get(by('combination-method')).clear().type('ちょい投げ、6号');
-      cy.press(Cypress.Keyboard.Keys.ESC);
+      cy.get(by('combination-method')).clear();
+      cy.get(by('combination-method')).should('have.value', '').type('テン');
+      cy.get(by('combination-method'))
+        .should('have.value', 'テン')
+        .and('have.attr', 'aria-expanded', 'true')
+        .and('be.focused');
+      cy.get(by('method-option')).contains('テンヤ').should('be.visible');
+      pressKey('ArrowDown');
+      cy.get(by('method-option'))
+        .contains('テンヤ')
+        .should('have.attr', 'data-highlighted');
+      pressKey('Enter');
+      cy.get(by('combination-method'))
+        .should('have.value', 'テンヤ')
+        .and('have.attr', 'aria-expanded', 'false');
+      cy.get(by('combination-method')).clear();
+      cy.get(by('combination-method'))
+        .should('have.value', '')
+        .type('ちょい投げ、6号');
+      cy.get(by('combination-method'))
+        .should('have.value', 'ちょい投げ、6号')
+        .and('have.attr', 'aria-expanded', 'true')
+        .and('be.focused');
+      pressKey('Escape');
+      cy.get(by('combination-method')).should(
+        'have.attr',
+        'aria-expanded',
+        'false',
+      );
       cy.get(by('combination-method')).should('have.value', 'ちょい投げ、6号');
       cy.get(by('save-catch')).should('exist');
       cy.get(by('combination-details-toggle')).scrollIntoView().click();
