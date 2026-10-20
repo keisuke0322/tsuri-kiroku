@@ -153,7 +153,9 @@ describe('所有道具・基本セット・当日の組み合わせ', () => {
       cy.get(by('gear-name')).type('{esc}');
       cy.get(by('gear-form')).should('not.exist');
       cy.get(by('new-gear')).click();
-      cy.get('[data-slot=dialog-overlay]').click('topLeft');
+      // Click the visible backdrop at the screen edge. Selecting the fixed
+      // overlay itself makes Cypress test its covered center for visibility.
+      cy.get('body').click(1, 1);
       cy.get(by('gear-form')).should('not.exist');
       cy.get(by('new-gear')).click();
       cy.get(by('gear-name')).should('have.value', `${marker}-${width}-dialog`);
