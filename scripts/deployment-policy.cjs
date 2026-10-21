@@ -63,7 +63,12 @@ async function requireStaging({
         (state === 'inactive' && statuses.some((s) => s.state === 'success'))
       ) {
         log(`Verified staging success for ${sha}`);
-        return;
+        return {
+          sha,
+          deploymentId: latest.id,
+          actionsUrl:
+            statuses.find((s) => s.state === 'success')?.log_url || null,
+        };
       }
       if (state === 'failure' || state === 'error')
         throw new Error(`Staging failed for ${sha}. Re-run staging first.`);
@@ -104,7 +109,12 @@ async function requireStaging({
           log(
             `Documentation-only changes: reused successful staging ${candidate.sha} for ${sha}`,
           );
-          return;
+          return {
+            sha: candidate.sha,
+            deploymentId: candidate.id,
+            actionsUrl:
+              statuses.find((s) => s.state === 'success')?.log_url || null,
+          };
         }
       }
     }
@@ -153,7 +163,8 @@ async function checkProduction(options) {
     merged,
     `${context.repo.owner}/${context.repo.repo}`,
   );
-  await requireStaging({ ...options, sha });
+  const staging = await requireStaging({ ...options, sha });
+  return { pr: merged, staging };
 }
 
 module.exports = {

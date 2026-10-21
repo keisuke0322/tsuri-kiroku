@@ -4,6 +4,7 @@ on:
     branches: [cloudflare-migration, main]
   pull_request:
     branches: [main]
+    types: [opened, reopened, synchronize, edited, ready_for_review]
   workflow_dispatch:
 permissions:
   contents: read
@@ -48,14 +49,20 @@ jobs:
           script: |
             const { checkPullRequest } = require('./scripts/deployment-policy.cjs');
             await checkPullRequest({ github, context, log: core.info });
+            const { validateRelease } = require('./scripts/release-policy.cjs');
+            await validateRelease({ github, context, pr: context.payload.pull_request });
   deploy:
     name: Deploy
     if: github.event_name != 'pull_request' && (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/cloudflare-migration')
     runs-on: ubuntu-latest
     timeout-minutes: 35
     environment: ${{ github.ref == 'refs/heads/main' && 'production' || 'staging' }}
+    outputs:
+      record-artifact: ${{ steps.record-name.outputs.name }}
     steps:
       - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
       - name: Require a merged PR with successful staging
         if: github.ref == 'refs/heads/main'
         uses: actions/github-script@v7
@@ -66,6 +73,15 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: '24'
+      - name: Prepare deployment identity and release specification
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const { prepareRecord } = require('./scripts/deployment-record.cjs');
+            await prepareRecord({ github, context });
+      - name: Name deployment record
+        id: record-name
+        run: echo "name=deployment-record-${GITHUB_RUN_ID}-${GITHUB_RUN_ATTEMPT}" >> "$GITHUB_OUTPUT"
       - run: corepack enable
       - run: corepack pnpm install --frozen-lockfile
       - run: corepack pnpm run format:check
@@ -123,11 +139,58 @@ jobs:
           path: cypress/screenshots
           if-no-files-found: ignore
           retention-days: 7
+      - name: Verify running version and record deployment result
+        if: always() && steps.record-name.outcome == 'success'
+        run: node scripts/verify-version.mjs
+        env:
+          DEPLOYMENT_RESULT: ${{ job.status }}
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+      - name: Preserve deployment provenance
+        if: always() && steps.record-name.outcome == 'success'
+        uses: actions/upload-artifact@v4
+        with:
+          name: ${{ steps.record-name.outputs.name }}
+          path: .release-runtime/record.json
+          include-hidden-files: true
+          if-no-files-found: error
+          retention-days: 90
+
+  release:
+    name: Publish Release
+    needs: deploy
+    if: needs.deploy.result == 'success' && github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/download-artifact@v4
+        with:
+          name: ${{ needs.deploy.outputs.record-artifact }}
+          path: .release-runtime
+      - name: Publish immutable tag and Release
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const { readFileSync } = require('node:fs');
+            const { publishRelease } = require('./scripts/release-policy.cjs');
+            const record = JSON.parse(readFileSync('.release-runtime/record.json', 'utf8'));
+            const release = await publishRelease({ github, context, record });
+            await core.summary.addHeading('GitHub Release作成成功').addLink(release.tag_name, release.html_url).write();
+      - name: Describe Release failure
+        if: failure()
+        run: echo '本番デプロイは成功しましたがRelease作成は未完了です。原因を解消し、この実行の失敗ジョブのみ再実行してください。本番の再デプロイは不要です。' >> "$GITHUB_STEP_SUMMARY"
 
   issue-status:
     name: Update Project Status after successful deployment
-    needs: deploy
-    if: needs.deploy.result == 'success'
+    needs: [deploy, release]
+    if: >-
+      always() && needs.deploy.result == 'success' &&
+      (needs.release.result == 'success' ||
+       (github.ref == 'refs/heads/cloudflare-migration' && needs.release.result == 'skipped'))
     runs-on: ubuntu-latest
     timeout-minutes: 5
     permissions:

@@ -45,6 +45,7 @@
 
 1. stagingでの受け入れ確認はユーザーが行う。ユーザーから確認完了とPR作成の指示を受けたら、AIが`cloudflare-migration`から`main`へのPRを作成する。明示的に依頼された場合は確認前のドラフトPRも作成できる。
 2. PRには変更の目的・最終的な動作・検証結果・関連Issueを記載する。対応が完了するIssueはPR本文の独立した行に`Refs #番号`で関連付ける（複数は`Refs #12, #13`）。本番デプロイ成功後にActionsが閉じるため、`Closes`・`Fixes`・`Resolves`は使わない。PRのURLを報告し、Codexのチャットにも添付する。
+   公開PRには[資材のバージョン管理](docs/releases.md)に従い、`package.json`と一致する`Release-Version: vMAJOR.MINOR.PATCH`と`### DB変更・復旧`を記載する。本番デプロイとRelease作成の両方が成功してからIssueが完了する。Release作成だけの失敗は失敗ジョブのみ再実行し、公開済みタグを移動しない。
 3. `PR checks`の成功を確認する。ワークフローはPR先端コミットのstaging成功を検証する。確認後に追加修正をpushした場合は、その変更をstagingで再確認してもらう。
 4. 1人運用のため承認レビューを必須にせず、ユーザー自身がPRを確認・マージする。AIは独断でマージしない。
 5. 継続利用する開発ブランチなので、マージ方法は`Create a merge commit`とし、`cloudflare-migration`は削除しない。
