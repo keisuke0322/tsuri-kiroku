@@ -68,9 +68,9 @@ Secrets:
 
 1. `cloudflare-migration`へpushするとstagingへ自動デプロイします。
 2. stagingでGoogleログイン、ログアウト、写真投稿・閲覧、いいね等を実機確認します。
-3. `cloudflare-migration`から`main`へPRを作成します。`PR checks`が型チェック・テスト・マージ結果のビルドと、PR先端コミットのstaging成功を確認します。
+3. `cloudflare-migration`から`main`へPRを作成します。[資材のバージョン管理](docs/releases.md)に従い、本文へ `Release-Version` とDB変更・復旧の注意を記載します。`PR checks`が型チェック・テスト・マージ結果のビルド、リリース指定とPR先端コミットのstaging成功を確認します。
 4. 動作を確認して、ご自身でPRをマージします。承認レビューは不要です。継続利用する開発ブランチなので、**Create a merge commit**を使用し、マージ後も`cloudflare-migration`を削除しません。
-5. mainへのpushでproductionに自動デプロイします。本番コードはmainのコミットです。関連するマージ済みPRの先端コミットがstagingで成功済みかを確認してから、本番D1マイグレーション・デプロイ・未認証アクセス確認を実行します。
+5. mainへのpushでproductionに自動デプロイします。本番コードはmainのコミットです。関連するマージ済みPRの先端コミットがstagingで成功済みかを確認してから、本番D1マイグレーション・デプロイ・未認証アクセス確認・稼働情報の照合を実行します。成功後、本番コミットへのタグとGitHub Releaseを自動作成します。
 6. 次の開発前にmainを開発ブランチへ取り込みます（`git fetch github` → `git switch cloudflare-migration` → `git merge github/main`）。
 
 stagingのデータを本番へコピーする処理はありません。PRチェックは実機確認の代わりにはなりません。mainへの直接pushは本番デプロイの検証で拒否します。

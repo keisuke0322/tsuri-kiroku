@@ -60,7 +60,10 @@ function fixture({
 
 test('merge SHA differs from staging head: promote main using PR source evidence', async () => {
   const f = fixture();
-  await checkProduction(f);
+  const result = await checkProduction(f);
+  assert.equal(result.pr.merge_commit_sha, 'merge');
+  assert.equal(result.staging.sha, 'source');
+  assert.equal(result.staging.deploymentId, 1);
   assert.equal(
     f.calls.find((c) => c.method === 'deployments').args.sha,
     'source',
@@ -161,7 +164,8 @@ test('README-only change may reuse a successful ancestor staging deployment', as
     },
   });
   await checkPullRequest(f);
-  await checkProduction(f);
+  const result = await checkProduction(f);
+  assert.equal(result.staging.sha, 'previous');
 });
 
 test('source code changes cannot reuse previous staging', async () => {

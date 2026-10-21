@@ -1,4 +1,5 @@
 import { existsSync, readFileSync, writeFileSync } from 'node:fs';
+import { createHash } from 'node:crypto';
 
 const stage = process.argv[2];
 if (!['staging', 'production'].includes(stage))
@@ -55,6 +56,21 @@ config.vars = {
   APP_ORIGIN: origin.origin,
   GOOGLE_CLIENT_ID: process.env.GOOGLE_CLIENT_ID,
 };
+const recordPath = '.release-runtime/record.json';
+if (existsSync(recordPath)) {
+  const record = JSON.parse(readFileSync(recordPath, 'utf8'));
+  if (record.environment !== stage)
+    throw Error('Deployment record environment mismatch');
+  config.version_metadata = { binding: 'CF_VERSION_METADATA' };
+  config.vars.APP_BUILD_INFO = JSON.stringify({
+    environment: stage,
+    sha: record.sha,
+    version: record.release?.version || null,
+    runId: record.runId,
+    runAttempt: record.runAttempt,
+    builtAt: record.builtAt,
+  });
+}
 if (process.env.GOOGLE_MAPS_API_KEY)
   config.vars.GOOGLE_MAPS_API_KEY = process.env.GOOGLE_MAPS_API_KEY;
 for (const [key, fallback] of [
@@ -68,4 +84,11 @@ for (const [key, fallback] of [
   config.vars[key] = value;
 }
 writeFileSync('wrangler.deploy.json', JSON.stringify(config, null, 2) + '\n');
+if (existsSync(recordPath)) {
+  const record = JSON.parse(readFileSync(recordPath, 'utf8'));
+  record.configSha256 = createHash('sha256')
+    .update(readFileSync('wrangler.deploy.json'))
+    .digest('hex');
+  writeFileSync(recordPath, JSON.stringify(record, null, 2) + '\n');
+}
 console.log(`Prepared ${stage} configuration (no secrets).`);
