@@ -4,12 +4,32 @@ on:
     branches: [cloudflare-migration, main]
   pull_request:
     branches: [main]
-    types: [opened, reopened, synchronize, edited, ready_for_review]
+    types:
+      [
+        opened,
+        reopened,
+        synchronize,
+        edited,
+        ready_for_review,
+        labeled,
+        unlabeled,
+      ]
   workflow_dispatch:
+    inputs:
+      action:
+        type: choice
+        default: development
+        options:
+          [development, validate-update, abort-update, restore-development]
+      pr:
+        description: Dependency PR number (validate-update)
+        type: string
 permissions:
   contents: read
   deployments: read
   pull-requests: read
+  actions: read
+  issues: read
 concurrency:
   group: cloudflare-${{ github.event_name == 'pull_request' && format('pr-{0}', github.event.pull_request.number) || github.ref_name }}
   cancel-in-progress: false
@@ -33,40 +53,71 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 20
     steps:
+      # Policy code comes from the trusted base, never the PR checkout.
       - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
         with:
-          node-version: '24'
-      - run: corepack enable
-      - run: corepack pnpm install --frozen-lockfile
-      - run: corepack pnpm run format:check
-      - run: corepack pnpm run typecheck
-      - run: corepack pnpm test
-      - run: corepack pnpm build
+          ref: ${{ github.event.pull_request.base.sha }}
+          persist-credentials: false
       - name: Require PR head to have passed staging
         uses: actions/github-script@v7
         with:
           script: |
             const { checkPullRequest } = require('./scripts/deployment-policy.cjs');
-            await checkPullRequest({ github, context, log: core.info });
+            await checkPullRequest({ github, context, log: core.info, skipFeatureGate: true });
+            const { data: pkg } = await github.rest.repos.getContent({ ...context.repo,
+              path: 'package.json', ref: context.payload.pull_request.head.sha });
+            if (pkg.type !== 'file' || pkg.encoding !== 'base64') throw Error('Missing manifest');
+            const manifest = JSON.parse(Buffer.from(pkg.content, 'base64').toString('utf8'));
+            require('node:fs').writeFileSync('package.json', JSON.stringify({ version: manifest.version }));
             const { validateRelease } = require('./scripts/release-policy.cjs');
             await validateRelease({ github, context, pr: context.payload.pull_request });
+
   deploy:
     name: Deploy
     if: github.event_name != 'pull_request' && (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/cloudflare-migration')
     runs-on: ubuntu-latest
     timeout-minutes: 35
-    environment: ${{ github.ref == 'refs/heads/main' && 'production' || 'staging' }}
+    environment: ${{ github.ref == 'refs/heads/main' && (inputs.action == '' || inputs.action == 'development') && 'production' || 'staging' }}
+    permissions:
+      contents: write
+      deployments: read
+      pull-requests: read
+      actions: read
+      issues: write
+    concurrency:
+      group: ${{ github.ref == 'refs/heads/main' && (inputs.action == '' || inputs.action == 'development') && 'cloudflare-production' || 'shared-staging' }}
+      cancel-in-progress: false
     outputs:
       record-artifact: ${{ steps.record-name.outputs.name }}
+      kind: ${{ steps.select.outputs.kind }}
     steps:
       - uses: actions/checkout@v4
         with:
           fetch-depth: 0
+      - name: Select source and acquire durable staging ownership
+        id: select
+        uses: actions/github-script@v7
+        env:
+          CONTROL_ACTION: ${{ inputs.action || 'development' }}
+          UPDATE_PR: ${{ inputs.pr }}
+        with:
+          script: |
+            const { selectDeployment } = require('./scripts/dependency-control.cjs');
+            const selection = await selectDeployment({ github, context }, {
+              action: process.env.CONTROL_ACTION, number: process.env.UPDATE_PR });
+            core.setOutput('selection', JSON.stringify(selection));
+            core.setOutput('sha', selection.sha);
+            core.setOutput('kind', selection.kind);
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ steps.select.outputs.sha }}
+          fetch-depth: 0
+          persist-credentials: false
       - name: Require a merged PR with successful staging
-        if: github.ref == 'refs/heads/main'
+        if: steps.select.outputs.kind == 'production'
         uses: actions/github-script@v7
         with:
+          github-token: ${{ secrets.PROJECT_TOKEN }}
           script: |
             const { checkProduction } = require('./scripts/deployment-policy.cjs');
             await checkProduction({ github, context, log: core.info });
@@ -76,9 +127,10 @@ jobs:
       - name: Prepare deployment identity and release specification
         uses: actions/github-script@v7
         with:
+          github-token: ${{ secrets.PROJECT_TOKEN }}
           script: |
             const { prepareRecord } = require('./scripts/deployment-record.cjs');
-            await prepareRecord({ github, context });
+            await prepareRecord({ github, context, selection: ${{ steps.select.outputs.selection }} });
       - name: Name deployment record
         id: record-name
         run: echo "name=deployment-record-${GITHUB_RUN_ID}-${GITHUB_RUN_ATTEMPT}" >> "$GITHUB_OUTPUT"
@@ -90,7 +142,7 @@ jobs:
       - name: Configure target
         run: node scripts/cloudflare-config.mjs "$TARGET_ENV"
         env:
-          TARGET_ENV: ${{ github.ref == 'refs/heads/main' && 'production' || 'staging' }}
+          TARGET_ENV: ${{ steps.select.outputs.kind == 'production' && 'production' || 'staging' }}
           CLOUDFLARE_ACCOUNT_ID: ${{ vars.CLOUDFLARE_ACCOUNT_ID }}
           D1_DATABASE_ID: ${{ vars.D1_DATABASE_ID }}
           APP_ORIGIN: ${{ vars.APP_ORIGIN }}
@@ -101,6 +153,16 @@ jobs:
       - run: corepack pnpm build
         env:
           CF_CONFIG: wrangler.deploy.json
+      - name: Recheck production authorization immediately before writes
+        if: steps.select.outputs.kind == 'production'
+        uses: actions/github-script@v7
+        with:
+          github-token: ${{ secrets.PROJECT_TOKEN }}
+          script: |
+            const { checkProduction } = require('./scripts/deployment-policy.cjs');
+            const { pr } = await checkProduction({ github, context, log: core.info });
+            const { validateRelease } = require('./scripts/release-policy.cjs');
+            await validateRelease({ github, context, pr, production: true });
       - name: Apply compatible migrations before deployment
         run: node scripts/cloudflare-migrations.mjs before
         env:
@@ -122,17 +184,17 @@ jobs:
         env:
           APP_ORIGIN: ${{ vars.APP_ORIGIN }}
       - name: Install Cypress browser
-        if: github.ref == 'refs/heads/cloudflare-migration'
+        if: steps.select.outputs.kind != 'production'
         run: corepack pnpm exec cypress install
       - name: Run authenticated staging E2E
-        if: github.ref == 'refs/heads/cloudflare-migration'
+        if: steps.select.outputs.kind != 'production'
         run: corepack pnpm run e2e:staging
         env:
           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           E2E_USER_ID: ${{ secrets.E2E_USER_ID }}
           E2E_OTHER_USER_ID: ${{ secrets.E2E_OTHER_USER_ID }}
       - name: Save E2E failure screenshots
-        if: failure() && github.ref == 'refs/heads/cloudflare-migration'
+        if: failure() && steps.select.outputs.kind != 'production'
         uses: actions/upload-artifact@v4
         with:
           name: staging-e2e-screenshots-${{ github.sha }}
@@ -154,11 +216,33 @@ jobs:
           include-hidden-files: true
           if-no-files-found: error
           retention-days: 90
+      - name: Record successful update validation or restoration
+        if: success()
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const { finishDeployment } = require('./scripts/dependency-control.cjs');
+            await finishDeployment({ github, context }, ${{ steps.select.outputs.selection }});
+      - name: Refresh release gates after validation
+        if: success()
+        uses: actions/github-script@v7
+        with:
+          github-token: ${{ secrets.PROJECT_TOKEN }}
+          script: |
+            try {
+              await github.rest.repos.getContent({ ...context.repo, path: '.github/workflows/dependency-governance.yml', ref: 'main' });
+            } catch (error) {
+              if (error.status !== 404) throw error;
+              core.info('Dependency governance is not on main yet; activation follows production release.');
+              return;
+            }
+            await github.rest.actions.createWorkflowDispatch({ ...context.repo,
+              workflow_id: 'dependency-governance.yml', ref: 'main', inputs: { action: 'refresh' } });
 
   release:
     name: Publish Release
     needs: deploy
-    if: needs.deploy.result == 'success' && github.ref == 'refs/heads/main'
+    if: needs.deploy.result == 'success' && github.ref == 'refs/heads/main' && (inputs.action == '' || inputs.action == 'development')
     runs-on: ubuntu-latest
     timeout-minutes: 5
     permissions:
@@ -190,7 +274,7 @@ jobs:
     if: >-
       always() && needs.deploy.result == 'success' &&
       (needs.release.result == 'success' ||
-       (github.ref == 'refs/heads/cloudflare-migration' && needs.release.result == 'skipped'))
+       (needs.deploy.outputs.kind == 'development' && needs.release.result == 'skipped'))
     runs-on: ubuntu-latest
     timeout-minutes: 5
     permissions:
@@ -210,3 +294,40 @@ jobs:
           script: |
             const { updateDeployment } = require('./scripts/issue-status.cjs');
             await updateDeployment({ github, context, log: core.info });
+
+  sync-published:
+    name: Sync published main to development
+    needs: [deploy, release]
+    if: needs.release.result == 'success'
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    concurrency:
+      group: published-main-sync
+      cancel-in-progress: false
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/github-script@v7
+        with:
+          github-token: ${{ secrets.PROJECT_TOKEN }}
+          script: |
+            const { syncPublished, cleanupMerged } = require('./scripts/dependency-sync.cjs');
+            await syncPublished({ github, context });
+            await cleanupMerged({ github, context });
+
+  restore-staging:
+    name: Restore development staging after publication
+    permissions:
+      actions: write
+    needs: [deploy, release]
+    if: needs.release.result == 'success'
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/github-script@v7
+        with:
+          script: |
+            await github.rest.actions.createWorkflowDispatch({ ...context.repo,
+              workflow_id: 'cloudflare.yml', ref: 'main',
+              inputs: { action: 'restore-development' } });

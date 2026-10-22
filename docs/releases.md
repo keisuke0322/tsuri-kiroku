@@ -5,7 +5,7 @@ stagingはコミットSHA、productionはGitタグとGitHub Releaseで管理し�
 
 ## 公開PRで指定する内容
 
-`cloudflare-migration` から `main` へのPR本文に、次の形式で記載します。
+機能公開の `cloudflare-migration` または許可されたmain基準の依存更新ブランチから `main` へのPR本文に、次の形式で記載します。
 PRテンプレートの案内コメントと仮の値は置き換えてください。
 
 ```markdown
@@ -47,7 +47,7 @@ Actions実行ID・再実行番号、CloudflareのWorkerバージョンID・作�
 本番失敗時も自動ロールバックは行いません。APIは実際に応答するWorkerの情報です。
 
 ActionsのDeployジョブのサマリーと `deployment-record-実行ID-再実行番号` のartifactには、
-稼働SHA、検証したstagingのSHAとGitHub deployment ID、本番PR、関連Issue、
+稼働SHA、検証したstagingのSHAとdeployment ID（機能公開はGitHub、依存更新はCloudflare）、本番PR、関連Issue、
 Cloudflare deployment IDとWorker version ID、検証日時を記録します。
 同じSHAの再デプロイはActions実行ID・再実行番号とCloudflareの識別子で区別します。
 文書だけの変更で以前のstaging検証を再利用した場合は、実際に検証した祖先SHAも残ります。
@@ -90,3 +90,5 @@ Node・pnpmの版、lockfileとSQLのSHA-256、環境別生成設定のSHA-256�
 稼働バージョンを照合します。**Workerを戻してもDBは戻りません。**
 互換性がなければ古いWorkerを配信せず、追加修正またはバックアップからの復旧を判断します。
 破壊的な復旧には既存のバックアップ・D1 Time Travel手順を使い、本番の操作はユーザーの指示で行います。
+
+main基準の依存更新PRでは[依存更新の運用](dependency-updates.md)のprepare処理が最新の正式Releaseから次のPATCH版を準備する。管理者が番号を変更した場合も、番号を含むソースのCI・staging・動作確認をやり直す。依存更新でも本書のRelease・DB・稼働情報の条件を維持する。

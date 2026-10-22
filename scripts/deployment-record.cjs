@@ -18,9 +18,15 @@ function saveRecord(record) {
   writeFileSync(recordPath, JSON.stringify(record, null, 2) + '\n');
 }
 
-async function prepareRecord({ github, context }) {
-  const production = context.ref === 'refs/heads/main';
-  if (!production && context.ref !== 'refs/heads/cloudflare-migration')
+async function prepareRecord({ github, context, selection }) {
+  const production = selection
+    ? selection.kind === 'production'
+    : context.ref === 'refs/heads/main';
+  if (
+    !production &&
+    !selection &&
+    context.ref !== 'refs/heads/cloudflare-migration'
+  )
     throw Error('Unsupported deployment branch.');
   let pr = null,
     staging = null,
@@ -43,7 +49,7 @@ async function prepareRecord({ github, context }) {
     : [];
   const record = {
     environment: production ? 'production' : 'staging',
-    sha: context.sha,
+    sha: selection?.sha || context.sha,
     runId: String(context.runId),
     runAttempt: String(process.env.GITHUB_RUN_ATTEMPT),
     actionsUrl: `${context.serverUrl}/${context.repo.owner}/${context.repo.repo}/actions/runs/${context.runId}/attempts/${process.env.GITHUB_RUN_ATTEMPT}`,
@@ -58,15 +64,16 @@ async function prepareRecord({ github, context }) {
           references: pr.body?.match(/^Refs #\d+(?:, #\d+)*\s*$/gm) || [],
         }
       : null,
-    sourceIssues: !production
-      ? [
-          ...new Set(
-            execFileSync('git', ['log', 'origin/main..HEAD', '--format=%B'], {
-              encoding: 'utf8',
-            }).match(/^Refs #\d+(?:, #\d+)*\s*$/gm) || [],
-          ),
-        ]
-      : [],
+    sourceIssues:
+      !production && selection?.kind !== 'update'
+        ? [
+            ...new Set(
+              execFileSync('git', ['log', 'origin/main..HEAD', '--format=%B'], {
+                encoding: 'utf8',
+              }).match(/^Refs #\d+(?:, #\d+)*\s*$/gm) || [],
+            ),
+          ]
+        : [],
     toolchain: {
       node: execFileSync('node', ['--version'], { encoding: 'utf8' }).trim(),
       packageManager: pkg.packageManager,

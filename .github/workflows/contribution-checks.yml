@@ -1,7 +1,7 @@
 name: Contribution checks
 on:
   pull_request:
-    branches: [cloudflare-migration]
+    branches: [cloudflare-migration, main]
     types: [opened, synchronize, reopened, ready_for_review]
 permissions:
   contents: read

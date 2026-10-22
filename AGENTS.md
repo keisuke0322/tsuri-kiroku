@@ -84,3 +84,11 @@
 - `外部提案` は外部由来を示す分類ラベルでもある。Status変更後も分類ラベルを保持し、旧状態ラベルとして除去しない。外部PRはProject画面でStatusを変更する。判定・通知設定は [docs/external-proposals.md](docs/external-proposals.md) を参照する。
 - 通常のIssue分類ラベルとProjectの優先度・ほかの項目は変更しない。誤って導入した5種類のIssue状態ラベルは、Project Statusの更新を読み戻し確認した後でのみ外す。
 - 仕組みと有効化条件は [docs/issue-status.md](docs/issue-status.md) を参照する。
+
+## 依存更新の公開
+
+- main基準の依存更新PRは[依存更新の運用](docs/dependency-updates.md)に従う。通常の機能開発とは別ルートで、mainへの導入・setup成功後に有効となる。
+- 更新PRのCI成功後も共有stagingへ自動反映しない。管理者によるprepare、対象PRを指定したvalidate-update、E2E・稼働版照合、動作確認済みラベルの監査記録を要求する。
+- `automation/dependency-state` は占有と確認の制御記録。削除や手編集で解除しない。失敗時も占有を保持し、明示的な中止・復帰手順を使う。
+- 公開成功後の同期PRは公開済みmainから開発へ向ける。自動マージ・開発ブランチのreset・未公開mainの同期を行わない。
+- 未対応Dependabot更新と未同期mainは機能公開を止める。保留は管理者の理由付き30日期限とし、古い成功チェックやラベルで迂回しない。必要なGitHub設定・実更新・通知の未確認を明示する。

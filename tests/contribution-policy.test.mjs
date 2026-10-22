@@ -9,7 +9,7 @@ test('contribution CI runs validation without privileged triggers or deployment 
   );
   assert.match(
     workflow,
-    /pull_request:\s*\n\s*branches: \[cloudflare-migration\]/,
+    /pull_request:\s*\n\s*branches: \[cloudflare-migration, main\]/,
   );
   assert.match(
     workflow,

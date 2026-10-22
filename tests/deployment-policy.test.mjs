@@ -24,7 +24,18 @@ function fixture({
   const calls = [];
   const github = {
     rest: {
+      git: {
+        getRef: async ({ ref }) => {
+          if (ref !== 'heads/main')
+            throw Object.assign(Error('Not found'), { status: 404 });
+          return { data: { object: { sha: 'base' } } };
+        },
+      },
+      pulls: { list: 'open-prs' },
       repos: {
+        getCommit: async () => ({
+          data: { parents: [{ sha: 'base' }, { sha: 'source' }] },
+        }),
         listDeployments: 'deployments',
         listDeploymentStatuses: 'statuses',
         listPullRequestsAssociatedWithCommit: 'prs',
@@ -41,6 +52,7 @@ function fixture({
     paginate: async (method, args) => {
       calls.push({ method, args });
       if (method === 'prs') return prs ?? [pr];
+      if (method === 'open-prs') return [];
       if (method === 'deployments') return [{ id: 1, sha, environment }];
       return [{ state }];
     },
@@ -108,7 +120,10 @@ test('forks and other source branches cannot pass PR checks', async () => {
     const head = f.context.payload.pull_request.head;
     if (change === 'fork') head.repo.full_name = 'someone/fork';
     else head.ref = 'other';
-    await assert.rejects(checkPullRequest(f), /Only cloudflare-migration/);
+    await assert.rejects(
+      checkPullRequest(f),
+      /Only (cloudflare-migration|same-repository)/,
+    );
   }
 });
 test('pending staging can finish while PR checks wait', async () => {
@@ -148,6 +163,7 @@ test('README-only change may reuse a successful ancestor staging deployment', as
   const f = fixture({ sha: 'previous' });
   f.github.paginate = async (method, args) => {
     if (method === 'prs') return [f.context.payload.pull_request];
+    if (method === 'open-prs') return [];
     if (method === 'deployments')
       return args.sha
         ? []
@@ -179,10 +195,12 @@ test('source code changes cannot reuse previous staging', async () => {
     },
   });
   f.github.paginate = async (method, args) =>
-    method === 'deployments'
-      ? args.sha
-        ? []
-        : [{ id: 1, sha: 'previous', environment: 'staging' }]
-      : [{ state: 'success' }];
+    method === 'open-prs'
+      ? []
+      : method === 'deployments'
+        ? args.sha
+          ? []
+          : [{ id: 1, sha: 'previous', environment: 'staging' }]
+        : [{ state: 'success' }];
   await assert.rejects(checkPullRequest(f), /No successful staging/);
 });

@@ -122,8 +122,7 @@ async function updateDeployment({ github, context, log }) {
       (p) =>
         p.merged_at &&
         p.merge_commit_sha === context.sha &&
-        p.base.ref === 'main' &&
-        p.head.ref === 'cloudflare-migration',
+        p.base.ref === 'main',
     );
     if (!pr) throw new Error('No merged release PR at production commit');
     for (const number of references(pr.body)) targets.add(number);
