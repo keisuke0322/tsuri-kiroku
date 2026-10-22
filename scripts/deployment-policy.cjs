@@ -156,28 +156,35 @@ async function checkPullRequest(options) {
   await requireStaging({ attempts: 40, ...options, sha });
 }
 
+async function findMergedReleasePullRequest({ github, context }) {
+  // The commit-to-PR association endpoint can return a malformed 500 response.
+  // Query closed PRs instead and require the exact main merge commit.
+  const prs = await github.paginate(github.rest.pulls.list, {
+    ...context.repo,
+    state: 'closed',
+    base: 'main',
+    sort: 'updated',
+    direction: 'desc',
+    per_page: 100,
+  });
+  const matches = prs.filter(
+    (pr) =>
+      pr.merged_at &&
+      pr.merge_commit_sha === context.sha &&
+      pr.base?.ref === 'main',
+  );
+  if (matches.length !== 1)
+    throw new Error(
+      'Production requires a merged PR at this main commit; direct pushes or ambiguous PRs are not released.',
+    );
+  return matches[0];
+}
+
 async function checkProduction(options) {
   const { github, context } = options;
   if (context.ref !== 'refs/heads/main')
     throw new Error('Production must deploy main.');
-  const prs = await github.paginate(
-    github.rest.repos.listPullRequestsAssociatedWithCommit,
-    {
-      ...context.repo,
-      commit_sha: context.sha,
-      per_page: 100,
-    },
-  );
-  const merged = prs.find(
-    (pr) =>
-      pr.merged_at &&
-      pr.merge_commit_sha === context.sha &&
-      pr.base.ref === 'main',
-  );
-  if (!merged)
-    throw new Error(
-      'Production requires a merged PR at this main commit; direct pushes are not released.',
-    );
+  const merged = await findMergedReleasePullRequest(options);
   let staging;
   if (merged.head.ref !== 'cloudflare-migration') {
     const { data: commit } = await github.rest.repos.getCommit({
@@ -217,5 +224,6 @@ module.exports = {
   validateSource,
   requireStaging,
   checkPullRequest,
+  findMergedReleasePullRequest,
   checkProduction,
 };
