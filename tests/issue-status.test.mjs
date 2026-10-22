@@ -96,7 +96,6 @@ function mock({
         listForRepo() {},
       },
       repos: {
-        listPullRequestsAssociatedWithCommit() {},
         getCollaboratorPermissionLevel: async () => ({ data: { permission } }),
       },
       pulls: { list() {} },
@@ -457,4 +456,35 @@ test('replayed external PR uses its existing Project item and preserves review s
     },
   });
   assert.deepEqual(calls, [['labels', 42, ['外部提案']]]);
+});
+
+test('production Issue completion shares the exact-merge closed-PR lookup and propagates API failures', async () => {
+  const { github, calls } = mock({ labels: [] });
+  github.rest.repos.listPullRequestsAssociatedWithCommit = async () => {
+    throw Error('Association endpoint must not be called');
+  };
+  github.paginate = async (method, args) => {
+    assert.equal(method, github.rest.pulls.list);
+    assert.equal(args.state, 'closed');
+    assert.equal(args.base, 'main');
+    return [
+      {
+        merged_at: 'today',
+        merge_commit_sha: 'release',
+        base: { ref: 'main' },
+        body: 'Refs #12',
+      },
+    ];
+  };
+  await updateDeployment({ github, context });
+  assert.ok(calls.some((c) => c[0] === 'close'));
+  calls.length = 0;
+  github.paginate = async () => {
+    throw Error('API unavailable');
+  };
+  await assert.rejects(
+    updateDeployment({ github, context }),
+    /API unavailable/,
+  );
+  assert.equal(calls.length, 0);
 });

@@ -79,6 +79,8 @@ Publish Release後の **Sync published main to development** は最新の正式R
 
 `automation/published-main → cloudflare-migration` の同期PRは1本にまとめ、次の公開成功時に最新の公開済みSHAへ更新する。mainや開発ブランチのreset・force push・自動マージはしない。競合解消で同期ブランチに開発変更が入っていても、それを保持して新しい公開済みコミットをmergeする。競合時はジョブを止め、管理者が同期PRで解消し、最新開発コードとのContribution checksと差分を確認して手動マージする。マージ後は通常の開発stagingデプロイ・E2Eが走る。
 
+本番公開の対象PRは、closedのmain向けPR一覧からマージ済み・merge commit SHAが本番コミットと完全一致する1件を取得する。コミットに関連するPRを取得するAPIには依存しない。一覧取得失敗・一致なし・複数一致は公開を止め、直接pushや別コミットのPRを代用しない。
+
 同期処理だけ失敗したら、Dependency governanceをmain、`action=sync` で再実行する。本番の再デプロイは不要。すでに開発へ取り込まれていればPRを新規作成しない。復帰処理だけの失敗は上記の復帰アクションで対処する。Releaseだけの失敗は元の公開実行の失敗ジョブだけを再実行し、公開済みタグを動かさない。
 
 公開に取り込まれたDependabot由来・`dependabot/`配下のブランチだけを自動整理する。対象が公開済みコミットの祖先であり、ブランチ先端がマージ時から変わっていないことも確認する。手動の再整理は `action=cleanup`。main・cloudflare-migrationや未公開の更新ブランチは削除しない。

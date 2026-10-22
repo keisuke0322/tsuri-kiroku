@@ -161,7 +161,6 @@ function fixture() {
           f.after = JSON.parse(Buffer.from(args.content, 'base64'));
         },
         createCommitStatus: async (args) => f.statuses.push(args),
-        listPullRequestsAssociatedWithCommit: 'associated-prs',
       },
       pulls: {
         get: async () => response(pr),
@@ -199,7 +198,11 @@ function fixture() {
     paginate: async (method, args) => {
       if (method === 'files') return f.files;
       if (method === 'prs')
-        return args.base === 'cloudflare-migration' ? f.syncPrs : f.openPrs;
+        return args.base === 'cloudflare-migration'
+          ? f.syncPrs
+          : args.state === 'closed'
+            ? [pr]
+            : f.openPrs;
       if (method === 'runs')
         return [
           {
@@ -210,7 +213,6 @@ function fixture() {
           },
         ];
       if (method === 'timeline') return f.events;
-      if (method === 'associated-prs') return [pr];
       if (method === 'jobs')
         return f.jobs.map((name) => ({ name, conclusion: 'success' }));
       if (typeof method === 'string' && method.includes('dependabot/alerts')) {

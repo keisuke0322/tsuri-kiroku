@@ -2,7 +2,12 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import policy from '../scripts/deployment-policy.cjs';
 
-const { checkPullRequest, checkProduction, requireStaging } = policy;
+const {
+  checkPullRequest,
+  checkProduction,
+  requireStaging,
+  findMergedReleasePullRequest,
+} = policy;
 const repository = 'keisuke0322/tsuri-kiroku';
 
 function fixture({
@@ -31,14 +36,13 @@ function fixture({
           return { data: { object: { sha: 'base' } } };
         },
       },
-      pulls: { list: 'open-prs' },
+      pulls: { list: 'prs' },
       repos: {
         getCommit: async () => ({
           data: { parents: [{ sha: 'base' }, { sha: 'source' }] },
         }),
         listDeployments: 'deployments',
         listDeploymentStatuses: 'statuses',
-        listPullRequestsAssociatedWithCommit: 'prs',
         compareCommits: async () => ({
           data: {
             status: 'ahead',
@@ -51,8 +55,7 @@ function fixture({
     },
     paginate: async (method, args) => {
       calls.push({ method, args });
-      if (method === 'prs') return prs ?? [pr];
-      if (method === 'open-prs') return [];
+      if (method === 'prs') return args.state === 'closed' ? (prs ?? [pr]) : [];
       if (method === 'deployments') return [{ id: 1, sha, environment }];
       return [{ state }];
     },
@@ -162,8 +165,8 @@ test('latest failed deployment overrides older successful deployment', async () 
 test('README-only change may reuse a successful ancestor staging deployment', async () => {
   const f = fixture({ sha: 'previous' });
   f.github.paginate = async (method, args) => {
-    if (method === 'prs') return [f.context.payload.pull_request];
-    if (method === 'open-prs') return [];
+    if (method === 'prs')
+      return args.state === 'closed' ? [f.context.payload.pull_request] : [];
     if (method === 'deployments')
       return args.sha
         ? []
@@ -195,7 +198,7 @@ test('source code changes cannot reuse previous staging', async () => {
     },
   });
   f.github.paginate = async (method, args) =>
-    method === 'open-prs'
+    method === 'prs'
       ? []
       : method === 'deployments'
         ? args.sha
@@ -203,4 +206,42 @@ test('source code changes cannot reuse previous staging', async () => {
           : [{ id: 1, sha: 'previous', environment: 'staging' }]
         : [{ state: 'success' }];
   await assert.rejects(checkPullRequest(f), /No successful staging/);
+});
+
+test('production resolves the exact merged PR without using the failing commit association endpoint', async () => {
+  const f = fixture();
+  f.github.rest.repos.listPullRequestsAssociatedWithCommit = async () => {
+    throw Object.assign(Error('Unexpected end of JSON input'), { status: 500 });
+  };
+  await checkProduction(f);
+  const list = f.calls.find(
+    (c) => c.method === 'prs' && c.args.state === 'closed',
+  );
+  assert.equal(list.args.base, 'main');
+  assert.equal(list.args.per_page, 100);
+  assert.equal(list.args.sort, 'updated');
+});
+
+test('closed but unmerged, wrong-base and ambiguous PRs cannot authorize production', async () => {
+  const f = fixture();
+  const pr = f.context.payload.pull_request;
+  for (const prs of [
+    [{ ...pr, merged_at: null }],
+    [{ ...pr, base: { ...pr.base, ref: 'cloudflare-migration' } }],
+    [pr, { ...pr, number: 99 }],
+  ]) {
+    f.github.paginate = async () => prs;
+    await assert.rejects(
+      findMergedReleasePullRequest(f),
+      /requires a merged PR/,
+    );
+  }
+});
+
+test('PR lookup API errors are propagated instead of treating a failed lookup as authorization', async () => {
+  const f = fixture();
+  f.github.paginate = async () => {
+    throw Object.assign(Error('API unavailable'), { status: 500 });
+  };
+  await assert.rejects(checkProduction(f), /API unavailable/);
 });
