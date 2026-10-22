@@ -319,15 +319,25 @@ jobs:
   restore-staging:
     name: Restore development staging after publication
     permissions:
+      contents: read
       actions: write
     needs: [deploy, release]
     if: needs.release.result == 'success'
     runs-on: ubuntu-latest
     timeout-minutes: 5
     steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
       - uses: actions/github-script@v7
         with:
           script: |
+            const { readState } = require('./scripts/dependency-state.cjs');
+            const state = await readState({ github, context });
+            if (!state.lease) {
+              core.info('No dependency update owns staging; restoration is not required.');
+              return;
+            }
             await github.rest.actions.createWorkflowDispatch({ ...context.repo,
               workflow_id: 'cloudflare.yml', ref: 'main',
               inputs: { action: 'restore-development' } });
