@@ -138,3 +138,5 @@ corepack pnpm build
 | [Issueの状態管理](docs/issue-status.md)             | GitHub Project Statusの運用                 |
 | [ブランド素材](docs/brand.md)                       | ロゴと使用方針                              |
 | [AGENTS.md](AGENTS.md)                              | AIによる開発の作業ルール                    |
+
+依存パッケージの通常・緊急更新、共有stagingの占有、公開後の開発同期は[依存更新の運用](docs/dependency-updates.md)を参照してください。mainへの導入と有効化確認後に新ルートを利用できます。

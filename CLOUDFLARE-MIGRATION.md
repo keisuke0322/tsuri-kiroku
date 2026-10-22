@@ -68,14 +68,14 @@ Secrets:
 
 1. `cloudflare-migration`へpushするとstagingへ自動デプロイします。
 2. stagingでGoogleログイン、ログアウト、写真投稿・閲覧、いいね等を実機確認します。
-3. `cloudflare-migration`から`main`へPRを作成します。[資材のバージョン管理](docs/releases.md)に従い、本文へ `Release-Version` とDB変更・復旧の注意を記載します。`PR checks`が型チェック・テスト・マージ結果のビルド、リリース指定とPR先端コミットのstaging成功を確認します。
+3. `cloudflare-migration`から`main`へPRを作成します。[資材のバージョン管理](docs/releases.md)に従い、本文へ `Release-Version` とDB変更・復旧の注意を記載します。`Contribution checks`が型チェック・テスト・マージ結果のビルドを、`PR checks`がリリース指定とPR先端コミットのstaging成功を確認します。`Dependency release gate`が未対応依存更新とmain取り込みを再確認します。
 4. 動作を確認して、ご自身でPRをマージします。承認レビューは不要です。継続利用する開発ブランチなので、**Create a merge commit**を使用し、マージ後も`cloudflare-migration`を削除しません。
 5. mainへのpushでproductionに自動デプロイします。本番コードはmainのコミットです。関連するマージ済みPRの先端コミットがstagingで成功済みかを確認してから、本番D1マイグレーション・デプロイ・未認証アクセス確認・稼働情報の照合を実行します。成功後、本番コミットへのタグとGitHub Releaseを自動作成します。
 6. 次の開発前にmainを開発ブランチへ取り込みます（`git fetch github` → `git switch cloudflare-migration` → `git merge github/main`）。
 
 stagingのデータを本番へコピーする処理はありません。PRチェックは実機確認の代わりにはなりません。mainへの直接pushは本番デプロイの検証で拒否します。
 
-手動再実行はActions → Deploy Cloudflare → Run workflowを使えます。環境選択は廃止し、**Branch: mainは本番、cloudflare-migrationはstaging**に固定しました。ほかのブランチではデプロイしません。失敗した本番ジョブの再実行は同じコミットを使用します。
+手動再実行はActions → Deploy Cloudflare → Run workflowを使えます。環境選択は廃止し、既定の `action=development` では **Branch: mainは本番、cloudflare-migrationはstaging**です。main基準の依存更新検証・中止・開発復帰には[依存更新の運用](docs/dependency-updates.md)の専用actionを使います。ほかのブランチではデプロイしません。失敗した本番ジョブの再実行は同じコミットを使用します。
 
 ### GitHub側で設定するmainの保護
 
@@ -88,7 +88,7 @@ Settings → Branches → Add classic branch protection ruleでmainを対象に�
 - Do not allow bypassing the above settings: ON（管理者も対象）
 - Allow force pushes / Allow deletions: OFF
 
-production EnvironmentのDeployment branches and tagsはSelected branches and tagsでmainのみ、stagingはcloudflare-migrationのみを許可します。GitHub側の設定はワークフローファイルの変更だけでは適用されません。
+production EnvironmentのDeployment branches and tagsはSelected branches and tagsでmainのみ、stagingはcloudflare-migrationと、依存更新の信頼済みcontrollerとしてmainを許可します（新ルート導入後のsetupでmainを追加）。依存更新のソースブランチを直接許可しません。GitHub側の設定はワークフローファイルの変更だけでは適用されません。
 
 初回PRはSites版mainへCloudflare版全体を取り込むため、以後の機能PRより差分が大きくなります。この初回PRをマージすると上記の運用が有効になります。
 

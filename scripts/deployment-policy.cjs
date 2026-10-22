@@ -1,10 +1,10 @@
 // Both PR validation and production promotion verify the source commit, not the merge SHA.
 const pause = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
 
-function validateSource(pr, repository) {
+function validateSource(pr, repository, dependencyUpdate = false) {
   if (
     pr.base?.ref !== 'main' ||
-    pr.head?.ref !== 'cloudflare-migration' ||
+    (!dependencyUpdate && pr.head?.ref !== 'cloudflare-migration') ||
     pr.head?.repo?.full_name !== repository ||
     pr.base?.repo?.full_name !== repository ||
     !pr.head?.sha
@@ -130,10 +130,29 @@ async function requireStaging({
 
 async function checkPullRequest(options) {
   const { context } = options;
-  const sha = validateSource(
-    context.payload.pull_request,
-    `${context.repo.owner}/${context.repo.repo}`,
-  );
+  const pr = context.payload.pull_request;
+  if (pr.head.ref !== 'cloudflare-migration') {
+    const { requireUpdateEvidence } = require('./dependency-policy.cjs');
+    const attempts =
+      options.attempts ?? (context.payload.action === 'labeled' ? 40 : 1);
+    for (let i = 0; i < attempts; i++) {
+      try {
+        return await requireUpdateEvidence(options, pr);
+      } catch (error) {
+        if (
+          i + 1 === attempts ||
+          !/Current staging validation|Staging workflow did not/.test(
+            error.message,
+          )
+        )
+          throw error;
+        await (options.sleep || pause)(15000);
+      }
+    }
+  }
+  const sha = validateSource(pr, `${context.repo.owner}/${context.repo.repo}`);
+  if (!options.skipFeatureGate)
+    await require('./dependency-policy.cjs').requireFeatureReady(options, pr);
   await requireStaging({ attempts: 40, ...options, sha });
 }
 
@@ -159,11 +178,38 @@ async function checkProduction(options) {
     throw new Error(
       'Production requires a merged PR at this main commit; direct pushes are not released.',
     );
-  const sha = validateSource(
-    merged,
-    `${context.repo.owner}/${context.repo.repo}`,
-  );
-  const staging = await requireStaging({ ...options, sha });
+  let staging;
+  if (merged.head.ref !== 'cloudflare-migration') {
+    const { data: commit } = await github.rest.repos.getCommit({
+      ...context.repo,
+      ref: context.sha,
+    });
+    if (
+      commit.parents?.length !== 2 ||
+      commit.parents[1].sha !== merged.head.sha
+    )
+      throw Error(
+        'Dependency updates require a merge commit preserving the reviewed source.',
+      );
+    const baseSha = commit.parents[0].sha;
+    staging = await require('./dependency-policy.cjs').requireUpdateEvidence(
+      { ...options, baseSha },
+      merged,
+      { production: true },
+    );
+  } else {
+    const sha = validateSource(
+      merged,
+      `${context.repo.owner}/${context.repo.repo}`,
+    );
+    // Recompute unresolved/expired updates immediately before production.
+    await require('./dependency-policy.cjs').requireFeatureReady(
+      options,
+      merged,
+      { production: true },
+    );
+    staging = await requireStaging({ ...options, sha });
+  }
   return { pr: merged, staging };
 }
 

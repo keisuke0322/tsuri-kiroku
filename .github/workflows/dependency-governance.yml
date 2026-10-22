@@ -1,0 +1,85 @@
+name: Dependency governance
+on:
+  pull_request_target:
+    branches: [main]
+    types:
+      [
+        opened,
+        synchronize,
+        reopened,
+        closed,
+        edited,
+        labeled,
+        unlabeled,
+        ready_for_review,
+      ]
+  push:
+    branches: [main]
+  workflow_run:
+    workflows: [Contribution checks, Deploy Cloudflare]
+    types: [completed]
+  schedule:
+    - cron: '17 * * * *'
+  workflow_dispatch:
+    inputs:
+      action:
+        type: choice
+        default: refresh
+        options: [refresh, setup, prepare, defer, undefer, sync, cleanup]
+      pr:
+        description: Dependency PR number
+        type: string
+      reason:
+        description: New deferral reason (30 days)
+        type: string
+permissions:
+  contents: read
+concurrency:
+  group: dependency-governance-events
+  cancel-in-progress: false
+jobs:
+  govern:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    # All state mutation and staging writers share this non-cancelling lock.
+    concurrency:
+      group: shared-staging
+      cancel-in-progress: false
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: main
+          persist-credentials: false
+      # Never check out or execute PR files in this privileged metadata workflow.
+      - uses: actions/github-script@v7
+        env:
+          CONTROL_ACTION: ${{ inputs.action || 'refresh' }}
+          UPDATE_PR: ${{ inputs.pr }}
+          DEFERRAL_REASON: ${{ inputs.reason }}
+        with:
+          github-token: ${{ secrets.PROJECT_TOKEN }}
+          script: |
+            const options = { github, context };
+            const { requireAdmin } = require('./scripts/dependency-state.cjs');
+            const { prepareUpdate, deferUpdate, refreshGates } = require('./scripts/dependency-control.cjs');
+            let error;
+            try {
+              if (context.eventName === 'workflow_dispatch') {
+                if (context.ref !== 'refs/heads/main') throw Error('Run governance from main.');
+                const action = process.env.CONTROL_ACTION;
+                if (action !== 'refresh') await requireAdmin(options);
+                if (action === 'setup') {
+                  const result = await require('./scripts/dependency-setup.cjs').setup(options);
+                  await core.summary.addHeading('Dependency governance activated').addCodeBlock(JSON.stringify(result, null, 2), 'json').write();
+                } else if (action === 'prepare') await prepareUpdate(options, process.env.UPDATE_PR);
+                else if (action === 'defer' || action === 'undefer')
+                  await deferUpdate(options, process.env.UPDATE_PR, process.env.DEFERRAL_REASON, action === 'undefer');
+                else if (action === 'sync' || action === 'cleanup') {
+                  const { syncPublished, cleanupMerged } = require('./scripts/dependency-sync.cjs');
+                  if (action === 'sync') await syncPublished(options);
+                  else await cleanupMerged(options);
+                } else if (action !== 'refresh') throw Error('Unknown governance action.');
+              }
+            } catch (e) { error = e; }
+            await refreshGates(options);
+            if (error) throw error;

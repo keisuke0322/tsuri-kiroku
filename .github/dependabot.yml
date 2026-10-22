@@ -1,0 +1,35 @@
+version: 2
+updates:
+  - package-ecosystem: npm
+    directory: /
+    target-branch: main
+    schedule:
+      interval: weekly
+      day: saturday
+      time: '09:00'
+      timezone: Asia/Tokyo
+    open-pull-requests-limit: 5
+    cooldown:
+      default-days: 7
+    groups:
+      react:
+        patterns:
+          - react
+          - react-dom
+          - react-server-dom-webpack
+          - '@types/react'
+          - '@types/react-dom'
+        update-types: [minor, patch]
+      react-major:
+        patterns:
+          - react
+          - react-dom
+          - react-server-dom-webpack
+          - '@types/react'
+          - '@types/react-dom'
+        update-types: [major]
+      cloudflare:
+        patterns: [wrangler, '@cloudflare/workers-types']
+        update-types: [minor, patch]
+    # Vinext (beta), Vite plugins (0.x) and other majors stay separate.
+    # Security updates have GitHub's independent limit and no cooldown.
