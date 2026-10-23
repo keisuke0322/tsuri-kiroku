@@ -1,6 +1,34 @@
 const marker = Cypress.expose('runMarker');
 const by = (value) => `[data-cy="${value}"]`;
 let catchIds = [];
+let resizeDiagnostic = null;
+
+function traceMethodResize(win) {
+  const NativeObserver = win.ResizeObserver;
+  const recent = [];
+  win.ResizeObserver = class extends NativeObserver {
+    constructor(callback) {
+      const source = new win.Error().stack;
+      super((entries, observer) => {
+        recent.push({
+          source,
+          entries: entries.map(({ target, contentRect }) => ({
+            tag: target.tagName,
+            slot: target.getAttribute('data-slot'),
+            width: contentRect.width,
+            height: contentRect.height,
+          })),
+        });
+        if (recent.length > 8) recent.shift();
+        callback(entries, observer);
+      });
+    }
+  };
+  win.addEventListener('error', (event) => {
+    if (event.message.includes('ResizeObserver'))
+      resizeDiagnostic = JSON.stringify(recent);
+  });
+}
 
 function login(role = 'owner') {
   return cy.task('session', role, { log: false }).then((token) => {
@@ -51,9 +79,9 @@ function createCatch(combinations, patch = {}) {
     return r.body.id;
   });
 }
-function visit() {
+function visit(options) {
   cy.intercept('GET', '/api/gear').as('gearList');
-  cy.visit('/');
+  cy.visit('/', options);
   cy.wait('@gearList').its('response.statusCode').should('equal', 200);
   cy.get(by('nav-gear')).should('be.visible');
 }
@@ -102,9 +130,11 @@ function typeMethod(text) {
 describe('所有道具・基本セット・当日の組み合わせ', () => {
   beforeEach(() => {
     catchIds = [];
+    resizeDiagnostic = null;
     login();
   });
   afterEach(() => {
+    if (resizeDiagnostic) cy.task('resizeDiagnostic', resizeDiagnostic);
     login();
     for (const id of catchIds)
       request('DELETE', `/api/catches/${id}`, undefined, false)
@@ -185,7 +215,7 @@ describe('所有道具・基本セット・当日の組み合わせ', () => {
     });
     it(`釣り方・仕掛けを1つのComboboxで選択・自由入力・保存（${width}px）`, () => {
       cy.viewport(width, 900);
-      visit();
+      visit({ onBeforeLoad: traceMethodResize });
       cy.get(by('record-catch')).click();
       cy.get(by('legacy-method')).should('not.exist');
       cy.get(by('catch-location')).type(`${marker}-${width}-method`);
