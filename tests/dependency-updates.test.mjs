@@ -204,14 +204,17 @@ function fixture() {
             ? [pr]
             : f.openPrs;
       if (method === 'runs')
-        return [
-          {
-            id: 10,
-            head_sha: pr.head.sha,
-            pull_requests: [{ number: pr.number }],
-            conclusion: f.ci,
-          },
-        ];
+        return (
+          f.ciRuns || [
+            {
+              id: 10,
+              head_sha: pr.head.sha,
+              pull_requests: [{ number: pr.number }],
+              status: 'completed',
+              conclusion: f.ci,
+            },
+          ]
+        );
       if (method === 'timeline') return f.events;
       if (method === 'jobs')
         return f.jobs.map((name) => ({ name, conclusion: 'success' }));
@@ -320,6 +323,142 @@ test('complete source/base/run/administrator audit evidence is required, includi
   assert.equal((await deployment.checkProduction(f)).staging.sha, 'head');
   f.context.sha = 'direct';
   await assert.rejects(deployment.checkProduction(f), /merged PR/);
+});
+
+function mergedCi(f) {
+  f.pr.merged_at = '2026-10-23T00:00:00Z';
+  const run = {
+    id: 10,
+    run_attempt: 1,
+    head_sha: f.pr.head.sha,
+    head_branch: f.pr.head.ref,
+    repository: { full_name: fullName },
+    head_repository: { full_name: fullName },
+    event: 'pull_request',
+    path: '.github/workflows/contribution-checks.yml',
+    pull_requests: [],
+    status: 'completed',
+    conclusion: 'success',
+  };
+  f.ciRuns = [run];
+  return run;
+}
+
+test('merged dependency publication accepts exact successful CI after GitHub removes PR associations', async () => {
+  const f = fixture();
+  verified(f);
+  mergedCi(f);
+  f.pr.merge_commit_sha = 'production';
+  f.context.sha = 'production';
+  f.main = 'production';
+  assert.equal((await deployment.checkProduction(f)).staging.sha, 'head');
+});
+
+for (const [name, change] of [
+  [
+    'open PR',
+    (f) => {
+      delete f.pr.merged_at;
+    },
+  ],
+  [
+    'wrong commit',
+    (_f, run) => {
+      run.head_sha = 'other';
+    },
+  ],
+  [
+    'wrong branch',
+    (_f, run) => {
+      run.head_branch = 'other';
+    },
+  ],
+  [
+    'fork run',
+    (_f, run) => {
+      run.head_repository.full_name = 'fork/repo';
+    },
+  ],
+  [
+    'wrong repository',
+    (_f, run) => {
+      run.repository.full_name = 'other/repo';
+    },
+  ],
+  [
+    'fork PR',
+    (f) => {
+      f.pr.head.repo.full_name = 'fork/repo';
+    },
+  ],
+  [
+    'wrong workflow',
+    (_f, run) => {
+      run.path = '.github/workflows/other.yml';
+    },
+  ],
+  [
+    'wrong event',
+    (_f, run) => {
+      run.event = 'push';
+    },
+  ],
+  [
+    'different PR association',
+    (_f, run) => {
+      run.pull_requests = [{ number: 999 }];
+    },
+  ],
+  [
+    'missing associations',
+    (_f, run) => {
+      delete run.pull_requests;
+    },
+  ],
+  [
+    'failed CI',
+    (_f, run) => {
+      run.conclusion = 'failure';
+    },
+  ],
+  [
+    'cancelled CI',
+    (_f, run) => {
+      run.conclusion = 'cancelled';
+    },
+  ],
+  [
+    'pending CI',
+    (_f, run) => {
+      run.status = 'in_progress';
+    },
+  ],
+]) {
+  test(`merged CI fallback rejects ${name}`, async () => {
+    const f = fixture();
+    const run = mergedCi(f);
+    change(f, run);
+    await assert.rejects(policy.requireCI(f, f.pr), /Contribution checks/);
+  });
+}
+
+test('a newer failed CI run or attempt supersedes an older success after merging', async () => {
+  const f = fixture();
+  const run = mergedCi(f);
+  f.ciRuns.push({ ...run, id: 11, conclusion: 'failure' });
+  await assert.rejects(policy.requireCI(f, f.pr), /Contribution checks/);
+  f.ciRuns[1].id = 10;
+  f.ciRuns[1].run_attempt = 2;
+  await assert.rejects(policy.requireCI(f, f.pr), /Contribution checks/);
+});
+
+test('CI API errors stop publication instead of accepting missing associations', async () => {
+  const f = fixture();
+  mergedCi(f);
+  f.github.paginate = async () => {
+    throw Error('GitHub unavailable');
+  };
+  await assert.rejects(policy.requireCI(f, f.pr), /GitHub unavailable/);
 });
 
 for (const [name, change] of [
