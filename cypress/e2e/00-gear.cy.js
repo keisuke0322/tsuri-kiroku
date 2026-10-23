@@ -205,6 +205,11 @@ describe('所有道具・基本セット・当日の組み合わせ', () => {
       );
       cy.get(by('combination-method')).should('have.attr', 'role', 'combobox');
       typeMethod('サビ');
+      // Keep the exit animation active while the next IME commit reopens it.
+      // The candidate list must use the new text, not the frozen closing query.
+      cy.get('[data-slot="combobox-content"]')
+        .should('be.visible')
+        .invoke('css', 'animation-duration', '1s');
       cy.get(by('method-option')).contains('サビキ').click();
       cy.get(by('combination-method')).should('have.value', 'サビキ');
       cy.get(by('save-catch')).should('exist');
