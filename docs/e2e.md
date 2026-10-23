@@ -1,5 +1,7 @@
 # stagingのCypress E2E
 
+CIではGitHub-hosted runnerのChromeを使用する。Cypress同梱ElectronはWebブラウザと描画エンジンの版が異なるため、実際のブラウザで同じ期待結果を検証する。ローカルは従来どおりElectronが既定で、`E2E_BROWSER=chrome corepack pnpm run e2e:staging`でChromeを選択できる。ResizeObserverなどの例外を一括で無視したり、失敗を避けるためにタイムアウトを延長したりしない。
+
 `cloudflare-migration`へのpushで、型チェック・単体テスト・ビルド・stagingデプロイ・未認証アクセス確認の後に実行する。同じDeployジョブ内なので、E2Eが失敗するとstagingのデプロイ結果も失敗となり、既存のPR checksと本番公開ポリシーがそのコミットの公開を止める。Workerへの反映自体はE2E前に完了しており、自動ロールバックはしない。
 
 ブランチ単位のconcurrencyをデプロイからE2E完了まで保持する。テスト中は共有stagingにワークフロー外の手動デプロイを行わない。productionでは実行しない。
