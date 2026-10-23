@@ -81,7 +81,8 @@ jobs:
     permissions:
       contents: write
       deployments: read
-      pull-requests: read
+      # Dependency validation/abort removes the approval label from PRs.
+      pull-requests: write
       actions: read
       issues: write
     concurrency:

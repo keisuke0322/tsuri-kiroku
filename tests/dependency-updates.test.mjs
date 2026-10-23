@@ -730,6 +730,12 @@ test('all staging writers use a non-cancelling shared lock; privileged governanc
   assert.match(governance, /group: shared-staging\s+cancel-in-progress: false/);
   assert.match(cloudflare, /selectDeployment/);
   assert.match(cloudflare, /finishDeployment/);
+  // PR labels require pull-requests:write even when using the issues API.
+  const deployJob = cloudflare
+    .split('\n  deploy:\n')[1]
+    .split('\n  release:\n')[0];
+  assert.match(deployJob, /pull-requests: write/);
+  assert.match(cloudflare.split('\njobs:\n')[0], /pull-requests: read/);
   assert.match(governance, /ref: main/);
   assert.doesNotMatch(governance, /pnpm|head\.sha|wrangler|e2e:staging/);
   assert.match(governance, /cron: '17 \* \* \* \*'/);
