@@ -20,4 +20,4 @@ packageImportMethod: clone-or-copy
 verifyDepsBeforeRun: false
 optimisticRepeatInstall: false
 overrides:
-  miniflare>sharp: 0.35.4
+  miniflare>sharp: 0.35.5
