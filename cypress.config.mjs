@@ -20,10 +20,6 @@ export default defineConfig({
     specPattern: 'cypress/e2e/**/*.cy.js',
     setupNodeEvents(on) {
       on('task', {
-        resizeDiagnostic(trace) {
-          console.info('Method resize diagnostic: ' + trace);
-          return null;
-        },
         checkpoint(label) {
           if (!/^gear:[a-z-]+$/.test(label)) throw Error('Invalid checkpoint.');
           console.info('E2E checkpoint: ' + label);

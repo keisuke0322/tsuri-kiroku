@@ -7,6 +7,9 @@ settings:
 overrides:
   miniflare>sharp: 0.35.5
 
+patchedDependencies:
+  '@floating-ui/dom@1.8.0': cc97bf641775ad499673ea93ac3f708b54f20357425b6a3007ca70d580ef3c66
+
 importers:
 
   .:
@@ -5707,14 +5710,14 @@ snapshots:
     dependencies:
       '@floating-ui/utils': 0.2.12
 
-  '@floating-ui/dom@1.8.0':
+  '@floating-ui/dom@1.8.0(patch_hash=cc97bf641775ad499673ea93ac3f708b54f20357425b6a3007ca70d580ef3c66)':
     dependencies:
       '@floating-ui/core': 1.8.0
       '@floating-ui/utils': 0.2.12
 
   '@floating-ui/react-dom@2.1.9(react-dom@19.3.1(react@19.3.1))(react@19.3.1)':
     dependencies:
-      '@floating-ui/dom': 1.8.0
+      '@floating-ui/dom': 1.8.0(patch_hash=cc97bf641775ad499673ea93ac3f708b54f20357425b6a3007ca70d580ef3c66)
       react: 19.3.1
       react-dom: 19.3.1(react@19.3.1)
 

@@ -21,3 +21,5 @@ verifyDepsBeforeRun: false
 optimisticRepeatInstall: false
 overrides:
   miniflare>sharp: 0.35.5
+patchedDependencies:
+  '@floating-ui/dom@1.8.0': patches/@floating-ui__dom@1.8.0.patch
