@@ -16,6 +16,10 @@ export default defineConfig({
     specPattern: 'cypress/e2e/**/*.cy.js',
     setupNodeEvents(on) {
       on('task', {
+        locationPageState(snapshot) {
+          console.info('Location page state: ' + JSON.stringify(snapshot));
+          return null;
+        },
         checkpoint(label) {
           if (!/^gear:[a-z-]+$/.test(label)) throw Error('Invalid checkpoint.');
           console.info('E2E checkpoint: ' + label);

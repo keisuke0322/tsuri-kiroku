@@ -1,9 +1,13 @@
 const marker = Cypress.expose('runMarker');
 const by = (value) => `[data-cy="${value}"]`;
 let createdIds = [];
+let expectedSession;
+let documentResponses = [];
+let navigation = 'initial';
 const point = { latitude: 35.123, longitude: 139.456, source: 'map' };
 function login(role = 'owner') {
   return cy.task('session', role, { log: false }).then((token) => {
+    expectedSession = token;
     const secure = Cypress.config('baseUrl').startsWith('https:');
     cy.setCookie((secure ? '__Host-' : '') + 'tsuri_session', token, {
       secure,
@@ -40,7 +44,41 @@ function create(label, visibility) {
     });
 }
 const card = (id) => cy.get(`${by('catch-card')}[data-catch-id="${id}"]`);
+function diagnosePage() {
+  const target = new URL(Cypress.config('baseUrl'));
+  const name =
+    (target.protocol === 'https:' ? '__Host-' : '') + 'tsuri_session';
+  return cy.document({ log: false }).then((doc) => {
+    const snapshot = {
+      navigation,
+      contentType: doc.contentType,
+      readyState: doc.readyState,
+      homePath: doc.location.pathname === '/',
+      hasApp: !!doc.querySelector(by('record-catch')),
+      hasLogin: !!doc.querySelector('.google-login-button'),
+      documents: documentResponses.slice(-3),
+    };
+    return cy
+      .getCookie(name, { domain: target.hostname, log: false })
+      .then((cookie) => {
+        snapshot.cookiePresent = !!cookie;
+        snapshot.cookieMatchesExpected = cookie?.value === expectedSession;
+        return cy
+          .request({
+            url: '/api/profile',
+            failOnStatusCode: false,
+            followRedirect: false,
+            log: false,
+          })
+          .then((response) => {
+            snapshot.profileStatus = response.status;
+            return cy.task('locationPageState', snapshot, { log: false });
+          });
+      });
+  });
+}
 function readRows() {
+  diagnosePage();
   cy.get(by('record-catch')).should('be.visible');
   cy.get('.discovery-loading').should('not.exist');
   return cy.request({ url: '/api/catches', log: false }).then((response) => {
@@ -50,10 +88,18 @@ function readRows() {
   });
 }
 function visit() {
+  cy.then(() => {
+    navigation = 'visit';
+    documentResponses = [];
+  });
   cy.visit('/');
   return readRows();
 }
 function reload() {
+  cy.then(() => {
+    navigation = 'reload';
+    documentResponses = [];
+  });
   cy.reload();
   // Verify the rendered page and authenticated API result rather than the
   // ordinal of a browser request, which can differ across page loads.
@@ -147,6 +193,28 @@ describe('釣行場所の地図と公開範囲', () => {
   before(() => expect(marker).to.match(/^E2E-[a-f0-9-]{36}$/));
   beforeEach(() => {
     createdIds = [];
+    const host = new URL(Cypress.config('baseUrl')).hostname;
+    const cookieName =
+      (Cypress.config('baseUrl').startsWith('https:') ? '__Host-' : '') +
+      'tsuri_session';
+    cy.intercept({ method: 'GET', hostname: host, pathname: '/' }, (req) => {
+      const cookieMatchesExpected = String(req.headers.cookie || '').includes(
+        `${cookieName}=${expectedSession}`,
+      );
+      req.on('after:response', (res) => {
+        const body = typeof res.body === 'string' ? res.body : '';
+        documentResponses.push({
+          resourceType: req.resourceType,
+          status: res.statusCode,
+          contentType: res.headers['content-type'],
+          cacheControl: res.headers['cache-control'],
+          vary: res.headers.vary,
+          cookieMatchesExpected,
+          hasAppMarker: body.includes('record-catch'),
+          hasLoginMarker: body.includes('google-login-button'),
+        });
+      });
+    });
     login();
     stubMaps();
   });
