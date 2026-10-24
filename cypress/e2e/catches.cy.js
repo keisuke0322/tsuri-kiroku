@@ -1,9 +1,13 @@
+import { diagnosePage } from '../page-diagnostics';
+
 const marker = Cypress.expose('runMarker');
 const by = (value) => `[data-cy="${value}"]`;
 let createdIds = [];
+let expectedSession;
 
 function login(role = 'owner') {
   return cy.task('session', role, { log: false }).then((token) => {
+    expectedSession = token;
     const secure = Cypress.config('baseUrl').startsWith('https:');
     cy.setCookie((secure ? '__Host-' : '') + 'tsuri_session', token, {
       secure,
@@ -66,7 +70,8 @@ describe('釣果の主要操作', () => {
     createdIds = [];
     login();
   });
-  afterEach(() => {
+  afterEach(function () {
+    if (this.currentTest.state === 'failed') diagnosePage(expectedSession);
     login();
     for (const id of createdIds)
       cy.request({

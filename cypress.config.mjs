@@ -16,8 +16,8 @@ export default defineConfig({
     specPattern: 'cypress/e2e/**/*.cy.js',
     setupNodeEvents(on) {
       on('task', {
-        locationPageState(snapshot) {
-          console.info('Location page state: ' + JSON.stringify(snapshot));
+        pageFailureState(snapshot) {
+          console.info('Page failure state: ' + JSON.stringify(snapshot));
           return null;
         },
         checkpoint(label) {

@@ -1,3 +1,5 @@
+import { diagnosePage } from '../page-diagnostics';
+
 const marker = Cypress.expose('runMarker');
 const by = (value) => `[data-cy="${value}"]`;
 let createdIds = [];
@@ -42,69 +44,6 @@ function create(label, visibility) {
     });
 }
 const card = (id) => cy.get(`${by('catch-card')}[data-catch-id="${id}"]`);
-function diagnosePage() {
-  const target = new URL(Cypress.config('baseUrl'));
-  const name =
-    (target.protocol === 'https:' ? '__Host-' : '') + 'tsuri_session';
-  return cy.document({ log: false }).then((doc) => {
-    const text = doc.body.textContent;
-    const errorCode = doc.querySelector('.cf-error-code')?.textContent?.trim();
-    const snapshot = {
-      contentType: doc.contentType,
-      readyState: doc.readyState,
-      homePath: doc.location.pathname === '/',
-      hasApp: !!doc.querySelector(by('record-catch')),
-      hasLogin: !!doc.querySelector('.google-login-button'),
-      hasShell: !!doc.querySelector('.app-shell'),
-      hasCatchCards: !!doc.querySelector(by('catch-card')),
-      bodyChildTags: Array.from(doc.body.children, (node) => node.tagName),
-      bodyHidden: doc.body.style.visibility === 'hidden',
-      hasRedirectMessage: text.includes('ログイン画面へ移動しています'),
-      bodyTextLength: text.length,
-      cloudflareError: !!doc.querySelector('#cf-error-details, #cf-wrapper'),
-      cloudflareErrorCode: /^\d{3,4}$/.test(errorCode || '') ? errorCode : null,
-      workerResourceLimit: text.includes('Worker exceeded resource limits'),
-      workerException: text.includes('Worker threw exception'),
-      applicationError: text.includes('Application error:'),
-    };
-    return cy
-      .getCookie(name, { domain: target.hostname, log: false })
-      .then((cookie) => {
-        snapshot.cookiePresent = !!cookie;
-        snapshot.cookieMatchesExpected = cookie?.value === expectedSession;
-        return cy
-          .request({
-            url: '/api/profile',
-            failOnStatusCode: false,
-            followRedirect: false,
-            log: false,
-          })
-          .then((response) => {
-            snapshot.profileStatus = response.status;
-            return cy.request({
-              url: '/',
-              failOnStatusCode: false,
-              followRedirect: false,
-              log: false,
-            });
-          })
-          .then((response) => {
-            const body = typeof response.body === 'string' ? response.body : '';
-            snapshot.homeStatus = response.status;
-            snapshot.homeContentType = response.headers['content-type'];
-            snapshot.homeHasApp = body.includes('data-cy="record-catch"');
-            snapshot.homeHasLogin = body.includes('google-login-button');
-            snapshot.homeWorkerResourceLimit = body.includes(
-              'Worker exceeded resource limits',
-            );
-            snapshot.homeWorkerException = body.includes(
-              'Worker threw exception',
-            );
-            return cy.task('locationPageState', snapshot, { log: false });
-          });
-      });
-  });
-}
 function readRows() {
   cy.get(by('record-catch')).should('be.visible');
   cy.get('.discovery-loading').should('not.exist');
@@ -218,7 +157,7 @@ describe('釣行場所の地図と公開範囲', () => {
   afterEach(function () {
     // Keep successful tests on their original command sequence. Observe the
     // document only after a failed assertion, before resetting the session.
-    if (this.currentTest.state === 'failed') diagnosePage();
+    if (this.currentTest.state === 'failed') diagnosePage(expectedSession);
     login();
     for (const id of createdIds)
       cy.request({
