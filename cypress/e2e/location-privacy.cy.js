@@ -47,6 +47,8 @@ function diagnosePage() {
   const name =
     (target.protocol === 'https:' ? '__Host-' : '') + 'tsuri_session';
   return cy.document({ log: false }).then((doc) => {
+    const text = doc.body.textContent;
+    const errorCode = doc.querySelector('.cf-error-code')?.textContent?.trim();
     const snapshot = {
       contentType: doc.contentType,
       readyState: doc.readyState,
@@ -57,8 +59,13 @@ function diagnosePage() {
       hasCatchCards: !!doc.querySelector(by('catch-card')),
       bodyChildTags: Array.from(doc.body.children, (node) => node.tagName),
       bodyHidden: doc.body.style.visibility === 'hidden',
-      hasRedirectMessage:
-        doc.body.textContent.includes('ログイン画面へ移動しています'),
+      hasRedirectMessage: text.includes('ログイン画面へ移動しています'),
+      bodyTextLength: text.length,
+      cloudflareError: !!doc.querySelector('#cf-error-details, #cf-wrapper'),
+      cloudflareErrorCode: /^\d{3,4}$/.test(errorCode || '') ? errorCode : null,
+      workerResourceLimit: text.includes('Worker exceeded resource limits'),
+      workerException: text.includes('Worker threw exception'),
+      applicationError: text.includes('Application error:'),
     };
     return cy
       .getCookie(name, { domain: target.hostname, log: false })
@@ -74,6 +81,25 @@ function diagnosePage() {
           })
           .then((response) => {
             snapshot.profileStatus = response.status;
+            return cy.request({
+              url: '/',
+              failOnStatusCode: false,
+              followRedirect: false,
+              log: false,
+            });
+          })
+          .then((response) => {
+            const body = typeof response.body === 'string' ? response.body : '';
+            snapshot.homeStatus = response.status;
+            snapshot.homeContentType = response.headers['content-type'];
+            snapshot.homeHasApp = body.includes('data-cy="record-catch"');
+            snapshot.homeHasLogin = body.includes('google-login-button');
+            snapshot.homeWorkerResourceLimit = body.includes(
+              'Worker exceeded resource limits',
+            );
+            snapshot.homeWorkerException = body.includes(
+              'Worker threw exception',
+            );
             return cy.task('locationPageState', snapshot, { log: false });
           });
       });
