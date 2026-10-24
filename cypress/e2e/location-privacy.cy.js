@@ -78,7 +78,6 @@ function diagnosePage() {
   });
 }
 function readRows() {
-  diagnosePage();
   cy.get(by('record-catch')).should('be.visible');
   cy.get('.discovery-loading').should('not.exist');
   return cy.request({ url: '/api/catches', log: false }).then((response) => {
@@ -219,6 +218,9 @@ describe('釣行場所の地図と公開範囲', () => {
     stubMaps();
   });
   afterEach(() => {
+    // Observe the final document after assertions, so diagnostics cannot delay
+    // or otherwise change the navigation being investigated.
+    diagnosePage();
     login();
     for (const id of createdIds)
       cy.request({
