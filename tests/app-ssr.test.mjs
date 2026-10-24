@@ -3,10 +3,65 @@ import { readFile } from 'node:fs/promises';
 import { test } from 'node:test';
 import vm from 'node:vm';
 import { createElement } from 'react';
+import * as react from 'react';
 import * as jsxRuntime from 'react/jsx-runtime';
 import { renderToString } from 'react-dom/server';
 import dynamic from 'vinext/shims/dynamic';
 import ts from 'typescript';
+
+test('the prebuilt root renders a public login screen without authentication or user data', async () => {
+  const context = vm.createContext({ console });
+  const modules = new Map();
+  const synthetic = (exports) =>
+    new vm.SyntheticModule(
+      Object.keys(exports),
+      function () {
+        for (const [key, value] of Object.entries(exports))
+          this.setExport(key, value);
+      },
+      { context },
+    );
+  modules.set('react', synthetic(react));
+  modules.set('react/jsx-runtime', synthetic(jsxRuntime));
+  modules.set(
+    './fishing-app',
+    synthetic({
+      default() {
+        throw Error('Must not render the authenticated dashboard.');
+      },
+    }),
+  );
+  for (const [specifier, filename] of [
+    ['./brand', 'app/brand.tsx'],
+    ['./login-screen', 'app/login-screen.tsx'],
+    ['./fishing-root', 'app/fishing-root.tsx'],
+    ['./page', 'app/page.tsx'],
+  ]) {
+    const source = ts.transpileModule(await readFile(filename, 'utf8'), {
+      compilerOptions: {
+        module: ts.ModuleKind.ESNext,
+        target: ts.ScriptTarget.ES2022,
+        jsx: ts.JsxEmit.ReactJSX,
+      },
+    }).outputText;
+    modules.set(specifier, new vm.SourceTextModule(source, { context }));
+  }
+  const page = modules.get('./page');
+  await page.link((specifier) => {
+    assert.ok(
+      modules.has(specifier),
+      `The public page must not import server auth, bindings or data: ${specifier}`,
+    );
+    return modules.get(specifier);
+  });
+  await page.evaluate();
+  assert.equal(page.namespace.dynamic, 'force-static');
+  const html = renderToString(createElement(page.namespace.default));
+  assert.match(html, /Googleでログイン/);
+  assert.match(html, /href="\/api\/auth\/google"/);
+  assert.match(html, /ログイン状態を確認しています/);
+  assert.doesNotMatch(html, /record-catch|userId|token_hash|mapsApiKey/);
+});
 
 test('authenticated startup renders without importing the dashboard on the Worker', async () => {
   const context = vm.createContext({ console });

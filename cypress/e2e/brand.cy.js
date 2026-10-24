@@ -24,6 +24,31 @@ describe('つりめぐりのブランド表示', () => {
     [1280, 900],
     [375, 812],
   ]) {
+    it(`初期APIの失敗を表示し再読み込みで復帰する ${width}px`, () => {
+      cy.clearCookies();
+      cy.viewport(width, height);
+      cy.intercept('GET', '/api/bootstrap', {
+        statusCode: 503,
+        body: { error: '初期読み込みの障害を再現' },
+      }).as('bootstrapFailure');
+      cy.visit('/');
+      cy.wait('@bootstrapFailure');
+      cy.get('[data-cy="app-loading"] [role="alert"]')
+        .should('be.visible')
+        .and('contain', '読み込みに失敗しました');
+      cy.get('[data-cy="record-catch"]').should('not.exist');
+      cy.intercept('GET', '/api/bootstrap', (request) => request.continue()).as(
+        'bootstrapRecovery',
+      );
+      cy.contains('button', '再読み込み').click();
+      cy.wait('@bootstrapRecovery')
+        .its('response.statusCode')
+        .should('equal', 401);
+      cy.get('.google-login-button')
+        .should('be.visible')
+        .and('not.have.attr', 'aria-disabled', 'true');
+      cy.get('[data-cy="record-catch"]').should('not.exist');
+    });
     for (const hour of [12, 22]) {
       it(`未認証ログイン画面 ${width}px ${hour}時`, () => {
         cy.clearCookies();

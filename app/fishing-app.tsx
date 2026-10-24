@@ -23,7 +23,7 @@ function Loading({ error }: DynamicOptionsLoadingProps) {
   );
 }
 
-// Authentication stays in Home. Render the interactive dashboard in the browser
+// Authentication stays in the bootstrap API. Render the dashboard in the browser
 // so Workers need not load and render its component tree on every page request.
 const FishingApp = dynamic<ComponentProps<typeof FishingLog>>(
   () => import('./fishing-log'),

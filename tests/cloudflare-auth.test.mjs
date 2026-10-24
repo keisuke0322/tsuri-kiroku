@@ -168,6 +168,7 @@ const catches = await module('app/api/catches/route.ts'),
   entry = await module('app/api/catches/[id]/route.ts'),
   likes = await module('app/api/catches/[id]/like/route.ts'),
   profile = await module('app/api/profile/route.ts'),
+  bootstrap = await module('app/api/bootstrap/route.ts'),
   publicProfile = await module('app/api/profiles/[userId]/route.ts');
 
 function request(
@@ -272,6 +273,7 @@ for (const [mod, method, path] of [
   [entry, 'DELETE', '/api/catches/1'],
   [likes, 'PUT', '/api/catches/1/like'],
   [profile, 'GET', '/api/profile'],
+  [bootstrap, 'GET', '/api/bootstrap'],
   [publicProfile, 'GET', '/api/profiles/owner'],
   [photoGet, 'GET', '/api/photos/1'],
   [photoPost, 'POST', '/api/catches/1/photos'],
@@ -333,6 +335,27 @@ failExchange = false;
 assert.match(r.headers.get('location'), /login_error/);
 const owner = await login(),
   other = await login('other');
+env.DEMO_OWNER_ID = 'google:owner';
+env.GOOGLE_MAPS_API_KEY = 'public-browser-maps-key';
+for (const [session, userId, canManageDemo] of [
+  [owner, 'google:owner', true],
+  [other, 'google:other', false],
+]) {
+  const response = await bootstrap.GET(
+    request('/api/bootstrap', 'GET', undefined, session),
+  );
+  assert.equal(response.status, 200);
+  assert.equal(response.headers.get('Cache-Control'), 'private, no-store');
+  assert.equal(response.headers.get('Vary'), 'Cookie, Authorization');
+  assert.deepEqual(await response.json(), {
+    userId,
+    initialName: '高山 圭介',
+    mapsApiKey: 'public-browser-maps-key',
+    canManageDemo,
+  });
+}
+delete env.DEMO_OWNER_ID;
+delete env.GOOGLE_MAPS_API_KEY;
 assert.equal(
   sql
     .prepare('SELECT display_name FROM profiles WHERE user_id=?')
