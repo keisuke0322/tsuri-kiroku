@@ -4,6 +4,7 @@ const marker = Cypress.expose('runMarker');
 const by = (value) => `[data-cy="${value}"]`;
 let createdIds = [];
 let expectedSession;
+let reloadSequence = 0;
 
 function login(role = 'owner') {
   return cy.task('session', role, { log: false }).then((token) => {
@@ -50,15 +51,29 @@ function card(id) {
 function visit() {
   cy.intercept('GET', '/api/catches').as('list');
   cy.visit('/');
-  // The UI may hydrate from cached data without issuing a fresh list request.
+  // The header renders before the initial list fetch finishes. Consume that
+  // response before a test can reload and cancel it.
+  cy.wait('@list').its('response.statusCode').should('equal', 200);
   cy.get(by('record-catch')).should('be.visible');
+  cy.get('.discovery-loading').should('not.exist');
   cy.request('/api/catches').its('status').should('equal', 200);
 }
 function reload() {
+  const alias = `reloadedList${++reloadSequence}`;
+  cy.intercept({ method: 'GET', pathname: '/api/catches', times: 1 }).as(alias);
   cy.reload();
-  return cy.wait('@list').then((interception) => {
+  return cy.wait(`@${alias}`).then((interception) => {
+    expect(interception.response, 'response from the reloaded page').to.be.an(
+      'object',
+    );
     expect(interception.response.statusCode).to.equal(200);
-    return interception;
+    expect(interception.response.body, 'reloaded catch list').to.be.an('array');
+    return cy
+      .get(by('record-catch'))
+      .should('be.visible')
+      .get('.discovery-loading')
+      .should('not.exist')
+      .then(() => interception);
   });
 }
 
@@ -90,6 +105,20 @@ describe('釣果の主要操作', () => {
     cy.get(by('record-catch')).should('be.visible');
     cy.get(by('my-catches')).click();
     cy.contains('釣行一覧').should('be.visible');
+  });
+
+  it('遅い一覧の初期読み込み後も再読み込みの応答を確認できる', () => {
+    cy.intercept('GET', '/api/catches', (request) => {
+      request.on('response', (response) => {
+        response.setDelay(500);
+      });
+    });
+    visit();
+    reload().then(({ response }) => {
+      expect(response.statusCode).to.equal(200);
+      expect(response.body).to.be.an('array');
+    });
+    cy.get(by('record-catch')).should('be.visible');
   });
 
   it('釣果を登録し、再読み込み後も保存内容を確認できる', () => {
