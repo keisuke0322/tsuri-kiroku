@@ -80,6 +80,7 @@ export function thirdPartyLicenses(): Plugin {
           );
         const supplements: Record<string, string> = {
           '@vitejs/plugin-rsc@0.5.26': 'vite-plugin-rsc.LICENSE',
+          '@vitejs/plugin-rsc@0.5.38': 'vite-plugin-rsc.LICENSE',
           'drizzle-orm@0.45.2': 'drizzle-orm.LICENSE',
           'react-remove-scroll-bar@2.3.8': 'react-remove-scroll-bar.LICENSE',
         };
