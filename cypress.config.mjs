@@ -2,10 +2,6 @@ import { defineConfig } from 'cypress';
 
 export default defineConfig({
   video: false,
-  // Long forms keep many DOM snapshots. Allow Chromium to collect snapshots
-  // during a test instead of exhausting the runner before an assertion completes.
-  experimentalMemoryManagement: true,
-  allowCypressEnv: false,
   expose: {
     runMarker: process.env.E2E_RUN_MARKER,
     hasOtherUser: !!process.env.E2E_OTHER_SESSION_TOKEN,
