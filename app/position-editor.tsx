@@ -22,10 +22,17 @@ export default function PositionEditor({
     [latitude, setLatitude] = useState(''),
     [longitude, setLongitude] = useState(''),
     request = useRef(0);
+  // Name edits can pass a new Position object with the same values. Only a
+  // changed position should reset coordinate drafts or schedule state updates.
   useEffect(() => {
     setLatitude(position?.latitude.toString() ?? '');
     setLongitude(position?.longitude.toString() ?? '');
-  }, [position]);
+  }, [
+    position?.latitude,
+    position?.longitude,
+    position?.source,
+    position?.spotId,
+  ]);
   useEffect(
     () => () => {
       request.current++;

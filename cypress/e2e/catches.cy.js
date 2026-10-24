@@ -413,11 +413,17 @@ describe('釣果の主要操作', () => {
           cy.get(by('map-start')).clear();
           cy.get(`${by('map-spot')}[data-spot-id="${spotId}"]`).click();
           cy.get(by('edit-spot')).click();
-          cy.get(by('spot-name')).clear().type(`${marker}-renamed-${width}`);
           cy.get('.spot-edit summary').click();
           cy.get('.spot-edit ' + by('latitude'))
             .clear()
             .type('36');
+          cy.get(by('spot-name')).clear().type(`${marker}-renamed-${width}`);
+          // Renaming must retain the coordinate draft and avoid update loops.
+          cy.get('.spot-edit ' + by('latitude')).should('have.value', '36');
+          cy.get(by('spot-name')).should(
+            'have.value',
+            `${marker}-renamed-${width}`,
+          );
           cy.get('.spot-edit ' + by('apply-coordinates')).click();
           cy.intercept('PUT', `/api/spots/${spotId}`).as('editSpot');
           cy.get(by('save-spot')).click();
