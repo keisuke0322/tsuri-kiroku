@@ -168,6 +168,7 @@ const catches = await module('app/api/catches/route.ts'),
   entry = await module('app/api/catches/[id]/route.ts'),
   likes = await module('app/api/catches/[id]/like/route.ts'),
   profile = await module('app/api/profile/route.ts'),
+  bootstrap = await module('app/api/bootstrap/route.ts'),
   publicProfile = await module('app/api/profiles/[userId]/route.ts');
 
 function request(
@@ -272,6 +273,7 @@ for (const [mod, method, path] of [
   [entry, 'DELETE', '/api/catches/1'],
   [likes, 'PUT', '/api/catches/1/like'],
   [profile, 'GET', '/api/profile'],
+  [bootstrap, 'GET', '/api/bootstrap'],
   [publicProfile, 'GET', '/api/profiles/owner'],
   [photoGet, 'GET', '/api/photos/1'],
   [photoPost, 'POST', '/api/catches/1/photos'],
@@ -333,6 +335,27 @@ failExchange = false;
 assert.match(r.headers.get('location'), /login_error/);
 const owner = await login(),
   other = await login('other');
+env.DEMO_OWNER_ID = 'google:owner';
+env.GOOGLE_MAPS_API_KEY = 'public-browser-maps-key';
+for (const [session, userId, canManageDemo] of [
+  [owner, 'google:owner', true],
+  [other, 'google:other', false],
+]) {
+  const response = await bootstrap.GET(
+    request('/api/bootstrap', 'GET', undefined, session),
+  );
+  assert.equal(response.status, 200);
+  assert.equal(response.headers.get('Cache-Control'), 'private, no-store');
+  assert.equal(response.headers.get('Vary'), 'Cookie, Authorization');
+  assert.deepEqual(await response.json(), {
+    userId,
+    initialName: '高山 圭介',
+    mapsApiKey: 'public-browser-maps-key',
+    canManageDemo,
+  });
+}
+delete env.DEMO_OWNER_ID;
+delete env.GOOGLE_MAPS_API_KEY;
 assert.equal(
   sql
     .prepare('SELECT display_name FROM profiles WHERE user_id=?')
@@ -1459,6 +1482,57 @@ assert.equal(
   200,
 );
 const storageApi = await module('app/api/profile/storage/route.ts');
+const groupedIds = [];
+for (const index of [0, 1]) {
+  const response = await send(catches, 'POST', '/api/catches', {
+    ...valid,
+    location: `grouped-${index}`,
+    fish: [
+      { species: 'アジ', count: index + 1 },
+      { species: 'サバ', count: index + 3 },
+    ],
+    combinations: [
+      {
+        method: `釣り方${index}`,
+        species: ['アジ'],
+        gear: [{ ...temp, name: `仕掛け${index}` }],
+      },
+    ],
+    position: {
+      latitude: 35.11 + index * 0.2,
+      longitude: 139.45,
+      source: 'map',
+    },
+    locationVisibility: index === 0 ? 'private' : 'exact',
+  });
+  assert.equal(response.status, 201);
+  groupedIds.push((await response.json()).id);
+}
+for (const identity of [owner, other]) {
+  const rows = await (
+    await catches.GET(request('/api/catches', 'GET', undefined, identity))
+  ).json();
+  for (const [index, id] of groupedIds.entries()) {
+    const row = rows.find((row) => row.id === id);
+    assert.deepEqual(
+      row.fish.map(({ species, count }) => ({ species, count })),
+      [
+        { species: 'アジ', count: index + 1 },
+        { species: 'サバ', count: index + 3 },
+      ],
+      'Indexing keeps fish associated with their catch and in display order',
+    );
+    assert.equal(row.combinations.length, 1);
+    assert.equal(row.combinations[0].method, `釣り方${index}`);
+    if (identity === other && index === 0) {
+      assert.equal(row.position, null);
+      assert.equal(row.locationHidden, true);
+    } else {
+      assert.equal(row.position.latitude, 35.11 + index * 0.2);
+      if (identity === other) assert.equal('spotId' in row.position, false);
+    }
+  }
+}
 assert.equal(
   (await storageApi.GET(request('/api/profile/storage'))).status,
   401,

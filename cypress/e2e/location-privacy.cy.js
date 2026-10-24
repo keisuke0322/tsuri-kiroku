@@ -1,9 +1,13 @@
+import { diagnosePage } from '../page-diagnostics';
+
 const marker = Cypress.expose('runMarker');
 const by = (value) => `[data-cy="${value}"]`;
 let createdIds = [];
+let expectedSession;
 const point = { latitude: 35.123, longitude: 139.456, source: 'map' };
 function login(role = 'owner') {
   return cy.task('session', role, { log: false }).then((token) => {
+    expectedSession = token;
     const secure = Cypress.config('baseUrl').startsWith('https:');
     cy.setCookie((secure ? '__Host-' : '') + 'tsuri_session', token, {
       secure,
@@ -150,7 +154,10 @@ describe('釣行場所の地図と公開範囲', () => {
     login();
     stubMaps();
   });
-  afterEach(() => {
+  afterEach(function () {
+    // Keep successful tests on their original command sequence. Observe the
+    // document only after a failed assertion, before resetting the session.
+    if (this.currentTest.state === 'failed') diagnosePage(expectedSession);
     login();
     for (const id of createdIds)
       cy.request({

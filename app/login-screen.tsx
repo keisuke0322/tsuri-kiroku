@@ -13,8 +13,10 @@ const serverTheme = () => null;
 
 export default function LoginScreen({
   loginFailed = false,
+  checking = false,
 }: {
   loginFailed?: boolean;
+  checking?: boolean;
 }) {
   const theme = useSyncExternalStore<'day' | 'night' | null>(
     subscribeToClock,
@@ -54,6 +56,10 @@ export default function LoginScreen({
             className="google-login-button"
             href="/api/auth/google"
             target="_top"
+            aria-disabled={checking || undefined}
+            onClick={(event) => {
+              if (checking) event.preventDefault();
+            }}
           >
             <svg aria-hidden="true" viewBox="0 0 48 48">
               <path
@@ -75,6 +81,7 @@ export default function LoginScreen({
             </svg>
             Googleでログイン
           </a>
+          {checking && <p role="status">ログイン状態を確認しています…</p>}
           {loginFailed && (
             <p className="google-login-error" role="alert">
               ログインできませんでした。もう一度お試しください。
