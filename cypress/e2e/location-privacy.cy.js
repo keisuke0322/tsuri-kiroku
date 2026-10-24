@@ -40,17 +40,24 @@ function create(label, visibility) {
     });
 }
 const card = (id) => cy.get(`${by('catch-card')}[data-catch-id="${id}"]`);
-function visit() {
-  cy.intercept('GET', '/api/catches').as('locations');
-  cy.visit('/');
-  return cy.wait('@locations').then(({ response }) => {
-    expect(response.statusCode).to.equal(200);
+function readRows() {
+  cy.get(by('record-catch')).should('be.visible');
+  cy.get('.discovery-loading').should('not.exist');
+  return cy.request({ url: '/api/catches', log: false }).then((response) => {
+    expect(response.status).to.equal(200);
+    expect(response.body).to.be.an('array');
     return response.body;
   });
 }
+function visit() {
+  cy.visit('/');
+  return readRows();
+}
 function reload() {
   cy.reload();
-  return cy.wait('@locations').then(({ response }) => response.body);
+  // Verify the rendered page and authenticated API result rather than the
+  // ordinal of a browser request, which can differ across page loads.
+  return readRows();
 }
 function close() {
   cy.get(by('close-location-map')).click();
@@ -97,6 +104,45 @@ function mapOptions(kind) {
     });
   });
 }
+function assertSharedRows(rows, id, visibility) {
+  const saved = rows.find((x) => x.id === id);
+  expect(saved, `saved catch ${id}`).to.exist;
+  expect(saved.locationVisibility).to.equal(visibility);
+  if (visibility === 'private') {
+    expect(saved.location).to.equal('');
+    expect(saved.publicArea).to.equal(null);
+    expect(saved.position).to.equal(null);
+  } else if (visibility === 'area') {
+    expect(saved.position).to.equal(null);
+    expect(saved.publicArea).to.deep.equal({
+      latitude: 35.15,
+      longitude: 139.45,
+      radius: 8000,
+    });
+    expect(JSON.stringify(saved)).not.to.contain('35.123');
+    expect(JSON.stringify(saved)).not.to.contain('139.456');
+  } else {
+    expect(saved.position).to.include({
+      latitude: point.latitude,
+      longitude: point.longitude,
+    });
+    expect(saved.position).not.to.have.property('spotId');
+  }
+}
+function assertSharedCard(id, visibility, width) {
+  if (visibility === 'private') {
+    card(id).find(by('location-hidden')).should('contain', '場所は非公開');
+    card(id).should('not.contain', `${marker}-location-${visibility}-${width}`);
+    card(id).find(by('location-map-trigger')).should('not.exist');
+  } else {
+    card(id).find(by('location-map-trigger')).scrollIntoView().click();
+    cy.get(
+      by(visibility === 'area' ? 'location-area' : 'location-exact'),
+    ).should('be.visible');
+    mapOptions(visibility);
+    close();
+  }
+}
 describe('釣行場所の地図と公開範囲', () => {
   before(() => expect(marker).to.match(/^E2E-[a-f0-9-]{36}$/));
   beforeEach(() => {
@@ -136,7 +182,7 @@ describe('釣行場所の地図と公開範囲', () => {
         expect(response.statusCode).to.equal(201);
         const id = response.body.id;
         createdIds.push(id);
-        cy.wait('@locations');
+        card(id).should('be.visible');
         reload().then((rows) => {
           const saved = rows.find((x) => x.id === id);
           expect(saved.locationVisibility).to.equal('area');
@@ -170,7 +216,7 @@ describe('釣行場所の地図と公開範囲', () => {
           cy.wait('@editLocation')
             .its('response.statusCode')
             .should('equal', 200);
-          cy.wait('@locations');
+          cy.get('.form-dialog').should('not.exist');
           reload().then((rows) => {
             const saved = rows.find((x) => x.id === id);
             expect(saved.locationVisibility).to.equal(visibility);
@@ -191,50 +237,11 @@ describe('釣行場所の地図と公開範囲', () => {
           create(`${visibility}-${width}`, visibility).then((id) => {
             login('other');
             visit().then((rows) => {
-              const saved = rows.find((x) => x.id === id);
-              expect(saved.locationVisibility).to.equal(visibility);
-              if (visibility === 'private') {
-                expect(saved.location).to.equal('');
-                expect(saved.publicArea).to.equal(null);
-                expect(saved.position).to.equal(null);
-              } else if (visibility === 'area') {
-                expect(saved.position).to.equal(null);
-                expect(saved.publicArea).to.deep.equal({
-                  latitude: 35.15,
-                  longitude: 139.45,
-                  radius: 8000,
-                });
-                expect(JSON.stringify(saved)).not.to.contain('35.123');
-                expect(JSON.stringify(saved)).not.to.contain('139.456');
-              } else {
-                expect(saved.position).to.include({
-                  latitude: point.latitude,
-                  longitude: point.longitude,
-                });
-                expect(saved.position).not.to.have.property('spotId');
-              }
+              assertSharedRows(rows, id, visibility);
             });
-            if (visibility === 'private') {
-              card(id)
-                .find(by('location-hidden'))
-                .should('contain', '場所は非公開');
-              card(id).should(
-                'not.contain',
-                `${marker}-location-${visibility}-${width}`,
-              );
-              card(id).find(by('location-map-trigger')).should('not.exist');
-            } else {
-              card(id)
-                .find(by('location-map-trigger'))
-                .scrollIntoView()
-                .click();
-              cy.get(
-                by(visibility === 'area' ? 'location-area' : 'location-exact'),
-              ).should('be.visible');
-              mapOptions(visibility);
-              close();
-            }
-            reload();
+            assertSharedCard(id, visibility, width);
+            reload().then((rows) => assertSharedRows(rows, id, visibility));
+            assertSharedCard(id, visibility, width);
           });
         },
       );
