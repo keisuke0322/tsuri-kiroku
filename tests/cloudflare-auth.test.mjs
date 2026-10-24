@@ -1459,6 +1459,57 @@ assert.equal(
   200,
 );
 const storageApi = await module('app/api/profile/storage/route.ts');
+const groupedIds = [];
+for (const index of [0, 1]) {
+  const response = await send(catches, 'POST', '/api/catches', {
+    ...valid,
+    location: `grouped-${index}`,
+    fish: [
+      { species: 'アジ', count: index + 1 },
+      { species: 'サバ', count: index + 3 },
+    ],
+    combinations: [
+      {
+        method: `釣り方${index}`,
+        species: ['アジ'],
+        gear: [{ ...temp, name: `仕掛け${index}` }],
+      },
+    ],
+    position: {
+      latitude: 35.11 + index * 0.2,
+      longitude: 139.45,
+      source: 'map',
+    },
+    locationVisibility: index === 0 ? 'private' : 'exact',
+  });
+  assert.equal(response.status, 201);
+  groupedIds.push((await response.json()).id);
+}
+for (const identity of [owner, other]) {
+  const rows = await (
+    await catches.GET(request('/api/catches', 'GET', undefined, identity))
+  ).json();
+  for (const [index, id] of groupedIds.entries()) {
+    const row = rows.find((row) => row.id === id);
+    assert.deepEqual(
+      row.fish.map(({ species, count }) => ({ species, count })),
+      [
+        { species: 'アジ', count: index + 1 },
+        { species: 'サバ', count: index + 3 },
+      ],
+      'Indexing keeps fish associated with their catch and in display order',
+    );
+    assert.equal(row.combinations.length, 1);
+    assert.equal(row.combinations[0].method, `釣り方${index}`);
+    if (identity === other && index === 0) {
+      assert.equal(row.position, null);
+      assert.equal(row.locationHidden, true);
+    } else {
+      assert.equal(row.position.latitude, 35.11 + index * 0.2);
+      if (identity === other) assert.equal('spotId' in row.position, false);
+    }
+  }
+}
 assert.equal(
   (await storageApi.GET(request('/api/profile/storage'))).status,
   401,

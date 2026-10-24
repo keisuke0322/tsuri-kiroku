@@ -1,7 +1,7 @@
 import { env } from 'cloudflare:workers';
 import { canManageDemo } from './api/demo-data/route';
 import { ensureProfile } from './api/access';
-import FishingLog from './fishing-log';
+import FishingApp from './fishing-app';
 import { getUser } from './auth';
 import LoginScreen from './login-screen';
 
@@ -24,7 +24,7 @@ export default async function Home({
   }
 
   return (
-    <FishingLog
+    <FishingApp
       mapsApiKey={
         (env as unknown as { GOOGLE_MAPS_API_KEY?: string })
           .GOOGLE_MAPS_API_KEY || ''
