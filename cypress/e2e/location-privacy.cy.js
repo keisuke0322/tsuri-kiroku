@@ -2,7 +2,6 @@ const marker = Cypress.expose('runMarker');
 const by = (value) => `[data-cy="${value}"]`;
 let createdIds = [];
 let expectedSession;
-let documentResponses = [];
 let navigation = 'initial';
 const point = { latitude: 35.123, longitude: 139.456, source: 'map' };
 function login(role = 'owner') {
@@ -56,7 +55,12 @@ function diagnosePage() {
       homePath: doc.location.pathname === '/',
       hasApp: !!doc.querySelector(by('record-catch')),
       hasLogin: !!doc.querySelector('.google-login-button'),
-      documents: documentResponses.slice(-3),
+      hasShell: !!doc.querySelector('.app-shell'),
+      hasCatchCards: !!doc.querySelector(by('catch-card')),
+      bodyChildTags: Array.from(doc.body.children, (node) => node.tagName),
+      bodyHidden: doc.body.style.visibility === 'hidden',
+      hasRedirectMessage:
+        doc.body.textContent.includes('ログイン画面へ移動しています'),
     };
     return cy
       .getCookie(name, { domain: target.hostname, log: false })
@@ -89,7 +93,6 @@ function readRows() {
 function visit() {
   cy.then(() => {
     navigation = 'visit';
-    documentResponses = [];
   });
   cy.visit('/');
   return readRows();
@@ -97,7 +100,6 @@ function visit() {
 function reload() {
   cy.then(() => {
     navigation = 'reload';
-    documentResponses = [];
   });
   cy.reload();
   // Verify the rendered page and authenticated API result rather than the
@@ -192,28 +194,6 @@ describe('釣行場所の地図と公開範囲', () => {
   before(() => expect(marker).to.match(/^E2E-[a-f0-9-]{36}$/));
   beforeEach(() => {
     createdIds = [];
-    const host = new URL(Cypress.config('baseUrl')).hostname;
-    const cookieName =
-      (Cypress.config('baseUrl').startsWith('https:') ? '__Host-' : '') +
-      'tsuri_session';
-    cy.intercept({ method: 'GET', hostname: host, pathname: '/' }, (req) => {
-      const cookieMatchesExpected = String(req.headers.cookie || '').includes(
-        `${cookieName}=${expectedSession}`,
-      );
-      req.on('after:response', (res) => {
-        const body = typeof res.body === 'string' ? res.body : '';
-        documentResponses.push({
-          resourceType: req.resourceType,
-          status: res.statusCode,
-          contentType: res.headers['content-type'],
-          cacheControl: res.headers['cache-control'],
-          vary: res.headers.vary,
-          cookieMatchesExpected,
-          hasAppMarker: body.includes('record-catch'),
-          hasLoginMarker: body.includes('google-login-button'),
-        });
-      });
-    });
     login();
     stubMaps();
   });
