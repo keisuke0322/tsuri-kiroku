@@ -2,7 +2,6 @@ const marker = Cypress.expose('runMarker');
 const by = (value) => `[data-cy="${value}"]`;
 let createdIds = [];
 let expectedSession;
-let navigation = 'initial';
 const point = { latitude: 35.123, longitude: 139.456, source: 'map' };
 function login(role = 'owner') {
   return cy.task('session', role, { log: false }).then((token) => {
@@ -49,7 +48,6 @@ function diagnosePage() {
     (target.protocol === 'https:' ? '__Host-' : '') + 'tsuri_session';
   return cy.document({ log: false }).then((doc) => {
     const snapshot = {
-      navigation,
       contentType: doc.contentType,
       readyState: doc.readyState,
       homePath: doc.location.pathname === '/',
@@ -91,16 +89,10 @@ function readRows() {
   });
 }
 function visit() {
-  cy.then(() => {
-    navigation = 'visit';
-  });
   cy.visit('/');
   return readRows();
 }
 function reload() {
-  cy.then(() => {
-    navigation = 'reload';
-  });
   cy.reload();
   // Verify the rendered page and authenticated API result rather than the
   // ordinal of a browser request, which can differ across page loads.
@@ -197,10 +189,10 @@ describe('釣行場所の地図と公開範囲', () => {
     login();
     stubMaps();
   });
-  afterEach(() => {
-    // Observe the final document after assertions, so diagnostics cannot delay
-    // or otherwise change the navigation being investigated.
-    diagnosePage();
+  afterEach(function () {
+    // Keep successful tests on their original command sequence. Observe the
+    // document only after a failed assertion, before resetting the session.
+    if (this.currentTest.state === 'failed') diagnosePage();
     login();
     for (const id of createdIds)
       cy.request({
