@@ -169,13 +169,28 @@ async function requireCI({ github, context }, pr) {
     per_page: 100,
   });
   const latest = runs
-    .filter(
-      (r) =>
-        r.head_sha === pr.head.sha &&
-        r.pull_requests?.some((p) => p.number === pr.number),
-    )
+    .filter((run) => {
+      if (run.head_sha !== pr.head.sha) return false;
+      if (run.pull_requests?.some((p) => p.number === pr.number)) return true;
+
+      // GitHub can drop PR associations from workflow runs after merging.
+      // Only a merged PR with an empty association list may use the exact
+      // workflow, event, repository and source branch as its CI identity.
+      const repository = `${context.repo.owner}/${context.repo.repo}`;
+      return Boolean(
+        pr.merged_at &&
+          Array.isArray(run.pull_requests) &&
+          run.pull_requests.length === 0 &&
+          run.event === 'pull_request' &&
+          run.path === '.github/workflows/contribution-checks.yml' &&
+          run.repository?.full_name === repository &&
+          run.head_repository?.full_name === repository &&
+          pr.head.repo?.full_name === repository &&
+          run.head_branch === pr.head.ref,
+      );
+    })
     .sort((a, b) => b.id - a.id || b.run_attempt - a.run_attempt)[0];
-  if (latest?.conclusion !== 'success')
+  if (latest?.status !== 'completed' || latest.conclusion !== 'success')
     throw Error(
       `Contribution checks must succeed for PR #${pr.number} at ${pr.head.sha}.`,
     );

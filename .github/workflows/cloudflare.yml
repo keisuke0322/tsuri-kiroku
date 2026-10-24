@@ -81,7 +81,8 @@ jobs:
     permissions:
       contents: write
       deployments: read
-      pull-requests: read
+      # Dependency validation/abort removes the approval label from PRs.
+      pull-requests: write
       actions: read
       issues: write
     concurrency:
@@ -193,6 +194,7 @@ jobs:
           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           E2E_USER_ID: ${{ secrets.E2E_USER_ID }}
           E2E_OTHER_USER_ID: ${{ secrets.E2E_OTHER_USER_ID }}
+          E2E_BROWSER: chrome
       - name: Save E2E failure screenshots
         if: failure() && steps.select.outputs.kind != 'production'
         uses: actions/upload-artifact@v4

@@ -73,7 +73,12 @@ try {
       { flag: 'a' },
     );
   await command(
-    ['node_modules/cypress/bin/cypress', 'run', '--browser', 'electron'],
+    [
+      'node_modules/cypress/bin/cypress',
+      'run',
+      '--browser',
+      process.env.E2E_BROWSER || 'electron',
+    ],
     {
       env: {
         ...process.env,

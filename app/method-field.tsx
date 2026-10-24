@@ -1,6 +1,7 @@
 'use client';
 
 import { useId, useMemo, useRef, type ComponentProps } from 'react';
+import { Combobox as BaseCombobox } from '@base-ui/react/combobox';
 import {
   Combobox,
   ComboboxInput,
@@ -38,12 +39,20 @@ export default function MethodField({
     ],
     [suggestions],
   );
+  const { contains } = BaseCombobox.useFilter({ sensitivity: 'base' });
+  // Reopening during the close animation can retain Base UI's previous query.
+  // Filter from the controlled input so a single IME commit uses the new text.
+  const filteredOptions = useMemo(
+    () => options.filter((option) => contains(option, value.trim())),
+    [options, contains, value],
+  );
 
   return (
     <div className="method-field" data-method-field ref={container}>
       <label htmlFor={id}>{label}</label>
       <Combobox
         items={options}
+        filteredItems={filteredOptions}
         value={value || null}
         inputValue={value}
         onInputValueChange={onChange}

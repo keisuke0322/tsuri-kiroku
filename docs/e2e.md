@@ -1,5 +1,7 @@
 # stagingのCypress E2E
 
+CIではGitHub-hosted runnerのChromeを使用する。Cypress同梱ElectronはWebブラウザと描画エンジンの版が異なるため、実際のブラウザで同じ期待結果を検証する。ローカルは従来どおりElectronが既定で、`E2E_BROWSER=chrome corepack pnpm run e2e:staging`でChromeを選択できる。ResizeObserverなどの例外を一括で無視したり、失敗を避けるためにタイムアウトを延長したりしない。
+
 `cloudflare-migration`へのpushで、型チェック・単体テスト・ビルド・stagingデプロイ・未認証アクセス確認の後に実行する。同じDeployジョブ内なので、E2Eが失敗するとstagingのデプロイ結果も失敗となり、既存のPR checksと本番公開ポリシーがそのコミットの公開を止める。Workerへの反映自体はE2E前に完了しており、自動ロールバックはしない。
 
 ブランチ単位のconcurrencyをデプロイからE2E完了まで保持する。テスト中は共有stagingにワークフロー外の手動デプロイを行わない。productionでは実行しない。
@@ -69,3 +71,10 @@ Collapsibleの開閉後も入力が保持されること、候補のEnter確定�
 所有道具の種類別Accordionは、件数表示、種類ごとの独立した開閉、キーボード操作、
 画面を切り替えた後の開閉状態保持、検索・種類の絞り込み時の展開、
 編集で種類を変更した道具の表示と該当なしの表示をPC・スマートフォン幅で確認します。
+
+Floating UI 1.8.0には `patches/@floating-ui__dom@1.8.0.patch` を適用します。
+サイズ監視の通知中に配置計算が候補欄の高さを変えると、ブラウザーの
+`ResizeObserver loop completed with undelivered notifications` が発生します。
+監視は維持し、通知による再計算だけを次の `requestAnimationFrame` にまとめます。
+初回配置・スクロール追従はそのまま実行し、アンマウント時に未実行の再計算を取り消します。
+ESM・CommonJSの両方を回帰テストで確認し、同じ問題の上流修正を取り込む際にパッチを見直します。

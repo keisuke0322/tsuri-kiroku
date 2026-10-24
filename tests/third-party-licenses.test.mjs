@@ -78,3 +78,53 @@ test('notices retain scoped-package and embedded licenses across build environme
     rmSync(root, { recursive: true, force: true });
   }
 });
+
+for (const version of ['0.5.26', '0.5.38', '999.0.0']) {
+  test(`RSC license supplement remains bound to reviewed versions (${version})`, () => {
+    const root = mkdtempSync(path.join(tmpdir(), 'tsuri-rsc-license-'));
+    try {
+      const directory = path.join(root, 'node_modules/@vitejs/plugin-rsc');
+      mkdirSync(path.join(directory, 'dist'), { recursive: true });
+      writeFileSync(
+        path.join(directory, 'package.json'),
+        JSON.stringify({ name: '@vitejs/plugin-rsc', version, license: 'MIT' }),
+      );
+      const id = path.join(directory, 'dist/index.js');
+      writeFileSync(id, 'export const value = 1;');
+      let notice;
+      const plugin = thirdPartyLicenses();
+      const generate = () =>
+        plugin.generateBundle.call(
+          {
+            emitFile: (asset) => {
+              notice = asset.source;
+            },
+            error: (message) => {
+              throw new Error(message);
+            },
+          },
+          {},
+          {
+            chunk: { type: 'chunk', modules: { [id]: { renderedLength: 20 } } },
+          },
+        );
+      if (version === '999.0.0') {
+        assert.throws(generate, /no license text found/);
+      } else {
+        generate();
+        assert.ok(notice.includes(`@vitejs/plugin-rsc@${version}`));
+        assert.ok(
+          notice.includes(
+            'Copyright (c) 2019-present, Yuxi (Evan) You and Vite contributors',
+          ),
+        );
+        assert.ok(
+          notice.includes('Permission is hereby granted, free of charge'),
+        );
+        assert.ok(notice.includes('THE SOFTWARE IS PROVIDED "AS IS"'));
+      }
+    } finally {
+      rmSync(root, { recursive: true, force: true });
+    }
+  });
+}
