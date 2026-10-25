@@ -160,7 +160,7 @@ async function inspectUpdate(options, pr, state, { production = false } = {}) {
   return { baseSha, package: after };
 }
 
-async function requireCI({ github, context }, pr) {
+async function latestContributionRun({ github, context }, pr) {
   const runs = await github.paginate(github.rest.actions.listWorkflowRuns, {
     ...context.repo,
     workflow_id: 'contribution-checks.yml',
@@ -190,6 +190,11 @@ async function requireCI({ github, context }, pr) {
       );
     })
     .sort((a, b) => b.id - a.id || b.run_attempt - a.run_attempt)[0];
+  return latest;
+}
+
+async function requireCI(options, pr) {
+  const latest = await latestContributionRun(options, pr);
   if (latest?.status !== 'completed' || latest.conclusion !== 'success')
     throw Error(
       `Contribution checks must succeed for PR #${pr.number} at ${pr.head.sha}.`,
@@ -358,6 +363,7 @@ module.exports = {
   validateWorkspaceChange,
   inspectUpdate,
   requireCI,
+  latestContributionRun,
   matchesLease,
   latestApprovalEvent,
   requireRunningUpdate,

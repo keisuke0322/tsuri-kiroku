@@ -56,3 +56,6 @@ wrangler.deploy.json
 # Cypress generated artifacts
 /cypress/screenshots/
 /cypress/videos/
+
+# Published sync CI identity
+/.sync-ci/

@@ -1,7 +1,7 @@
 # 依存更新の公開と開発ブランチへの同期
 
 Issue #51。通常更新・緊急更新とも、現在の本番 `main` を基準にする。
-開発途中の機能を更新PRへ混ぜず、管理者が更新PR・同期PRを手動マージする。
+開発途中の機能を更新PRへ混ぜない。管理者は「検証開始」「PC・スマートフォンで確認してラベル付与」「mainへの手動マージ」を行う。準備・CI待ち・staging検証は連続実行し、公開後の開発同期は条件を満たす場合に自動マージする。
 
 ## 導入・有効化
 
@@ -24,14 +24,16 @@ Dependabotは毎週土曜9:00（Asia/Tokyo）を目安にmain宛て更新PRを�
 通常更新は公開から7日待つ。Dependabotのcooldownと既存のpnpm `minimumReleaseAge: 10080` を維持する。patch/minor/majorを検知し、React本体・DOM・RSC・型はpatch/minorとmajorを分けてグループ化する。WranglerとWorkers型のpatch/minorもまとめる。VinextのbetaやViteプラグインの0.xは個別に互換性を確認する。セキュリティ更新には通常更新のcooldownを適用しない。
 
 1. 更新PRの差分・互換性・ライセンス（必要に応じて `vendor/LICENSE-SOURCES.md`）を確認する。
-2. 管理者が **Dependency governance** をmain、`action=prepare`、`pr=番号` で実行する。最新の正式Releaseの次のPATCH版をpackage.jsonへ自動準備し、PR本文の `Release-Version` と `### DB変更・復旧` を整える。Dependabotの元の説明は保持する。既にReleaseより大きいアプリ版なら管理者の指定として保持する。必要に応じて管理者が番号・DB説明を変更する。
-3. アプリ版のコミット後の **Contribution checks** 成功を待つ。PR作成・更新ごとに整形・型・テスト・ビルドが自動実行され、Secretsもデプロイ権限も渡さない。`PR checks` と公開ゲートがこの段階で未検証として失敗するのは正常。
-4. 管理者が **Deploy Cloudflare** をmain、`action=validate-update`、`pr=番号` で実行する。最新mainを含む同一リポジトリの依存更新PRだけを受け付ける。許可する差分はpackage.jsonの依存・アプリ版、lockfile、既存override指定のバージョン、版限定の緊急待機例外、ライセンス補足だけ。scripts・packageManager・override対象指定・アプリ・ワークフロー等の変更は受け付けない。手動更新PRはprepareによる管理者の明示登録が必要。任意のブランチ名やラベルでは許可しない。
-5. 選んだSHAのstagingデプロイ・起動確認・Cypress E2E・稼働版照合の成功を確認する。サマリー・[stagingの稼働情報](https://tsuri-kiroku-staging.keisuke0322.workers.dev/api/version)のSHA・runIdを照合する。mainのworkflow SHAと、実際にビルドした更新SHAは区別して記録される。
-6. PC・スマートフォンで管理者が動作確認し、その後に更新PRへ **動作確認済み** ラベルを付ける。GitHubのラベル監査イベントの管理者・日時・対象SHA・基準main・検証runを状態記録とPRコメントへ残す。一般ユーザーの操作、検証前のラベル、ラベルだけの存在は確認の代わりにならない。
-7. **PR checks**・**Formatting**・**Contribution checks**・**Dependency release gate** の成功と差分を確認し、管理者が **Create a merge commit** でmainへマージする。自動マージ・mainへの直接push・squash/rebaseでの公開は行わない。
-8. productionデプロイ・起動確認・稼働情報照合・Publish Releaseの成功を確認する。Release-Versionとアプリ版の一致、公開済みタグの再利用禁止、DB変更・復旧の記載など既存条件を維持する。実際の依存採用・公開は管理者が判断する。
+2. 管理者が **Deploy Cloudflare** → **Run workflow** で **Branch: main**、`action=start-update`、`pr=番号` を指定して1回実行する。これは手動起動時の既定actionである。
+3. ワークフローが次を連続実行する。途中の追加操作は不要。
+   - 最新の正式Releaseの次のPATCH版をpackage.jsonへ準備し、PR本文の `Release-Version` と `### DB変更・復旧` を整える。Dependabotの元の説明と管理者の版指定は保持する。
+   - 準備後の先端SHAを固定し、そのSHAの最新 **Contribution checks** を最大約10分待つ。失敗・APIエラー・待機期限超過・PR先端やmainの変更では停止し、別のコミットへ切り替えない。
+   - 同一リポジトリ・最新main基準・許可された依存差分だけであることを再照合してstagingを占有し、デプロイ・起動確認・Cypress E2E・稼働版照合を行う。
+   - 許可する差分はpackage.jsonの依存・アプリ版、lockfile、既存overrideの版、版限定の緊急待機例外、ライセンス補足だけ。scripts・packageManager・アプリ・ワークフロー等の変更は受け付けない。
+4. 成功サマリーと[stagingの稼働情報](https://tsuri-kiroku-staging.keisuke0322.workers.dev/api/version)を確認し、PC・スマートフォンで動作確認して **動作確認済み** ラベルを付ける。管理者・日時・対象SHA・基準main・検証runの監査記録を要求する。
+5. **PR checks**・**Formatting**・**Contribution checks**・**Dependency release gate** の成功と差分を確認し、管理者が **Create a merge commit** でmainへマージする。本番デプロイ・Release作成・公開済み版の開発同期は自動で進む。mainへの自動マージや直接pushは行わない。
 
+準備後のCIや検証に失敗した場合は原因を修正し、`start-update` をやり直す。個別の `Dependency governance/action=prepare` と `Deploy Cloudflare/action=validate-update` は復旧・管理者の版指定後の再検証用として残す。mainのworkflow SHAと実際の更新SHAを区別して記録し、旧headの成功・古いラベルは再利用しない。
 headやmainが変わったら、古い確認を無効化する。mainを取り込み、必要ならprepareをやり直して、CI・staging・E2E・動作確認・ラベルを再実行する。公開済みになった番号を再利用しない。番号を変更した場合も全検証をやり直す。
 
 Contribution checksは対象headの最新実行・最新attemptが完了して成功していることを要求する。GitHubがマージ後に実行の関連PR一覧を空にする場合に限り、マージ済みPRと同じhead SHA・ソースブランチ・同一リポジトリの実行であり、`pull_request`イベントの`.github/workflows/contribution-checks.yml`であることを照合する。未マージPR、別PRの関連付けが残る実行、情報欠落、API失敗はこの代替照合で許可しない。
@@ -81,11 +83,20 @@ PRイベント・CI完了・main更新・保留操作・毎時の定期処理で
 
 Publish Release後の **Sync published main to development** は最新の正式Releaseに埋め込まれた本番成功記録、タグのSHA、DeployとPublish Releaseの成功を検証する。live mainに未公開コミットが進んでも同期しない。
 
-`automation/published-main → cloudflare-migration` の同期PRは1本にまとめ、次の公開成功時に最新の公開済みSHAへ更新する。mainや開発ブランチのreset・force push・自動マージはしない。競合解消で同期ブランチに開発変更が入っていても、それを保持して新しい公開済みコミットをmergeする。競合時はジョブを止め、管理者が同期PRで解消し、最新開発コードとのContribution checksと差分を確認して手動マージする。マージ後は通常の開発stagingデプロイ・E2Eが走る。
+`automation/published-main → cloudflare-migration` の同期PRは1本にまとめ、公開成功時に最新の正式ReleaseのSHAへ更新する。CIは開発ブランチとのマージ結果を検証し、実際にテストしたbase・head・実行attemptを成果物へ記録する。
 
-本番公開の対象PRは、closedのmain向けPR一覧からマージ済み・merge commit SHAが本番コミットと完全一致する1件を取得する。コミットに関連するPRを取得するAPIには依存しない。一覧取得失敗・一致なし・複数一致は公開を止め、直接pushや別コミットのPRを代用しない。
+**Auto-merge published sync** はContribution checks完了後、mainの管理コードだけで以下を確認する。
 
-同期処理だけ失敗したら、Dependency governanceをmain、`action=sync` で再実行する。本番の再デプロイは不要。すでに開発へ取り込まれていればPRを新規作成しない。復帰処理だけの失敗は上記の復帰アクションで対処する。Releaseだけの失敗は元の公開実行の失敗ジョブだけを再実行し、公開済みタグを動かさない。
+- 同一リポジトリの指定同期PRで、先端が最新の正式Releaseの公開済みSHAと完全一致する。
+- 本番デプロイ・Release作成が成功し、タグとデプロイ記録が一致する。
+- 最新CI・最新attemptが成功し、対象PR、先端、テストした開発base、期限内のCI成果物が一致する。
+- マージ直前にも公開版・先端・開発base・最新CIを再照合し、競合がない。
+
+条件を満たした同期PRだけ、先端SHAを指定してCreate a merge commit相当のAPIで自動マージする。mainや開発ブランチのreset・force push・mainへの自動マージは行わない。同期後は通常の開発stagingデプロイ・E2Eが走る。
+
+競合、CI失敗、baseの更新、成果物の期限切れ・欠落、公開版の変更、判定不能では自動マージを停止する。競合解消で同期ブランチに開発変更が入っている場合も自動マージせず、最新開発コードとのCIと差分を確認して手動マージする。
+
+同期PRの作成だけ失敗したら **Dependency governance** をmain、`action=sync` で再実行する。既に開発へ取り込まれていればPRを追加しない。自動マージの判定だけを再確認する場合は **Auto-merge published sync** をmainから実行する。本番の再デプロイは不要。Release作成だけの失敗は元の公開実行の失敗ジョブだけを再実行し、公開済みタグを移動しない。
 
 公開に取り込まれたDependabot由来・`dependabot/`配下のブランチだけを自動整理する。対象が公開済みコミットの祖先であり、ブランチ先端がマージ時から変わっていないことも確認する。手動の再整理は `action=cleanup`。main・cloudflare-migrationや未公開の更新ブランチは削除しない。
 
@@ -94,3 +105,7 @@ Publish Release後の **Sync published main to development** は最新の正式R
 管理者本人がリポジトリのWatch → CustomのPull requests・Security alertsを購読し、GitHub Settings → NotificationsのWeb・Email・送信先・セキュリティ通知を確認する。実際の通常更新PRとDependabot alertの通知をGitHub通知欄・メールの両方で受信確認する。通知先の本人設定をActionsの成功で代替しない。
 
 初回有効化では通常patch/minor・major・関連依存・lockfileのみ・緊急例外を確認し、更新中の開発push、別更新の開始拒否、head/main変更時の無効化、失敗・中止・復帰の再試行を確認する。公開済みSHAだけの同期、同一PRの更新、競合、期限付き保留の境界・アラート・API権限失敗も確認する。新ルートの実更新・管理者のPC/スマートフォン確認・通知受信・本番公開は、実施した証拠を残すまで未検証として扱う。
+
+## この改善の有効化確認
+
+初回は本変更をmainへ公開してから、新しい更新PRの `start-update` と、公開後の同期PRの自動マージを実運用で確認する。ローカルの模擬テストと通常の開発staging成功だけで、更新PRの連続実行が確認済みとは扱わない。初回setupを毎回やり直す必要はない。

@@ -26,3 +26,15 @@ jobs:
       - run: corepack pnpm run typecheck
       - run: corepack pnpm test
       - run: corepack pnpm build
+      - name: Record tested published sync commits
+        if: github.base_ref == 'cloudflare-migration' && github.head_ref == 'automation/published-main' && github.event.pull_request.head.repo.full_name == github.repository
+        run: node scripts/sync-ci-record.cjs
+      - name: Preserve tested published sync identity
+        if: github.base_ref == 'cloudflare-migration' && github.head_ref == 'automation/published-main' && github.event.pull_request.head.repo.full_name == github.repository
+        uses: actions/upload-artifact@v4
+        with:
+          name: published-sync-ci-${{ github.run_id }}-${{ github.run_attempt }}-${{ github.event.pull_request.base.sha }}
+          path: .sync-ci/record.json
+          include-hidden-files: true
+          if-no-files-found: error
+          retention-days: 7

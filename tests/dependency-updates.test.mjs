@@ -6,6 +6,7 @@ import policy from '../scripts/dependency-policy.cjs';
 import control from '../scripts/dependency-control.cjs';
 import deployment from '../scripts/deployment-policy.cjs';
 import sync from '../scripts/dependency-sync.cjs';
+import { syncCIRecord } from '../scripts/sync-ci-record.cjs';
 
 const { STATE_REF, readState, writeState } = stateApi;
 const repo = { owner: 'owner', repo: 'repo' };
@@ -159,6 +160,7 @@ function fixture() {
         createOrUpdateFileContents: async (args) => {
           f.writes.push(args);
           f.after = JSON.parse(Buffer.from(args.content, 'base64'));
+          return response({ commit: { sha: pr.head.sha } });
         },
         createCommitStatus: async (args) => f.statuses.push(args),
       },
@@ -186,6 +188,7 @@ function fixture() {
             head_sha: f.publishedSha || 'main',
           }),
         listJobsForWorkflowRun: 'jobs',
+        listWorkflowRunArtifacts: 'artifacts',
       },
       issues: {
         listEventsForTimeline: 'timeline',
@@ -218,6 +221,7 @@ function fixture() {
       if (method === 'timeline') return f.events;
       if (method === 'jobs')
         return f.jobs.map((name) => ({ name, conclusion: 'success' }));
+      if (method === 'artifacts') return f.artifacts || [];
       if (typeof method === 'string' && method.includes('dependabot/alerts')) {
         if (f.alertError) throw f.alertError;
         return f.alerts;
@@ -669,6 +673,466 @@ function published(f) {
     body: '## デプロイ記録\n\n```json\n' + JSON.stringify(record) + '\n```',
   };
 }
+
+test('one start prepares the version, pins the new commit and continues only after its CI passes', async () => {
+  const f = fixture();
+  f.after = { ...f.before };
+  f.github.rest.repos.createOrUpdateFileContents = async (args) => {
+    f.after = JSON.parse(Buffer.from(args.content, 'base64'));
+    f.pr.head.sha = 'prepared';
+    return response({ commit: { sha: 'prepared' } });
+  };
+  f.github.rest.git.getCommit = async ({ commit_sha }) =>
+    response({
+      tree: { sha: commit_sha },
+      parents: [{ sha: 'head' }],
+    });
+  f.ciRuns = [
+    {
+      id: 10,
+      head_sha: 'prepared',
+      pull_requests: [{ number: 51 }],
+      status: 'in_progress',
+    },
+  ];
+  let waits = 0;
+  const result = await control.startUpdate(f, 51, {
+    attempts: 2,
+    sleep: async () => {
+      waits++;
+      Object.assign(f.ciRuns[0], {
+        status: 'completed',
+        conclusion: 'success',
+      });
+    },
+  });
+  assert.deepEqual(result, { pr: 51, head: 'prepared', base: 'main' });
+  assert.equal(f.after.version, '0.1.1');
+  assert.equal(waits, 1);
+  assert.equal(f.state.lease, null);
+  assert.equal(
+    (
+      await control.selectDeployment(f, {
+        action: 'validate-update',
+        number: 51,
+        expectedHead: result.head,
+      })
+    ).sha,
+    'prepared',
+  );
+});
+
+for (const [name, change] of [
+  [
+    'non-admin',
+    (f) => {
+      f.permission = 'write';
+    },
+  ],
+  [
+    'wrong branch',
+    (f) => {
+      f.context.ref = 'refs/heads/cloudflare-migration';
+    },
+  ],
+  [
+    'stale controller',
+    (f) => {
+      f.context.sha = 'old-main';
+    },
+  ],
+  [
+    'non-dispatch',
+    (f) => {
+      f.context.eventName = 'push';
+    },
+  ],
+  [
+    'failed CI',
+    (f) => {
+      f.ci = 'failure';
+    },
+  ],
+])
+  test(`one-start validation stops for ${name}`, async () => {
+    const f = fixture();
+    change(f);
+    await assert.rejects(control.startUpdate(f, 51, { attempts: 1 }));
+    assert.equal(f.state.lease, null);
+  });
+
+for (const [name, change] of [
+  [
+    'head changes',
+    (f) => {
+      f.pr.head.sha = 'new-head';
+    },
+  ],
+  [
+    'main changes',
+    (f) => {
+      f.main = 'new-main';
+    },
+  ],
+  [
+    'PR closes',
+    (f) => {
+      f.pr.state = 'closed';
+    },
+  ],
+])
+  test(`waiting for CI stops when ${name}`, async () => {
+    const f = fixture();
+    f.ciRuns = [];
+    await assert.rejects(
+      control.startUpdate(f, 51, { attempts: 2, sleep: async () => change(f) }),
+      /changed/,
+    );
+    assert.equal(f.state.lease, null);
+  });
+
+test('CI waiting is bounded and never retries an API failure or silently changes deployment heads', async () => {
+  const f = fixture();
+  f.ciRuns = [];
+  let waits = 0;
+  await assert.rejects(
+    control.startUpdate(f, 51, {
+      attempts: 2,
+      sleep: async () => {
+        waits++;
+      },
+    }),
+    /Timed out/,
+  );
+  assert.equal(waits, 1);
+  const paginate = f.github.paginate;
+  f.github.paginate = (method, args) => {
+    if (method === 'runs') throw Error('CI API unavailable');
+    return paginate(method, args);
+  };
+  await assert.rejects(control.startUpdate(f, 51), /CI API unavailable/);
+  await assert.rejects(
+    control.selectDeployment(f, {
+      action: 'validate-update',
+      number: 51,
+      expectedHead: 'old-head',
+    }),
+    /head changed/,
+  );
+});
+
+function automaticSync() {
+  const f = fixture();
+  published(f);
+  const pr = {
+    number: 52,
+    state: 'open',
+    draft: false,
+    mergeable: true,
+    base: {
+      ref: 'cloudflare-migration',
+      sha: 'dev',
+      repo: { full_name: fullName },
+    },
+    head: {
+      ref: sync.SYNC_BRANCH,
+      sha: 'published',
+      repo: { full_name: fullName },
+    },
+  };
+  f.syncPrs = [pr];
+  f.syncPr = pr;
+  f.refs[`heads/${sync.SYNC_BRANCH}`] = 'published';
+  f.github.rest.pulls.get = async () => response(structuredClone(pr));
+  f.merges = [];
+  f.github.rest.pulls.merge = async (args) => {
+    f.merges.push(args);
+    return response({ merged: true, sha: 'merged-sync' });
+  };
+  f.ciRuns = [
+    {
+      id: 10,
+      run_attempt: 1,
+      status: 'completed',
+      conclusion: 'success',
+      head_sha: 'published',
+      head_branch: sync.SYNC_BRANCH,
+      event: 'pull_request',
+      path: '.github/workflows/contribution-checks.yml',
+      repository: { full_name: fullName },
+      head_repository: { full_name: fullName },
+      pull_requests: [
+        { number: 52, head: { sha: 'published' }, base: { sha: 'dev' } },
+      ],
+    },
+  ];
+  f.artifacts = [{ name: 'published-sync-ci-10-1-dev', expired: false }];
+  return f;
+}
+
+test('published sync merges only the exact reviewed published SHA with successful current-base CI', async () => {
+  const f = automaticSync();
+  f.main = 'unpublished-main';
+  assert.deepEqual(await sync.autoMergePublishedSync(f), {
+    state: 'merged',
+    pr: 52,
+    sha: 'merged-sync',
+  });
+  assert.deepEqual(f.merges, [
+    { ...repo, pull_number: 52, sha: 'published', merge_method: 'merge' },
+  ]);
+  assert.equal(
+    f.writes.some((w) => w.ref === 'heads/main' || w.force),
+    false,
+  );
+});
+
+for (const [name, change] of [
+  [
+    'unpublished head',
+    (f) => {
+      f.syncPr.head.sha = 'unpublished';
+    },
+  ],
+  [
+    'main target',
+    (f) => {
+      f.syncPr.base.ref = 'main';
+    },
+  ],
+  [
+    'fork source',
+    (f) => {
+      f.syncPr.head.repo.full_name = 'fork/repo';
+    },
+  ],
+  [
+    'different source',
+    (f) => {
+      f.syncPr.head.ref = 'other';
+    },
+  ],
+  [
+    'draft PR',
+    (f) => {
+      f.syncPr.draft = true;
+    },
+  ],
+  [
+    'failed CI',
+    (f) => {
+      f.ciRuns[0].conclusion = 'failure';
+    },
+  ],
+  [
+    'old base CI',
+    (f) => {
+      f.ciRuns[0].pull_requests[0].base.sha = 'old';
+    },
+  ],
+  [
+    'unidentified CI base',
+    (f) => {
+      delete f.ciRuns[0].pull_requests[0].base;
+    },
+  ],
+  [
+    'conflict',
+    (f) => {
+      f.syncPr.mergeable = false;
+    },
+  ],
+  [
+    'unknown mergeability',
+    (f) => {
+      f.syncPr.mergeable = null;
+    },
+  ],
+  [
+    'advanced development',
+    (f) => {
+      f.dev = 'new-dev';
+    },
+  ],
+  [
+    'advanced sync branch',
+    (f) => {
+      f.refs[`heads/${sync.SYNC_BRANCH}`] = 'other';
+    },
+  ],
+])
+  test(`published sync does not auto-merge ${name}`, async () => {
+    const f = automaticSync();
+    change(f);
+    await assert.rejects(sync.autoMergePublishedSync(f));
+    assert.equal(f.merges.length, 0);
+  });
+
+test('new CI attempts supersede old success and pending/missing CI does not merge', async () => {
+  const f = automaticSync();
+  f.ciRuns.push({
+    ...structuredClone(f.ciRuns[0]),
+    run_attempt: 2,
+    conclusion: 'failure',
+  });
+  await assert.rejects(sync.autoMergePublishedSync(f), /failed/);
+  f.ciRuns[1].status = 'in_progress';
+  assert.equal((await sync.autoMergePublishedSync(f)).state, 'waiting-for-ci');
+  f.ciRuns = [];
+  assert.equal((await sync.autoMergePublishedSync(f)).state, 'waiting-for-ci');
+  assert.equal(f.merges.length, 0);
+});
+
+test('a changed PR target or a new CI rerun during final checks stops merging', async () => {
+  const f = automaticSync();
+  let reads = 0;
+  f.github.rest.pulls.get = async () => {
+    const value = structuredClone(f.syncPr);
+    if (++reads === 2) value.base.ref = 'main';
+    return response(value);
+  };
+  await assert.rejects(sync.autoMergePublishedSync(f), /changed/);
+  const g = automaticSync();
+  const paginate = g.github.paginate;
+  let ciReads = 0;
+  g.github.paginate = async (method, args) => {
+    if (method === 'runs' && ++ciReads === 2)
+      g.ciRuns[0].status = 'in_progress';
+    return paginate(method, args);
+  };
+  await assert.rejects(sync.autoMergePublishedSync(g), /changed/);
+  assert.equal(f.merges.length + g.merges.length, 0);
+});
+
+test('sync automation ignores unrelated/fork CI events and never checks out PR code', async () => {
+  const f = automaticSync();
+  f.context.eventName = 'workflow_run';
+  f.context.payload.workflow_run = {
+    event: 'pull_request',
+    head_branch: sync.SYNC_BRANCH,
+    head_repository: { full_name: 'fork/repo' },
+  };
+  assert.equal((await sync.autoMergePublishedSync(f)).state, 'ignored');
+  assert.equal(f.merges.length, 0);
+  const workflow = await readFile(
+    '.github/workflows/published-sync.yml',
+    'utf8',
+  );
+  assert.match(workflow, /ref: main/);
+  assert.match(workflow, /group: published-main-sync/);
+  assert.doesNotMatch(workflow, /pnpm|wrangler|head\.sha|pulls\.merge/);
+  assert.match(workflow, /autoMergePublishedSync/);
+});
+
+test('immutable sync CI metadata binds the PR merge, head, base and run attempt', () => {
+  const event = {
+    pull_request: {
+      number: 52,
+      head: {
+        ref: sync.SYNC_BRANCH,
+        sha: 'a'.repeat(40),
+        repo: { full_name: fullName },
+      },
+      base: {
+        ref: 'cloudflare-migration',
+        sha: 'b'.repeat(40),
+        repo: { full_name: fullName },
+      },
+    },
+  };
+  const environment = {
+    GITHUB_REPOSITORY: fullName,
+    GITHUB_SHA: 'c'.repeat(40),
+    GITHUB_RUN_ID: '10',
+    GITHUB_RUN_ATTEMPT: '2',
+  };
+  assert.deepEqual(syncCIRecord(event, environment), {
+    pr: 52,
+    repository: fullName,
+    head: 'a'.repeat(40),
+    base: 'b'.repeat(40),
+    merge: 'c'.repeat(40),
+    runId: '10',
+    attempt: '2',
+  });
+  event.pull_request.base.ref = 'main';
+  assert.throws(() => syncCIRecord(event, environment));
+  event.pull_request.base.ref = 'cloudflare-migration';
+  event.pull_request.head.repo.full_name = 'fork/repo';
+  assert.throws(() => syncCIRecord(event, environment));
+});
+
+test('trusted sync CI completion permits published sync and the start workflow pins its handoff', async () => {
+  const f = automaticSync();
+  f.context.eventName = 'workflow_run';
+  f.context.payload.workflow_run = structuredClone(f.ciRuns[0]);
+  assert.equal((await sync.autoMergePublishedSync(f)).state, 'merged');
+  const workflow = await readFile('.github/workflows/cloudflare.yml', 'utf8');
+  assert.match(workflow, /default: start-update/);
+  assert.match(workflow, /EXPECTED_UPDATE_HEAD/);
+  assert.ok(
+    workflow.indexOf('await startUpdate(') <
+      workflow.indexOf('await selectDeployment('),
+  );
+  const ci = await readFile(
+    '.github/workflows/contribution-checks.yml',
+    'utf8',
+  );
+  assert.ok(
+    ci.indexOf('node scripts/sync-ci-record.cjs') >
+      ci.indexOf('run: corepack pnpm build'),
+  );
+  assert.match(
+    ci,
+    /published-sync-ci-.*github.run_attempt.*github.event.pull_request.base.sha/,
+  );
+});
+
+for (const [name, artifact] of [
+  ['old base', { name: 'published-sync-ci-10-1-old', expired: false }],
+  ['old attempt', { name: 'published-sync-ci-10-0-dev', expired: false }],
+  ['expired proof', { name: 'published-sync-ci-10-1-dev', expired: true }],
+  ['missing proof', null],
+])
+  test(`sync automation rejects ${name}`, async () => {
+    const f = automaticSync();
+    f.artifacts = artifact ? [artifact] : [];
+    await assert.rejects(sync.autoMergePublishedSync(f), /identity/);
+    assert.equal(f.merges.length, 0);
+  });
+
+test('prepared version commits must directly follow the head selected at start', async () => {
+  const f = fixture();
+  f.after = { ...f.before };
+  f.github.rest.repos.createOrUpdateFileContents = async () => {
+    f.pr.head.sha = 'prepared';
+    return response({ commit: { sha: 'prepared' } });
+  };
+  f.github.rest.git.getCommit = async ({ commit_sha }) =>
+    response({
+      tree: { sha: commit_sha },
+      parents: [{ sha: 'unexpected-head' }],
+    });
+  await assert.rejects(
+    control.startUpdate(f, 51),
+    /changed during preparation/,
+  );
+  assert.equal(f.state.lease, null);
+});
+
+test('sync automation fails closed on CI API errors and unsuccessful merge responses', async () => {
+  const f = automaticSync();
+  const paginate = f.github.paginate;
+  f.github.paginate = (method, args) => {
+    if (method === 'runs') throw Error('API unavailable');
+    return paginate(method, args);
+  };
+  await assert.rejects(sync.autoMergePublishedSync(f), /API unavailable/);
+  assert.equal(f.merges.length, 0);
+  const g = automaticSync();
+  g.github.rest.pulls.merge = async () => response({ merged: false });
+  await assert.rejects(sync.autoMergePublishedSync(g), /not merged/);
+});
 
 test('sync uses only the published commit, is idempotent, updates one PR and never resets development', async () => {
   const f = fixture();

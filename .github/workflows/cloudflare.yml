@@ -18,11 +18,17 @@ on:
     inputs:
       action:
         type: choice
-        default: development
+        default: start-update
         options:
-          [development, validate-update, abort-update, restore-development]
+          [
+            start-update,
+            development,
+            validate-update,
+            abort-update,
+            restore-development,
+          ]
       pr:
-        description: Dependency PR number (validate-update)
+        description: 更新PR番号（start-updateで準備・CI待ち・staging検証を連続実行）
         type: string
 permissions:
   contents: read
@@ -95,17 +101,35 @@ jobs:
       - uses: actions/checkout@v4
         with:
           fetch-depth: 0
+          ref: ${{ inputs.action == 'start-update' && 'main' || github.ref }}
+          persist-credentials: false
+      - name: Prepare dependency update and wait for CI
+        id: prepare-update
+        if: github.event_name == 'workflow_dispatch' && inputs.action == 'start-update'
+        uses: actions/github-script@v7
+        env:
+          UPDATE_PR: ${{ inputs.pr }}
+        with:
+          github-token: ${{ secrets.PROJECT_TOKEN }}
+          script: |
+            const { startUpdate } = require('./scripts/dependency-control.cjs');
+            const target = await startUpdate({ github, context, log: core.info }, process.env.UPDATE_PR);
+            core.setOutput('head', target.head);
+            await core.summary.addHeading('更新の準備・CI確認成功')
+              .addRaw(`PR #${target.pr}: ${target.head}`).write();
       - name: Select source and acquire durable staging ownership
         id: select
         uses: actions/github-script@v7
         env:
-          CONTROL_ACTION: ${{ inputs.action || 'development' }}
+          CONTROL_ACTION: ${{ inputs.action == 'start-update' && 'validate-update' || inputs.action || 'development' }}
           UPDATE_PR: ${{ inputs.pr }}
+          EXPECTED_UPDATE_HEAD: ${{ steps.prepare-update.outputs.head }}
         with:
           script: |
             const { selectDeployment } = require('./scripts/dependency-control.cjs');
             const selection = await selectDeployment({ github, context }, {
-              action: process.env.CONTROL_ACTION, number: process.env.UPDATE_PR });
+              action: process.env.CONTROL_ACTION, number: process.env.UPDATE_PR,
+              expectedHead: process.env.EXPECTED_UPDATE_HEAD });
             core.setOutput('selection', JSON.stringify(selection));
             core.setOutput('sha', selection.sha);
             core.setOutput('kind', selection.kind);

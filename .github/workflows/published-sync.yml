@@ -1,0 +1,33 @@
+name: Auto-merge published sync
+on:
+  workflow_run:
+    workflows: [Contribution checks]
+    types: [completed]
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  sync:
+    if: >-
+      github.event_name == 'workflow_dispatch' ||
+      (github.event.workflow_run.event == 'pull_request' &&
+       github.event.workflow_run.head_branch == 'automation/published-main' &&
+       github.event.workflow_run.head_repository.full_name == github.repository)
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    concurrency:
+      group: published-main-sync
+      cancel-in-progress: false
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: main
+          persist-credentials: false
+      - uses: actions/github-script@v7
+        with:
+          github-token: ${{ secrets.PROJECT_TOKEN }}
+          script: |
+            const { autoMergePublishedSync } = require('./scripts/dependency-sync.cjs');
+            const result = await autoMergePublishedSync({ github, context });
+            await core.summary.addHeading('公開済み変更の開発同期')
+              .addCodeBlock(JSON.stringify(result, null, 2), 'json').write();
