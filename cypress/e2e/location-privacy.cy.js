@@ -173,14 +173,22 @@ describe('釣行場所の地図と公開範囲', () => {
   for (const width of [1280, 390]) {
     it(`本人は場所名から地図を開き、公開設定の編集を保存できる（${width}px）`, () => {
       cy.viewport(width, 844);
+      cy.on('window:before:load', (win) => {
+        Object.defineProperty(win.navigator, 'geolocation', {
+          configurable: true,
+          value: {
+            getCurrentPosition(success) {
+              success({ coords: point });
+            },
+          },
+        });
+      });
       visit();
       cy.get(by('record-catch')).click();
       cy.get(by('location-visibility')).should('have.value', 'area');
       cy.get(by('catch-location')).type(`${marker}-location-self-${width}`);
-      cy.get('.position-editor summary').click();
-      cy.get(by('latitude')).type(String(point.latitude));
-      cy.get(by('longitude')).type(String(point.longitude));
-      cy.get(by('apply-coordinates')).click();
+      cy.get(by('get-location')).click();
+      cy.get(by('position-status')).should('contain', '位置指定済み');
       cy.get(by('fish-species')).type('アジ');
       cy.get(by('catch-memo')).type(marker);
       cy.intercept('POST', '/api/catches').as('createLocation');
@@ -193,7 +201,7 @@ describe('釣行場所の地図と公開範囲', () => {
         reload().then((rows) => {
           const saved = rows.find((x) => x.id === id);
           expect(saved.locationVisibility).to.equal('area');
-          expect(saved.position).to.include(point);
+          expect(saved.position).to.include({ ...point, source: 'gps' });
         });
         card(id)
           .find(by('location-map-trigger'))
@@ -227,7 +235,7 @@ describe('釣行場所の地図と公開範囲', () => {
           reload().then((rows) => {
             const saved = rows.find((x) => x.id === id);
             expect(saved.locationVisibility).to.equal(visibility);
-            expect(saved.position).to.include(point);
+            expect(saved.position).to.include({ ...point, source: 'gps' });
           });
           card(id).find(by('location-map-trigger')).scrollIntoView().click();
           cy.get(by('location-exact')).should('contain', '35.123000');

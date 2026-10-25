@@ -61,7 +61,7 @@ function loadMaps(apiKey: string) {
       return;
     }
     const script = document.createElement('script');
-    let timeout: ReturnType<typeof setTimeout>;
+    const timeout = setTimeout(() => fail(), 20000);
     const fail = () => {
       clearTimeout(timeout);
       script.remove();
@@ -79,7 +79,6 @@ function loadMaps(apiKey: string) {
     script.src = `https://maps.googleapis.com/maps/api/js?key=${encodeURIComponent(apiKey)}&callback=fishingMapsReady&loading=async&language=ja&region=JP`;
     script.async = true;
     script.onerror = fail;
-    timeout = setTimeout(fail, 20000);
     document.head.appendChild(script);
   });
   return loader;
@@ -100,6 +99,7 @@ export default function GoogleMap({
   editable = false,
   onChange,
   onSelect,
+  onAvailabilityChange,
 }: {
   apiKey: string;
   position?: Position | null;
@@ -108,15 +108,19 @@ export default function GoogleMap({
   editable?: boolean;
   onChange?: (p: Position) => void;
   onSelect?: (id: number) => void;
+  onAvailabilityChange?: (available: boolean) => void;
 }) {
   const element = useRef<HTMLDivElement>(null),
     map = useRef<MapInstance | null>(null),
-    callbacks = useRef({ onChange, onSelect }),
+    callbacks = useRef({ onChange, onSelect, onAvailabilityChange }),
     [maps, setMaps] = useState<Maps | null>(null),
     [error, setError] = useState(''),
+    [loadError, setLoadError] = useState(''),
     [search, setSearch] = useState(''),
     [searching, setSearching] = useState(false);
-  callbacks.current = { onChange, onSelect };
+  useEffect(() => {
+    callbacks.current = { onChange, onSelect, onAvailabilityChange };
+  }, [onChange, onSelect, onAvailabilityChange]);
   useEffect(() => {
     if (!apiKey) return;
     let active = true;
@@ -125,7 +129,7 @@ export default function GoogleMap({
         if (active) setMaps(value);
       })
       .catch((e) => {
-        if (active) setError(e.message);
+        if (active) setLoadError(e.message);
       });
     return () => {
       active = false;
@@ -155,6 +159,9 @@ export default function GoogleMap({
       map.current = null;
     };
   }, [maps, editable]);
+  useEffect(() => {
+    callbacks.current.onAvailabilityChange?.(!!apiKey && !!maps && !loadError);
+  }, [apiKey, maps, loadError]);
   const pointKey = JSON.stringify(points),
     positionKey = JSON.stringify(position),
     areaKey = JSON.stringify(area);
@@ -261,15 +268,16 @@ export default function GoogleMap({
     return (
       <p className="map-notice">
         {editable
-          ? '地図は準備中です。現在地・緯度経度で位置を保存できます。'
+          ? '地図は準備中です。地図での位置指定・場所名検索は利用できません。'
           : '地図は準備中です。時間をおいて再度お試しください。'}
       </p>
     );
   return (
     <div className="google-map-wrap">
-      {editable && (
+      {editable && !loadError && (
         <div className="map-search">
           <input
+            data-cy="map-search-input"
             aria-label="地図で場所名を検索"
             placeholder="地名・住所で地図を移動"
             value={search}
@@ -283,6 +291,7 @@ export default function GoogleMap({
           />
           <button
             type="button"
+            data-cy="map-search-button"
             onClick={findPlace}
             disabled={!maps || searching}
           >
@@ -302,11 +311,12 @@ export default function GoogleMap({
               : '釣行場所の地図'
         }
       />
-      {!maps && !error && <p role="status">地図を読み込み中…</p>}
+      {!maps && !loadError && <p role="status">地図を読み込み中…</p>}
+      {loadError && <p role="alert">{loadError}</p>}
       {error && <p role="alert">{error}</p>}
-      {editable && (
+      {editable && maps && !loadError && (
         <p className="photo-help">
-          地図をタップして位置を選択。ピンをドラッグして調整できます。
+          検索後、地図をタップして位置を指定してください。検索だけでは位置は確定しません。ピンをドラッグして調整できます。
         </p>
       )}
     </div>

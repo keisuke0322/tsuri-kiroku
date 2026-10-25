@@ -394,26 +394,31 @@ describe('釣果の主要操作', () => {
     it(`${width}px: 位置登録・再利用・お気に入り・過去の釣行を保持`, () => {
       cy.viewport(width, 900);
       cy.intercept('GET', '/api/catches').as('list');
-      cy.visit('/', {
-        onBeforeLoad(win) {
-          Object.defineProperty(win.navigator, 'geolocation', {
-            value: {
-              getCurrentPosition(_success, failure) {
-                failure({ code: 1 });
-              },
+      let gpsCalls = 0;
+      cy.on('window:before:load', (win) => {
+        Object.defineProperty(win.navigator, 'geolocation', {
+          value: {
+            getCurrentPosition(success, failure) {
+              if (gpsCalls++ === 0) failure({ code: 1 });
+              else
+                success({
+                  coords: {
+                    latitude: gpsCalls === 2 ? 35.123 : 36,
+                    longitude: 139.456,
+                  },
+                });
             },
-          });
-        },
+          },
+        });
       });
+      cy.visit('/');
       cy.wait('@list').its('response.statusCode').should('equal', 200);
       cy.get(by('record-catch')).click();
       cy.get(by('catch-location')).type(`${marker}-map-${width}`);
       cy.get(by('get-location')).click();
       cy.contains('現在地を取得できませんでした。').should('be.visible');
-      cy.contains('summary', '緯度・経度で指定').click();
-      cy.get(by('latitude')).type('35.123');
-      cy.get(by('longitude')).type('139.456');
-      cy.get(by('apply-coordinates')).click();
+      cy.get(by('latitude')).should('not.exist');
+      cy.get(by('get-location')).click();
       cy.get(by('selected-position')).should('contain', '35.123000');
       cy.get(by('fish-species')).type('アジ');
       cy.get(by('catch-memo')).type(marker);
@@ -452,18 +457,17 @@ describe('釣果の主要操作', () => {
           cy.get(by('map-start')).clear();
           cy.get(`${by('map-spot')}[data-spot-id="${spotId}"]`).click();
           cy.get(by('edit-spot')).click();
-          cy.get('.spot-edit summary').click();
-          cy.get('.spot-edit ' + by('latitude'))
-            .clear()
-            .type('36');
+          cy.get('.spot-edit ' + by('get-location')).click();
           cy.get(by('spot-name')).clear().type(`${marker}-renamed-${width}`);
-          // Renaming must retain the coordinate draft and avoid update loops.
-          cy.get('.spot-edit ' + by('latitude')).should('have.value', '36');
+          // Renaming must retain the selected GPS position.
+          cy.get('.spot-edit ' + by('selected-position')).should(
+            'contain',
+            '36.000000',
+          );
           cy.get(by('spot-name')).should(
             'have.value',
             `${marker}-renamed-${width}`,
           );
-          cy.get('.spot-edit ' + by('apply-coordinates')).click();
           cy.intercept('PUT', `/api/spots/${spotId}`).as('editSpot');
           cy.get(by('save-spot')).click();
           cy.wait('@editSpot').then(({ request, response }) => {
