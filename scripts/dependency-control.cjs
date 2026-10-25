@@ -54,11 +54,13 @@ async function removeApproval({ github, context }, pr) {
     });
 }
 
-async function prepareUpdate(options, number) {
+async function prepareUpdate(options, number, { expectedHead } = {}) {
   await requireAdmin(options);
   const { github, context } = options;
   const state = await readState(options);
   const pr = await getPr(options, number);
+  if (expectedHead && pr.head.sha !== expectedHead)
+    throw Error('PR changed before preparation; start validation again.');
   if (pr.state !== 'open') throw Error('Update PR must be open.');
   if (state.lease && state.lease.pr !== pr.number)
     throw Error(
@@ -141,7 +143,9 @@ async function startUpdate(
     throw Error('Start update validation from the latest main.');
   const original = await getPr(options, number);
   const originalHead = original.head.sha;
-  const target = await prepareUpdate(options, number);
+  const target = await prepareUpdate(options, number, {
+    expectedHead: originalHead,
+  });
   options.log?.(
     `Prepared PR #${target.pr} at ${target.head}; waiting for its CI.`,
   );

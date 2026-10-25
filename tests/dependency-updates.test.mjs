@@ -1125,6 +1125,21 @@ test('prepared version commits must directly follow the head selected at start',
   assert.equal(f.state.lease, null);
 });
 
+test('a dependency push between start and preparation cannot replace the selected head', async () => {
+  const f = fixture();
+  let reads = 0;
+  f.github.rest.pulls.get = async () => {
+    if (++reads === 2) f.pr.head.sha = 'concurrent-update';
+    return response(structuredClone(f.pr));
+  };
+  await assert.rejects(
+    control.startUpdate(f, 51),
+    /changed before preparation/,
+  );
+  assert.equal(f.writes.length, 0);
+  assert.equal(f.state.lease, null);
+});
+
 test('sync automation fails closed on CI API errors and unsuccessful merge responses', async () => {
   const f = automaticSync();
   const paginate = f.github.paginate;
