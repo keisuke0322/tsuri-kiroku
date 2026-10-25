@@ -90,5 +90,5 @@
 - main基準の依存更新PRは[依存更新の運用](docs/dependency-updates.md)に従う。通常の機能開発とは別ルートで、mainへの導入・setup成功後に有効となる。
 - 更新PRのCI成功後も共有stagingへ自動反映しない。管理者がmainから対象PRを指定する `start-update` を1回実行し、prepare・準備後のCI待ち・staging検証を連続実行する。E2E・稼働版照合と、管理者による画面確認後の動作確認済みラベルの監査記録を要求する。mainへのマージは引き続き手動とする。
 - `automation/dependency-state` は占有と確認の制御記録。削除や手編集で解除しない。失敗時も占有を保持し、明示的な中止・復帰手順を使う。
-- 公開成功後の同期PRは公開済みmainから開発へ向ける。同一リポジトリの `automation/published-main → cloudflare-migration` に限り、正式Releaseとの先端一致・最新CIの先端/base記録一致・競合なしを再照合して自動マージする。競合・CI失敗・先端/base変更・判定不能では停止し、手動対応する。開発ブランチのreset・未公開mainの同期・mainへの自動マージは行わない。
+- 公開成功後の同期PRは公開済みmainから開発へ向ける。同一リポジトリの `main → cloudflare-migration` に限り、main先端の本番デプロイ・正式Release成功、最新CIの先端/base記録一致、競合なしを再照合して自動マージする。mainが進んだ間は公開成功を待って再判定する。競合・CI失敗・開発base変更・判定不能では停止し、開発側で対応する。開発ブランチのreset・未公開mainの同期・mainへの自動マージは行わない。
 - 未対応Dependabot更新と未同期mainは機能公開を止める。保留は管理者の理由付き30日期限とし、古い成功チェックやラベルで迂回しない。必要なGitHub設定・実更新・通知の未確認を明示する。

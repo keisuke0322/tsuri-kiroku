@@ -75,8 +75,11 @@ jobs:
                 else if (action === 'defer' || action === 'undefer')
                   await deferUpdate(options, process.env.UPDATE_PR, process.env.DEFERRAL_REASON, action === 'undefer');
                 else if (action === 'sync' || action === 'cleanup') {
-                  const { syncPublished, cleanupMerged } = require('./scripts/dependency-sync.cjs');
-                  if (action === 'sync') await syncPublished(options);
+                  const { syncPublished, autoMergePublishedSync, cleanupMerged } = require('./scripts/dependency-sync.cjs');
+                  if (action === 'sync') {
+                    await syncPublished(options);
+                    await autoMergePublishedSync(options);
+                  }
                   else await cleanupMerged(options);
                 } else if (action !== 'refresh') throw Error('Unknown governance action.');
               }

@@ -19,6 +19,10 @@ const {
   requireFeatureReady,
 } = require('./dependency-policy.cjs');
 const { parseRelease, compareVersions } = require('./release-policy.cjs');
+const {
+  classifiedTitle,
+  refreshDependabotTitle,
+} = require('./dependency-titles.cjs');
 
 async function getPr(options, number) {
   if (!/^[1-9]\d*$/.test(String(number)))
@@ -114,6 +118,11 @@ async function prepareUpdate(options, number, { expectedHead } = {}) {
     ...context.repo,
     pull_number: pr.number,
     body,
+    title: await classifiedTitle(options, {
+      ...pr,
+      body,
+      head: { ...pr.head, sha: head },
+    }),
   });
   if (state.lease) {
     state.lease.phase = 'reserved';
@@ -448,6 +457,11 @@ async function refreshGates(options) {
     per_page: 100,
   });
   for (const pr of prs) {
+    try {
+      await refreshDependabotTitle(options, pr);
+    } catch {
+      console.warn(`PR #${pr.number}: could not update dependency title.`);
+    }
     await github.rest.repos.createCommitStatus({
       ...context.repo,
       sha: pr.head.sha,

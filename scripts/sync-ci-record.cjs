@@ -6,7 +6,7 @@ function syncCIRecord(event, environment) {
     !/^[^/]+\/[^/]+$/.test(environment.GITHUB_REPOSITORY || '') ||
     !/^[1-9]\d*$/.test(String(pr?.number)) ||
     pr?.base?.ref !== 'cloudflare-migration' ||
-    pr.head?.ref !== 'automation/published-main' ||
+    pr.head?.ref !== 'main' ||
     pr.head.repo?.full_name !== environment.GITHUB_REPOSITORY ||
     pr.base.repo?.full_name !== environment.GITHUB_REPOSITORY ||
     !/^[a-f0-9]{40}$/.test(pr.head.sha) ||

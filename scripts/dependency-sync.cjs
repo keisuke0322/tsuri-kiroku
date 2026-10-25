@@ -1,5 +1,5 @@
-const { optional } = require('./dependency-state.cjs');
-const SYNC_BRANCH = 'automation/published-main';
+const { optional, currentMain } = require('./dependency-state.cjs');
+const SYNC_BRANCH = 'main';
 
 async function publishedRelease({ github, context }) {
   const { data: release } = await github.rest.repos.getLatestRelease(
@@ -65,6 +65,8 @@ async function publishedRelease({ github, context }) {
 async function syncPublished(options) {
   const { github, context } = options;
   const { release, record } = await publishedRelease(options);
+  if ((await currentMain(options)) !== record.sha)
+    return { state: 'waiting-for-publication' };
   const { data: development } = await github.rest.repos.compareCommits({
     ...context.repo,
     base: record.sha,
@@ -72,42 +74,6 @@ async function syncPublished(options) {
     per_page: 100,
   });
   if (['ahead', 'identical'].includes(development.status)) return;
-  const old = await optional(() =>
-    github.rest.git.getRef({ ...context.repo, ref: `heads/${SYNC_BRANCH}` }),
-  );
-  if (old && old.object.sha !== record.sha) {
-    const { data } = await github.rest.repos.compareCommits({
-      ...context.repo,
-      base: old.object.sha,
-      head: record.sha,
-      per_page: 100,
-    });
-    if (data.status === 'ahead') {
-      await github.rest.git.updateRef({
-        ...context.repo,
-        ref: `heads/${SYNC_BRANCH}`,
-        sha: record.sha,
-        force: false,
-      });
-    } else if (data.status === 'diverged') {
-      // Preserve administrator conflict resolutions and development changes on
-      // the sync branch. Merge only the exact published commit, never live main.
-      await github.rest.repos.merge({
-        ...context.repo,
-        base: SYNC_BRANCH,
-        head: record.sha,
-        commit_message: `chore: sync published ${release.tag_name}`,
-      });
-    } else if (!['behind', 'identical'].includes(data.status)) {
-      throw Error('Could not establish published sync history.');
-    }
-  } else if (!old) {
-    await github.rest.git.createRef({
-      ...context.repo,
-      ref: `refs/heads/${SYNC_BRANCH}`,
-      sha: record.sha,
-    });
-  }
   const prs = await github.paginate(github.rest.pulls.list, {
     ...context.repo,
     state: 'open',
@@ -119,10 +85,10 @@ async function syncPublished(options) {
   const body =
     `公開済み ${release.tag_name} (${record.sha}) を開発ブランチへ取り込みます。\n\n` +
     `本番デプロイ・稼働情報検証・Release作成成功済み: ${release.html_url}\n\n` +
-    '公開済みコミットと先端が一致し、最新の開発ブランチとのContribution checksが成功して競合がない場合は自動マージします。競合・CI失敗・先端や開発ブランチの変更時は停止するため、確認・解消後に手動でマージしてください。開発中の変更は保持します。';
+    'mainの先端の本番デプロイ・Release作成と、最新の開発ブランチとのContribution checksが成功して競合がない場合は自動マージします。mainに追加変更が入った間は公開成功を待ちます。競合・CI失敗・開発baseの変更は手動で確認してください。開発中の変更は保持します。';
   const values = {
     ...context.repo,
-    title: 'chore: sync published main into development',
+    title: 'chore: sync main into development',
     body,
   };
   if (prs[0])
@@ -171,11 +137,13 @@ async function autoMergePublishedSync(options) {
     pr.head?.ref !== SYNC_BRANCH ||
     pr.base.repo?.full_name !== repository ||
     pr.head.repo?.full_name !== repository ||
-    pr.head.sha !== record.sha
+    !pr.head.sha
   )
     throw Error(
-      'Sync PR must contain exactly the published release; review manually.',
+      'Only the same-repository main to development sync PR is eligible.',
     );
+  if (pr.head.sha !== record.sha || (await currentMain(options)) !== record.sha)
+    return { state: 'waiting-for-publication', pr: pr.number };
   async function currentCI() {
     const runs = await github.paginate(github.rest.actions.listWorkflowRuns, {
       ...context.repo,
@@ -238,6 +206,12 @@ async function autoMergePublishedSync(options) {
   const latest = await publishedRelease(options);
   const confirmed = await currentCI();
   if (
+    source.object.sha !== record.sha ||
+    latest.record.sha !== record.sha ||
+    current.head.sha !== pr.head.sha
+  )
+    return { state: 'waiting-for-publication', pr: pr.number };
+  if (
     current.state !== 'open' ||
     current.base?.ref !== 'cloudflare-migration' ||
     current.head?.ref !== SYNC_BRANCH ||
@@ -249,10 +223,8 @@ async function autoMergePublishedSync(options) {
     confirmed?.conclusion !== 'success' ||
     current.draft ||
     current.mergeable !== true ||
-    current.head.sha !== pr.head.sha ||
     current.base.sha !== pr.base.sha ||
     development.object.sha !== tested.base.sha ||
-    source.object.sha !== record.sha ||
     latest.record.sha !== record.sha
   )
     throw Error(
