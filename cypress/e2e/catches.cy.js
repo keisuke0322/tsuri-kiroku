@@ -60,7 +60,12 @@ function visit() {
 }
 function reload() {
   const alias = `reloadedList${++reloadSequence}`;
-  cy.intercept({ method: 'GET', pathname: '/api/catches', times: 1 }).as(alias);
+  // Stop this request's route matching so later @list waits cannot consume
+  // the reload response again through the original list route.
+  cy.intercept(
+    { method: 'GET', pathname: '/api/catches', times: 1 },
+    (request) => request.continue(),
+  ).as(alias);
   cy.reload();
   return cy.wait(`@${alias}`).then((interception) => {
     expect(interception.response, 'response from the reloaded page').to.be.an(
