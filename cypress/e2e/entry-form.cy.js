@@ -256,7 +256,7 @@ describe('釣果フォームの区分・任意の位置指定', () => {
           .should('equal', 200);
         cy.reload();
         card(id).should('contain', `no-position-${width}-edited`);
-        saved(id).its('position').should('equal', null);
+        saved(id).its('position').should('be.null');
       });
     });
   }
@@ -316,7 +316,15 @@ describe('釣果フォームの区分・任意の位置指定', () => {
         card(id).should('be.visible');
         saved(id).then((after) => {
           expect(after.position).to.deep.equal(before.position);
-          expect(after.fish).to.deep.equal(before.fish);
+          // Fish rows are recreated on save; compare the recorded values,
+          // while the catch ID still identifies the record under test.
+          const fishValues = (rows) =>
+            rows.map(({ species, count, length }) => ({
+              species,
+              count,
+              length,
+            }));
+          expect(fishValues(after.fish)).to.deep.equal(fishValues(before.fish));
           expect(after.combinations).to.deep.equal(before.combinations);
           expect(after.locationVisibility).to.equal(before.locationVisibility);
         });
