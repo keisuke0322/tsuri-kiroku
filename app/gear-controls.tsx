@@ -561,6 +561,9 @@ function CombinationCard({
               ))}
           </select>
         </label>
+        <p className="gear-help">
+          基本セットは変更せず、この記録だけ道具を差し替えられます。
+        </p>
         <div className="combination-overview" data-cy="combination-overview">
           <p>
             道具：
@@ -741,10 +744,14 @@ export function CombinationEditor({
   }
 
   return (
-    <fieldset ref={editor} className="combination-editor">
-      <legend>当日の組み合わせ（任意）</legend>
+    <fieldset
+      ref={editor}
+      className="combination-editor catch-section"
+      data-cy="gear-section"
+    >
+      <legend>使用した釣り道具（任意）</legend>
       <p className="gear-help">
-        基本セットは変更せず、この記録だけ道具を差し替えられます。最大20組・各30点。
+        この釣行で使った道具を記録できます。基本セットから選ぶこともできます。最大20組・各30点。
       </p>
       {legacyMethod}
       {value.map((c, index) => (

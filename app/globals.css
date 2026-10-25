@@ -1899,7 +1899,6 @@ button.featured-photo {
   height: 280px;
 }
 .map-filters,
-.map-coordinates,
 .map-search,
 .map-actions {
   display: flex;
@@ -1909,7 +1908,6 @@ button.featured-photo {
   margin: 12px 0;
 }
 .map-filters label,
-.map-coordinates label,
 .spot-edit label {
   display: flex;
   flex-direction: column;
@@ -1918,7 +1916,6 @@ button.featured-photo {
 }
 .map-filters input,
 .map-filters select,
-.map-coordinates input,
 .map-search input,
 .spot-edit input,
 .position-editor select {
@@ -1983,9 +1980,6 @@ button.featured-photo {
   border-radius: 8px;
   margin: 12px 0;
 }
-.position-editor details {
-  margin: 12px 0;
-}
 .position-editor p {
   overflow-wrap: anywhere;
 }
@@ -1999,9 +1993,6 @@ button.featured-photo {
   }
   .map-filters > label {
     flex: 1 1 130px;
-  }
-  .map-coordinates > label {
-    flex: 1 1 100px;
   }
   .map-coordinates input {
     width: 100%;
@@ -2603,4 +2594,34 @@ button.featured-photo {
   padding: 12px;
   border: 1px solid #dce8e9;
   border-radius: 8px;
+}
+
+/* Matching boundaries and headings for the three catch input sections. */
+.entry-form > .catch-section {
+  min-inline-size: 0;
+  margin: 0;
+  padding: 16px;
+  border: 1px solid #d7e5e6;
+  border-radius: 12px;
+  display: grid;
+  gap: 14px;
+}
+.entry-form > .catch-section > legend {
+  padding: 0 7px;
+  color: #365a64;
+  font-size: 16px;
+  font-weight: 700;
+}
+.catch-section .position-editor {
+  margin: 0;
+  padding: 12px;
+  background: #f5f9f9;
+}
+.catch-section .position-editor > legend {
+  font-size: 14px;
+}
+@media (max-width: 600px) {
+  .entry-form > .catch-section {
+    padding: 12px;
+  }
 }

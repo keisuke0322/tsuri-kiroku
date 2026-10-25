@@ -2,7 +2,7 @@
 
 import { useRef, useState, useEffect } from 'react';
 import GoogleMap from './google-map';
-import { parsePosition, type Position, type Spot } from './fishing-position';
+import { type Position, type Spot } from './fishing-position';
 
 export default function PositionEditor({
   apiKey,
@@ -10,29 +10,19 @@ export default function PositionEditor({
   onChange,
   spots = [],
   onName,
+  allowUnspecified = false,
 }: {
   apiKey: string;
   position: Position | null;
   onChange: (p: Position | null) => void;
   spots?: Spot[];
   onName?: (name: string) => void;
+  allowUnspecified?: boolean;
 }) {
   const [busy, setBusy] = useState(false),
     [error, setError] = useState(''),
-    [latitude, setLatitude] = useState(''),
-    [longitude, setLongitude] = useState(''),
+    [mapReady, setMapReady] = useState(false),
     request = useRef(0);
-  // Name edits can pass a new Position object with the same values. Only a
-  // changed position should reset coordinate drafts or schedule state updates.
-  useEffect(() => {
-    setLatitude(position?.latitude.toString() ?? '');
-    setLongitude(position?.longitude.toString() ?? '');
-  }, [
-    position?.latitude,
-    position?.longitude,
-    position?.source,
-    position?.spotId,
-  ]);
   useEffect(
     () => () => {
       request.current++;
@@ -49,7 +39,7 @@ export default function PositionEditor({
 
   function locate() {
     if (!navigator.geolocation) {
-      setError('現在地に対応していません。地図から指定してください。');
+      setError('この端末では現在地を取得できません。');
       return;
     }
     const version = ++request.current;
@@ -69,28 +59,11 @@ export default function PositionEditor({
         if (version !== request.current) return;
         setBusy(false);
         setError(
-          '現在地を取得できませんでした。位置情報の許可を確認するか、地図から指定してください。',
+          '現在地を取得できませんでした。位置情報の許可や端末の設定を確認してください。',
         );
       },
       { enableHighAccuracy: true, timeout: 15000, maximumAge: 0 },
     );
-  }
-
-  function coordinates() {
-    const p =
-      latitude.trim() && longitude.trim()
-        ? parsePosition({
-            latitude: Number(latitude),
-            longitude: Number(longitude),
-            source: 'map',
-            spotId: position?.spotId,
-          })
-        : null;
-    if (!p) {
-      setError('緯度は−90〜90、経度は−180〜180で両方入力してください。');
-      return;
-    }
-    change(p);
   }
 
   return (
@@ -140,50 +113,33 @@ export default function PositionEditor({
         apiKey={apiKey}
         position={position}
         editable
+        onAvailabilityChange={setMapReady}
         onChange={(p) => change({ ...p, spotId: position?.spotId })}
       />
-      <details>
-        <summary>緯度・経度で指定</summary>
-        <div className="map-coordinates">
-          <label>
-            緯度
-            <input
-              data-cy="latitude"
-              type="number"
-              step="any"
-              min="-90"
-              max="90"
-              value={latitude}
-              onChange={(e) => setLatitude(e.target.value)}
-            />
-          </label>
-          <label>
-            経度
-            <input
-              data-cy="longitude"
-              type="number"
-              step="any"
-              min="-180"
-              max="180"
-              value={longitude}
-              onChange={(e) => setLongitude(e.target.value)}
-            />
-          </label>
-          <button
-            type="button"
-            data-cy="apply-coordinates"
-            onClick={coordinates}
-          >
-            この場所で登録
-          </button>
+      {error && (
+        <div role="alert">
+          <p>{error}</p>
+          {mapReady && <p>地図をタップして位置を指定できます。</p>}
+          {spots.length > 0 && (
+            <p>過去の釣り場・お気に入りから選択できます。</p>
+          )}
         </div>
-      </details>
-      {error && <p role="alert">{error}</p>}
+      )}
+      {allowUnspecified && (
+        <p className="photo-help">場所名だけでも保存できます。</p>
+      )}
+      <p role="status" data-cy="position-status">
+        {position ? '位置指定済み' : '位置未指定'}
+      </p>
       {position && (
         <p data-cy="selected-position">
           選択位置：{position.latitude.toFixed(6)},{' '}
           {position.longitude.toFixed(6)}
-          <button type="button" onClick={() => change(null)}>
+          <button
+            type="button"
+            data-cy="clear-position"
+            onClick={() => change(null)}
+          >
             位置を解除
           </button>
         </p>

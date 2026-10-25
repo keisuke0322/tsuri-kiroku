@@ -1012,8 +1012,11 @@ export default function FishingLog({
                       setForm((current) => ({ ...current, date }))
                     }
                   />
+                </div>
+                <fieldset className="catch-section" data-cy="location-section">
+                  <legend>釣りをした場所</legend>
                   <label>
-                    <span className="required-field-label">場所 ※</span>
+                    <span className="required-field-label">場所名 ※</span>
                     <Input
                       data-cy="catch-location"
                       {...fieldProps('location')}
@@ -1026,45 +1029,58 @@ export default function FishingLog({
                     />
                     {fieldError('location')}
                   </label>
-                </div>
-                <PositionEditor
-                  apiKey={mapsApiKey}
-                  position={form.position}
-                  spots={spots}
-                  onChange={(position) =>
-                    setForm((current) => ({ ...current, position }))
-                  }
-                  onName={(location) =>
-                    setForm((current) => ({ ...current, location }))
-                  }
-                />
-                <label>
-                  場所の公開範囲
-                  <select
-                    data-cy="location-visibility"
-                    value={form.locationVisibility}
-                    onChange={(e) =>
-                      setForm((current) => ({
-                        ...current,
-                        locationVisibility: e.target
-                          .value as LocationVisibility,
-                      }))
+                  <p className="photo-help">
+                    地図の位置を指定しなくても保存できます。
+                  </p>
+                  <PositionEditor
+                    apiKey={mapsApiKey}
+                    position={form.position}
+                    spots={spots}
+                    allowUnspecified
+                    onChange={(position) =>
+                      setForm((current) => ({ ...current, position }))
                     }
-                  >
-                    <option value="area">エリアのみ公開</option>
-                    <option value="exact">正確な位置も公開</option>
-                    <option value="private">場所を非公開</option>
-                  </select>
-                  <span className="photo-help">
-                    {form.locationVisibility === 'area'
-                      ? '他の人にはおおよそのエリアを表示します（半径8km）。'
-                      : 'exact' === form.locationVisibility
-                        ? '他の人にも正確な位置のピンを表示します。'
-                        : '他の人には場所名と地図を表示しません。'}
-                    自分は保存した正確な位置を確認できます。
-                  </span>
-                </label>
-                <fieldset className="fish-editor">
+                    onName={(location) =>
+                      setForm((current) => ({ ...current, location }))
+                    }
+                  />
+                  <label>
+                    場所の公開範囲
+                    <select
+                      data-cy="location-visibility"
+                      value={form.locationVisibility}
+                      onChange={(e) =>
+                        setForm((current) => ({
+                          ...current,
+                          locationVisibility: e.target
+                            .value as LocationVisibility,
+                        }))
+                      }
+                    >
+                      <option value="area">エリアのみ公開</option>
+                      <option value="exact">正確な位置も公開</option>
+                      <option value="private">場所を非公開</option>
+                    </select>
+                    <span
+                      className="photo-help"
+                      data-cy="location-visibility-help"
+                    >
+                      {form.locationVisibility === 'private'
+                        ? '他の人には場所名と地図を表示しません。'
+                        : !form.position
+                          ? '他の人には場所名を表示します。位置未指定のため、地図のピンやエリアは表示しません。'
+                          : form.locationVisibility === 'area'
+                            ? '他の人にはおおよそのエリアを表示します（半径8km）。'
+                            : '他の人にも正確な位置のピンを表示します。'}
+                      {form.position &&
+                        '自分は保存した正確な位置を確認できます。'}
+                    </span>
+                  </label>
+                </fieldset>
+                <fieldset
+                  className="fish-editor catch-section"
+                  data-cy="fish-section"
+                >
                   <legend>釣った魚</legend>
                   {form.fish.map((fish, index) => (
                     <div className="fish-row" key={index}>
