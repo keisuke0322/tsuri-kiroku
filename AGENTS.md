@@ -47,7 +47,7 @@
 2. PRには変更の目的・最終的な動作・検証結果・関連Issueを記載する。対応が完了するIssueはPR本文の独立した行に`Refs #番号`で関連付ける（複数は`Refs #12, #13`）。本番デプロイ成功後にActionsが閉じるため、`Closes`・`Fixes`・`Resolves`は使わない。PRのURLを報告し、Codexのチャットにも添付する。
    公開PRには[資材のバージョン管理](docs/releases.md)に従い、`package.json`と一致する`Release-Version: vMAJOR.MINOR.PATCH`と`### DB変更・復旧`を記載する。本番デプロイとRelease作成の両方が成功してからIssueが完了する。Release作成だけの失敗は失敗ジョブのみ再実行し、公開済みタグを移動しない。
 3. `PR checks`の成功を確認する。ワークフローはPR先端コミットのstaging成功を検証する。確認後に追加修正をpushした場合は、その変更をstagingで再確認してもらう。
-4. 1人運用のため承認レビューを必須にせず、ユーザー自身がPRを確認・マージする。AIは独断でマージしない。
+4. 1人運用のため承認レビューを必須にせず、ユーザー自身がPRを確認・マージする。AIは独断で本番向けPRをマージしない。公開後の開発同期PRだけは、下記の条件を満たすワークフローによる自動マージを許可する。
 5. 継続利用する開発ブランチなので、マージ方法は`Create a merge commit`とし、`cloudflare-migration`は削除しない。
 6. mainへのマージでGitHub Actionsがmainのコードをproductionへ自動デプロイする。mainへ直接pushしない。ブランチ保護やデプロイ検証を迂回しない。
 7. 本番への手動デプロイ・再実行は、ユーザーが指示した場合に行う。手動ワークフローもmainはproduction、cloudflare-migrationはstagingに対応する。
@@ -88,7 +88,7 @@
 ## 依存更新の公開
 
 - main基準の依存更新PRは[依存更新の運用](docs/dependency-updates.md)に従う。通常の機能開発とは別ルートで、mainへの導入・setup成功後に有効となる。
-- 更新PRのCI成功後も共有stagingへ自動反映しない。管理者によるprepare、対象PRを指定したvalidate-update、E2E・稼働版照合、動作確認済みラベルの監査記録を要求する。
+- 更新PRのCI成功後も共有stagingへ自動反映しない。管理者がmainから対象PRを指定する `start-update` を1回実行し、prepare・準備後のCI待ち・staging検証を連続実行する。E2E・稼働版照合と、管理者による画面確認後の動作確認済みラベルの監査記録を要求する。mainへのマージは引き続き手動とする。
 - `automation/dependency-state` は占有と確認の制御記録。削除や手編集で解除しない。失敗時も占有を保持し、明示的な中止・復帰手順を使う。
-- 公開成功後の同期PRは公開済みmainから開発へ向ける。自動マージ・開発ブランチのreset・未公開mainの同期を行わない。
+- 公開成功後の同期PRは公開済みmainから開発へ向ける。同一リポジトリの `automation/published-main → cloudflare-migration` に限り、正式Releaseとの先端一致・最新CIの先端/base記録一致・競合なしを再照合して自動マージする。競合・CI失敗・先端/base変更・判定不能では停止し、手動対応する。開発ブランチのreset・未公開mainの同期・mainへの自動マージは行わない。
 - 未対応Dependabot更新と未同期mainは機能公開を止める。保留は管理者の理由付き30日期限とし、古い成功チェックやラベルで迂回しない。必要なGitHub設定・実更新・通知の未確認を明示する。

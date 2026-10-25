@@ -119,7 +119,7 @@ async function syncPublished(options) {
   const body =
     `公開済み ${release.tag_name} (${record.sha}) を開発ブランチへ取り込みます。\n\n` +
     `本番デプロイ・稼働情報検証・Release作成成功済み: ${release.html_url}\n\n` +
-    '開発中の変更を保持してください。競合は手動解消し、最新の開発コードとのContribution checks成功と差分を確認して手動マージしてください。自動マージしません。';
+    '公開済みコミットと先端が一致し、最新の開発ブランチとのContribution checksが成功して競合がない場合は自動マージします。競合・CI失敗・先端や開発ブランチの変更時は停止するため、確認・解消後に手動でマージしてください。開発中の変更は保持します。';
   const values = {
     ...context.repo,
     title: 'chore: sync published main into development',
@@ -133,6 +133,140 @@ async function syncPublished(options) {
       head: SYNC_BRANCH,
       base: 'cloudflare-migration',
     });
+}
+
+async function autoMergePublishedSync(options) {
+  const { github, context } = options;
+  const repository = `${context.repo.owner}/${context.repo.repo}`;
+  if (context.ref !== 'refs/heads/main')
+    throw Error('Run published sync automation from main.');
+  const event = context.payload?.workflow_run;
+  if (
+    context.eventName === 'workflow_run' &&
+    (event?.event !== 'pull_request' ||
+      event.head_branch !== SYNC_BRANCH ||
+      event.head_repository?.full_name !== repository ||
+      event.path !== '.github/workflows/contribution-checks.yml')
+  )
+    return { state: 'ignored' };
+  const prs = await github.paginate(github.rest.pulls.list, {
+    ...context.repo,
+    state: 'open',
+    base: 'cloudflare-migration',
+    head: `${context.repo.owner}:${SYNC_BRANCH}`,
+    per_page: 100,
+  });
+  if (!prs.length) return { state: 'nothing-to-sync' };
+  if (prs.length !== 1)
+    throw Error('Multiple sync PRs found; resolve manually.');
+  const { data: pr } = await github.rest.pulls.get({
+    ...context.repo,
+    pull_number: prs[0].number,
+  });
+  const { record } = await publishedRelease(options);
+  if (
+    pr.state !== 'open' ||
+    pr.draft ||
+    pr.base?.ref !== 'cloudflare-migration' ||
+    pr.head?.ref !== SYNC_BRANCH ||
+    pr.base.repo?.full_name !== repository ||
+    pr.head.repo?.full_name !== repository ||
+    pr.head.sha !== record.sha
+  )
+    throw Error(
+      'Sync PR must contain exactly the published release; review manually.',
+    );
+  async function currentCI() {
+    const runs = await github.paginate(github.rest.actions.listWorkflowRuns, {
+      ...context.repo,
+      workflow_id: 'contribution-checks.yml',
+      head_sha: pr.head.sha,
+      event: 'pull_request',
+      per_page: 100,
+    });
+    return runs
+      .filter(
+        (item) =>
+          item.head_sha === pr.head.sha &&
+          item.head_branch === SYNC_BRANCH &&
+          item.event === 'pull_request' &&
+          item.path === '.github/workflows/contribution-checks.yml' &&
+          item.repository?.full_name === repository &&
+          item.head_repository?.full_name === repository &&
+          item.pull_requests?.some((p) => p.number === pr.number),
+      )
+      .sort((a, b) => b.id - a.id || b.run_attempt - a.run_attempt)[0];
+  }
+  const run = await currentCI();
+  if (!run || run.status !== 'completed')
+    return { state: 'waiting-for-ci', pr: pr.number };
+  if (run.conclusion !== 'success')
+    throw Error('Latest sync Contribution checks failed; review manually.');
+  const tested = run.pull_requests.find((p) => p.number === pr.number);
+  if (tested.head?.sha !== pr.head.sha || tested.base?.sha !== pr.base.sha)
+    throw Error(
+      'Sync CI does not match the current head and development base; review manually.',
+    );
+  // Artifact names bind the immutable CI event's base, rather than relying
+  // only on the PR association returned by GitHub after the base advances.
+  const artifacts = await github.paginate(
+    github.rest.actions.listWorkflowRunArtifacts,
+    {
+      ...context.repo,
+      run_id: run.id,
+      per_page: 100,
+    },
+  );
+  const identity = `published-sync-ci-${run.id}-${run.run_attempt}-${pr.base.sha}`;
+  if (
+    artifacts.filter((a) => a.name === identity && a.expired === false)
+      .length !== 1
+  )
+    throw Error('Missing exact tested sync base identity; review manually.');
+  const { data: current } = await github.rest.pulls.get({
+    ...context.repo,
+    pull_number: pr.number,
+  });
+  const { data: development } = await github.rest.git.getRef({
+    ...context.repo,
+    ref: 'heads/cloudflare-migration',
+  });
+  const { data: source } = await github.rest.git.getRef({
+    ...context.repo,
+    ref: `heads/${SYNC_BRANCH}`,
+  });
+  const latest = await publishedRelease(options);
+  const confirmed = await currentCI();
+  if (
+    current.state !== 'open' ||
+    current.base?.ref !== 'cloudflare-migration' ||
+    current.head?.ref !== SYNC_BRANCH ||
+    current.base?.repo?.full_name !== repository ||
+    current.head?.repo?.full_name !== repository ||
+    confirmed?.id !== run.id ||
+    confirmed?.run_attempt !== run.run_attempt ||
+    confirmed?.status !== 'completed' ||
+    confirmed?.conclusion !== 'success' ||
+    current.draft ||
+    current.mergeable !== true ||
+    current.head.sha !== pr.head.sha ||
+    current.base.sha !== pr.base.sha ||
+    development.object.sha !== tested.base.sha ||
+    source.object.sha !== record.sha ||
+    latest.record.sha !== record.sha
+  )
+    throw Error(
+      'Sync branches, release or mergeability changed; review manually.',
+    );
+  const { data: merged } = await github.rest.pulls.merge({
+    ...context.repo,
+    pull_number: pr.number,
+    sha: pr.head.sha,
+    merge_method: 'merge',
+  });
+  if (!merged.merged)
+    throw Error('Published sync was not merged; review manually.');
+  return { state: 'merged', pr: pr.number, sha: merged.sha };
 }
 
 async function cleanupMerged(options) {
@@ -175,5 +309,6 @@ module.exports = {
   SYNC_BRANCH,
   publishedRelease,
   syncPublished,
+  autoMergePublishedSync,
   cleanupMerged,
 };

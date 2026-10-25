@@ -13,6 +13,7 @@ const {
   isUpdate,
   inspectUpdate,
   requireCI,
+  latestContributionRun,
   matchesLease,
   requireUpdateEvidence,
   requireFeatureReady,
@@ -53,11 +54,13 @@ async function removeApproval({ github, context }, pr) {
     });
 }
 
-async function prepareUpdate(options, number) {
+async function prepareUpdate(options, number, { expectedHead } = {}) {
   await requireAdmin(options);
   const { github, context } = options;
   const state = await readState(options);
   const pr = await getPr(options, number);
+  if (expectedHead && pr.head.sha !== expectedHead)
+    throw Error('PR changed before preparation; start validation again.');
   if (pr.state !== 'open') throw Error('Update PR must be open.');
   if (state.lease && state.lease.pr !== pr.number)
     throw Error(
@@ -68,7 +71,8 @@ async function prepareUpdate(options, number) {
     actor: context.actor,
     at: new Date().toISOString(),
   };
-  const { package: pkg } = await inspectUpdate(options, pr, state);
+  const { package: pkg, baseSha } = await inspectUpdate(options, pr, state);
+  let head = pr.head.sha;
   const latest = await optional(() =>
     github.rest.repos.getLatestRelease(context.repo),
   );
@@ -89,7 +93,7 @@ async function prepareUpdate(options, number) {
     const content = Buffer.from(file.content, 'base64')
       .toString('utf8')
       .replace(/("version"\s*:\s*")[^"]+"/, `$1${next}"`);
-    await github.rest.repos.createOrUpdateFileContents({
+    const { data } = await github.rest.repos.createOrUpdateFileContents({
       ...context.repo,
       branch: pr.head.ref,
       path: 'package.json',
@@ -97,6 +101,7 @@ async function prepareUpdate(options, number) {
       message: `chore: prepare app release v${next}`,
       content: Buffer.from(content).toString('base64'),
     });
+    head = data.commit.sha;
     pkg.version = next;
   }
   let body = (pr.body || '').replace(/^Release-Version:.*\n?/gm, '').trim();
@@ -117,11 +122,71 @@ async function prepareUpdate(options, number) {
   }
   await writeState(options, state);
   await removeApproval(options, pr);
+  return { pr: pr.number, head, base: baseSha };
+}
+
+async function startUpdate(
+  options,
+  number,
+  {
+    attempts = 40,
+    sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms)),
+  } = {},
+) {
+  const { github, context } = options;
+  await requireAdmin(options);
+  if (
+    context.eventName !== 'workflow_dispatch' ||
+    context.ref !== 'refs/heads/main' ||
+    context.sha !== (await currentMain(options))
+  )
+    throw Error('Start update validation from the latest main.');
+  const original = await getPr(options, number);
+  const originalHead = original.head.sha;
+  const target = await prepareUpdate(options, number, {
+    expectedHead: originalHead,
+  });
+  options.log?.(
+    `Prepared PR #${target.pr} at ${target.head}; waiting for its CI.`,
+  );
+  if (target.head !== originalHead) {
+    const { data: commit } = await github.rest.git.getCommit({
+      ...context.repo,
+      commit_sha: target.head,
+    });
+    if (commit.parents?.length !== 1 || commit.parents[0].sha !== originalHead)
+      throw Error('PR changed during preparation; start validation again.');
+  }
+  for (let attempt = 0; attempt < attempts; attempt++) {
+    const pr = await getPr(options, target.pr);
+    if (
+      pr.state !== 'open' ||
+      pr.head.sha !== target.head ||
+      (await currentMain(options)) !== target.base ||
+      target.base !== context.sha
+    )
+      throw Error('PR/main changed; start validation again.');
+    const run = await latestContributionRun(options, pr);
+    if (run?.status === 'completed') {
+      if (run.conclusion !== 'success')
+        throw Error(
+          'Contribution checks failed; fix the update before restarting.',
+        );
+      return target;
+    }
+    options.log?.(
+      `Waiting for Contribution checks (${attempt + 1}/${attempts}): ${run?.id || 'not started'}`,
+    );
+    if (attempt + 1 < attempts) await sleep(15000);
+  }
+  throw Error(
+    'Timed out waiting for Contribution checks; restart validation after CI completes.',
+  );
 }
 
 async function selectDeployment(
   options,
-  { action = 'development', number } = {},
+  { action = 'development', number, expectedHead } = {},
 ) {
   const { github, context } = options;
   if (
@@ -136,6 +201,8 @@ async function selectDeployment(
       throw Error('Update validation controller must run on main.');
     await requireAdmin(options);
     const pr = await getPr(options, number);
+    if (expectedHead && pr.head.sha !== expectedHead)
+      throw Error('Prepared PR head changed; start validation again.');
     if (pr.state !== 'open' && !pr.merged_at)
       throw Error('Open or merged current-main update PR required.');
     const baseline = await validationBase(options, pr);
@@ -422,6 +489,7 @@ async function refreshGates(options) {
 module.exports = {
   getPr,
   prepareUpdate,
+  startUpdate,
   selectDeployment,
   finishDeployment,
   reconcileApproval,
