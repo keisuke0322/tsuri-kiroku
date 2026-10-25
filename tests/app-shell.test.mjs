@@ -19,6 +19,17 @@ test('root GET/HEAD and RSC serve public assets without rendering or forwarding 
     },
     { context },
   );
+  let listedRequest;
+  const catches = new vm.SyntheticModule(
+    ['GET'],
+    function () {
+      this.setExport('GET', (request) => {
+        listedRequest = request;
+        return new Response('authenticated catch list');
+      });
+    },
+    { context },
+  );
   const source = ts
     .transpileModule(await readFile('worker.ts', 'utf8'), {
       compilerOptions: {
@@ -29,6 +40,7 @@ test('root GET/HEAD and RSC serve public assets without rendering or forwarding 
     .outputText.replaceAll('import.meta.env.PROD', 'true');
   const workerModule = new vm.SourceTextModule(source, { context });
   await workerModule.link((specifier) => {
+    if (specifier === './app/api/catches/route') return catches;
     assert.equal(specifier, 'vinext/server/fetch-handler');
     return handler;
   });
@@ -76,6 +88,30 @@ test('root GET/HEAD and RSC serve public assets without rendering or forwarding 
     }
   }
   assert.equal(renders, 0);
+  const listRequest = new Request('https://test.example/api/catches', {
+    headers: { Cookie: 'tsuri_session=owner' },
+  });
+  assert.equal(
+    await (await worker.fetch(listRequest, env, {})).text(),
+    'authenticated catch list',
+  );
+  assert.equal(
+    listedRequest,
+    listRequest,
+    'Authentication receives the original request.',
+  );
+  assert.equal(
+    renders,
+    0,
+    'The list avoids framework rendering and context setup.',
+  );
+  for (const method of ['POST', 'HEAD', 'OPTIONS'])
+    await worker.fetch(
+      new Request('https://test.example/api/catches', { method }),
+      env,
+      {},
+    );
+  assert.equal(renders, 3, 'Other methods retain framework handling.');
   await worker.fetch(
     new Request('https://test.example/api/bootstrap'),
     env,
@@ -88,7 +124,7 @@ test('root GET/HEAD and RSC serve public assets without rendering or forwarding 
   );
   assert.equal(
     renders,
-    2,
+    5,
     'APIs and actions continue through the authenticated framework handlers.',
   );
   const missing = await worker.fetch(
@@ -101,7 +137,7 @@ test('root GET/HEAD and RSC serve public assets without rendering or forwarding 
   assert.equal(missing.status, 503);
   assert.equal(
     renders,
-    2,
+    5,
     'A missing build asset must not silently resume per-request SSR.',
   );
 });

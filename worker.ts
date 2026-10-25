@@ -1,4 +1,5 @@
 import handler from 'vinext/server/fetch-handler';
+import { GET as listCatches } from './app/api/catches/route';
 
 type ShellEnv = {
   ASSETS: Fetcher;
@@ -8,6 +9,10 @@ type ShellEnv = {
 const worker = {
   async fetch(request: Request, env: ShellEnv, ctx: ExecutionContext) {
     const url = new URL(request.url);
+    // This handler uses the supplied Request and Cloudflare bindings directly;
+    // it does not need Vinext's React rendering or request-context setup.
+    if (url.pathname === '/api/catches' && request.method === 'GET')
+      return listCatches(request);
     if (
       import.meta.env.PROD &&
       env.APP_SHELL_BUILD !== 'true' &&
