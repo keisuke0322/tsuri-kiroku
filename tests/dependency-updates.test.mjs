@@ -1071,6 +1071,11 @@ test('trusted sync CI completion permits published sync and the start workflow p
   assert.match(workflow, /default: start-update/);
   assert.match(workflow, /EXPECTED_UPDATE_HEAD/);
   assert.ok(
+    workflow.includes(
+      "inputs.action == 'start-update' && 'main' || github.sha",
+    ),
+  );
+  assert.ok(
     workflow.indexOf('await startUpdate(') <
       workflow.indexOf('await selectDeployment('),
   );
