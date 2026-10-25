@@ -1,6 +1,6 @@
 {
   "name": "tsuri-kiroku",
-  "version": "0.1.2",
+  "version": "0.1.3",
   "license": "MIT",
   "private": true,
   "engines": {
@@ -9,12 +9,12 @@
   "scripts": {
     "install:ci": "corepack pnpm install --frozen-lockfile",
     "dev": "vinext dev --port 5173",
-    "build": "vinext build",
+    "build": "vinext build && node scripts/build-app-shell.mjs",
     "start": "node --import ./scripts/sites-env.mjs ./node_modules/wrangler/bin/wrangler.js dev --config dist/server/wrangler.json --local --persist-to .wrangler/state --ip 127.0.0.1 --inspector-port 0",
     "lint": "eslint . --ignore-pattern dist --ignore-pattern .next",
     "db:generate": "drizzle-kit generate",
     "typecheck": "tsc --noEmit",
-    "test": "node --experimental-vm-modules tests/photo-storage.test.mjs && node tests/catch-validation.test.mjs && node --test tests/deployment-policy.test.mjs tests/dependency-updates.test.mjs tests/floating-resize.test.mjs && node --test tests/cloudflare-smoke.test.mjs && node tests/multiple-fish-migration.test.mjs && node tests/location-privacy-migration.test.mjs && node --test tests/guest-removal.test.mjs && node --experimental-vm-modules tests/cloudflare-auth.test.mjs && node tests/optimistic-like.test.mjs && node tests/discovery.test.mjs && node tests/recipe-links.test.mjs && node --test tests/e2e-policy.test.mjs && node --test tests/issue-status.test.mjs && node --test tests/contribution-policy.test.mjs && node --test tests/third-party-licenses.test.mjs && node --test tests/ui-css-sources.test.mjs && node tests/gear.test.mjs && node --experimental-vm-modules --test tests/release-policy.test.mjs tests/version-info.test.mjs",
+    "test": "node --experimental-vm-modules tests/photo-storage.test.mjs && node tests/catch-validation.test.mjs && node --test tests/deployment-policy.test.mjs tests/dependency-updates.test.mjs tests/floating-resize.test.mjs && node --test tests/cloudflare-smoke.test.mjs && node tests/multiple-fish-migration.test.mjs && node tests/location-privacy-migration.test.mjs && node --test tests/guest-removal.test.mjs && node --experimental-vm-modules tests/cloudflare-auth.test.mjs && node tests/optimistic-like.test.mjs && node tests/discovery.test.mjs && node tests/recipe-links.test.mjs && node --test tests/e2e-policy.test.mjs && node --test tests/issue-status.test.mjs && node --test tests/contribution-policy.test.mjs && node --test tests/third-party-licenses.test.mjs && node --test tests/ui-css-sources.test.mjs && node tests/gear.test.mjs && node --experimental-vm-modules --test tests/release-policy.test.mjs tests/version-info.test.mjs tests/app-ssr.test.mjs tests/app-shell.test.mjs",
     "e2e:staging": "node scripts/staging-e2e.mjs",
     "format": "prettier --write .",
     "format:check": "prettier --check .",

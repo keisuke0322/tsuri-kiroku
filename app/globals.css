@@ -76,6 +76,25 @@ body {
   background:
     radial-gradient(circle at 88% 2%, #dceff1 0, transparent 29%), #f4f8f8;
 }
+.app-startup {
+  min-height: 100svh;
+  padding: 32px 24px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 16px;
+  text-align: center;
+}
+.app-startup button {
+  border: 0;
+  border-radius: 10px;
+  padding: 12px 20px;
+  background: #087b87;
+  color: #fff;
+  font: inherit;
+  cursor: pointer;
+}
 .topbar {
   height: 76px;
   background: #fff;

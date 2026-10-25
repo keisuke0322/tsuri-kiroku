@@ -17,6 +17,16 @@ import {
 } from '../access';
 import { initializePhotoStorage } from './photo-storage';
 
+function groupByCatch<T extends { catch_id: number }>(rows: T[]) {
+  const groups = new Map<number, T[]>();
+  for (const row of rows) {
+    const group = groups.get(row.catch_id);
+    if (group) group.push(row);
+    else groups.set(row.catch_id, [row]);
+  }
+  return groups;
+}
+
 export async function GET(req: Request) {
   try {
     const user = await authenticate(req),
@@ -68,9 +78,16 @@ export async function GET(req: Request) {
     const combinations = await db
       .prepare('SELECT * FROM catch_combinations ORDER BY catch_id,sort_order')
       .all<CombinationRow>();
+    const fishByCatch = groupByCatch(fish.results),
+      photosByCatch = groupByCatch(photos.results),
+      combinationsByCatch = groupByCatch(combinations.results),
+      positionsByCatch = new Map(
+        positions.results.map((position) => [position.catch_id, position]),
+      );
     return json(
       r.results.map((row) => {
-        const rows = fish.results.filter((f) => f.catch_id === row.id),
+        const catchId = Number(row.id),
+          rows = fishByCatch.get(catchId) || [],
           fallback = [
             {
               id: 0,
@@ -82,13 +99,11 @@ export async function GET(req: Request) {
             },
           ],
           catchFish = rows.length ? rows : fallback,
-          catchPhotos = photos.results
-            .filter((p) => p.catch_id === row.id)
-            .map((p) => ({
-              id: p.id,
-              species: p.species || catchFish[0].species,
-            }));
-        const p = positions.results.find((p) => p.catch_id === row.id);
+          catchPhotos = (photosByCatch.get(catchId) || []).map((p) => ({
+            id: p.id,
+            species: p.species || catchFish[0].species,
+          }));
+        const p = positionsByCatch.get(catchId);
         const {
           location_visibility,
           public_latitude,
@@ -121,9 +136,9 @@ export async function GET(req: Request) {
                 ...(own ? { spotId: p.spot_id } : {}),
               }
             : null,
-          combinations: combinations.results
-            .filter((c) => c.catch_id === row.id)
-            .map(readCombination),
+          combinations: (combinationsByCatch.get(catchId) || []).map(
+            readCombination,
+          ),
           liked: !!row.liked,
           fish: catchFish.map(({ id, species, count, length }) => ({
             id,
