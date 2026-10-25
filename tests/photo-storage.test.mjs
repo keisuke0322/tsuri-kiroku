@@ -106,6 +106,9 @@ async function fixture(legacy = false, pageSize = 1) {
         },
         execute() {
           queryCount++;
+          const statement = sql.prepare(query);
+          if (statement.columns().length)
+            return { results: statement.all(...args) };
           if (fail.attach && query.startsWith('INSERT INTO catch_photos'))
             throw Error('DB insert failure');
           if (
@@ -115,7 +118,7 @@ async function fixture(legacy = false, pageSize = 1) {
             fail.featured = false;
             throw Error('featured failure');
           }
-          const r = sql.prepare(query).run(...args);
+          const r = statement.run(...args);
           return {
             meta: {
               changes: Number(r.changes),

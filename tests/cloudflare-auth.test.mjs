@@ -21,6 +21,9 @@ const db = {
         args = v;
         return s;
       },
+      async execute() {
+        return sql.prepare(query).columns().length ? s.all() : s.run();
+      },
       async first() {
         return sql.prepare(query).get(...args) || null;
       },
@@ -43,7 +46,7 @@ const db = {
     sql.exec('BEGIN');
     try {
       const results = [];
-      for (const s of statements) results.push(await s.run());
+      for (const s of statements) results.push(await s.execute());
       sql.exec('COMMIT');
       return results;
     } catch (e) {
@@ -170,6 +173,41 @@ const catches = await module('app/api/catches/route.ts'),
   profile = await module('app/api/profile/route.ts'),
   bootstrap = await module('app/api/bootstrap/route.ts'),
   publicProfile = await module('app/api/profiles/[userId]/route.ts');
+
+// Exercise list authentication and privacy through the deployed Worker entry,
+// including the direct GET dispatch, rather than only calling the route module.
+const workerModule = new vm.SourceTextModule(
+  ts
+    .transpileModule(await readFile('worker.ts', 'utf8'), {
+      compilerOptions: {
+        module: ts.ModuleKind.ESNext,
+        target: ts.ScriptTarget.ES2022,
+      },
+    })
+    .outputText.replaceAll('import.meta.env.PROD', 'true'),
+  { context },
+);
+await workerModule.link(async (specifier) => {
+  if (specifier === './app/api/catches/route')
+    return load(resolve('app/api/catches/route.ts'));
+  assert.equal(specifier, 'vinext/server/fetch-handler');
+  return new vm.SyntheticModule(
+    ['default'],
+    function () {
+      this.setExport('default', {
+        fetch() {
+          throw Error(
+            'List requests must use the authenticated direct handler.',
+          );
+        },
+      });
+    },
+    { context },
+  );
+});
+await workerModule.evaluate();
+const listCatches = (request) =>
+  workerModule.namespace.default.fetch(request, {}, {});
 
 function request(
   path,
@@ -515,7 +553,7 @@ assert.ok(
     .some((column) => column.name === 'guest_public'),
 );
 for (const path of ['/api/catches', '/api/catches?guest=1'])
-  assert.equal((await catches.GET(request(path))).status, 401);
+  assert.equal((await listCatches(request(path))).status, 401);
 assert.equal(
   (
     await photoGet.GET(
@@ -526,7 +564,7 @@ assert.equal(
   401,
 );
 const restoredRows = await (
-  await catches.GET(request('/api/catches', 'GET', undefined, owner))
+  await listCatches(request('/api/catches', 'GET', undefined, owner))
 ).json();
 assert.ok(restoredRows.some((row) => row.id === id));
 assert.ok(
@@ -570,7 +608,7 @@ const multiCreated = await catches.POST(
 assert.equal(multiCreated.status, 201);
 const multiId = (await multiCreated.json()).id;
 const listed = await (
-    await catches.GET(request('/api/catches', 'GET', undefined, owner))
+    await listCatches(request('/api/catches', 'GET', undefined, owner))
   ).json(),
   multiRow = listed.find((x) => x.id === multiId);
 assert.deepEqual(
@@ -703,13 +741,13 @@ const mapped = await catches.POST(
 assert.equal(mapped.status, 201);
 const mappedId = (await mapped.json()).id;
 const ownerRows = await (
-  await catches.GET(request('/api/catches', 'GET', undefined, owner))
+  await listCatches(request('/api/catches', 'GET', undefined, owner))
 ).json();
 const savedPosition = ownerRows.find((x) => x.id === mappedId).position,
   spotId = savedPosition.spotId;
 assert.equal(savedPosition.latitude, point.latitude);
 const otherRows = await (
-  await catches.GET(request('/api/catches', 'GET', undefined, other))
+  await listCatches(request('/api/catches', 'GET', undefined, other))
 ).json();
 assert.equal(otherRows.find((x) => x.id === mappedId).position, null);
 assert.equal(
@@ -869,7 +907,7 @@ assert.equal(
 // Issue #31: check real API responses for every viewer/visibility combination.
 const privacyRows = async (session) =>
   await (
-    await catches.GET(request('/api/catches', 'GET', undefined, session))
+    await listCatches(request('/api/catches', 'GET', undefined, session))
   ).json();
 const privacyCreate = await catches.POST(
   request('/api/catches', 'POST', { ...multi, position: point }, owner),
@@ -1275,7 +1313,7 @@ const gearCatchId = (await catchResponse.json()).id;
 const getGearRecord = async (identity = owner) =>
   (
     await (
-      await catches.GET(request('/api/catches', 'GET', undefined, identity))
+      await listCatches(request('/api/catches', 'GET', undefined, identity))
     ).json()
   ).find((c) => c.id === gearCatchId);
 const originalGearRecord = await getGearRecord();
@@ -1510,7 +1548,7 @@ for (const index of [0, 1]) {
 }
 for (const identity of [owner, other]) {
   const rows = await (
-    await catches.GET(request('/api/catches', 'GET', undefined, identity))
+    await listCatches(request('/api/catches', 'GET', undefined, identity))
   ).json();
   for (const [index, id] of groupedIds.entries()) {
     const row = rows.find((row) => row.id === id);
@@ -1568,12 +1606,12 @@ assert.equal(
   204,
 );
 assert.equal(
-  (await catches.GET(request('/api/catches', 'GET', undefined, owner))).status,
+  (await listCatches(request('/api/catches', 'GET', undefined, owner))).status,
   401,
 );
 sql.prepare('UPDATE auth_sessions SET expires_at=0').run();
 assert.equal(
-  (await catches.GET(request('/api/catches', 'GET', undefined, other))).status,
+  (await listCatches(request('/api/catches', 'GET', undefined, other))).status,
   401,
 );
 console.log(

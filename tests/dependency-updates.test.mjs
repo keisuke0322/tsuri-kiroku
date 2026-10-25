@@ -824,6 +824,7 @@ test('CI waiting is bounded and never retries an API failure or silently changes
 function automaticSync() {
   const f = fixture();
   published(f);
+  f.main = 'published';
   const pr = {
     number: 52,
     state: 'open',
@@ -872,7 +873,6 @@ function automaticSync() {
 
 test('published sync merges only the exact reviewed published SHA with successful current-base CI', async () => {
   const f = automaticSync();
-  f.main = 'unpublished-main';
   assert.deepEqual(await sync.autoMergePublishedSync(f), {
     state: 'merged',
     pr: 52,
@@ -888,12 +888,6 @@ test('published sync merges only the exact reviewed published SHA with successfu
 });
 
 for (const [name, change] of [
-  [
-    'unpublished head',
-    (f) => {
-      f.syncPr.head.sha = 'unpublished';
-    },
-  ],
   [
     'main target',
     (f) => {
@@ -952,12 +946,6 @@ for (const [name, change] of [
     'advanced development',
     (f) => {
       f.dev = 'new-dev';
-    },
-  ],
-  [
-    'advanced sync branch',
-    (f) => {
-      f.refs[`heads/${sync.SYNC_BRANCH}`] = 'other';
     },
   ],
 ])
@@ -1154,39 +1142,111 @@ test('sync automation fails closed on CI API errors and unsuccessful merge respo
   await assert.rejects(sync.autoMergePublishedSync(g), /not merged/);
 });
 
-test('sync uses only the published commit, is idempotent, updates one PR and never resets development', async () => {
+test('direct main sync creates one PR without creating or updating branch refs', async () => {
   const f = fixture();
   published(f);
-  f.main = 'unpublished-main';
+  f.main = 'published';
   await sync.syncPublished(f);
   await sync.syncPublished(f);
   assert.equal(f.syncPrs.length, 1);
-  assert.equal(f.refs[`heads/${sync.SYNC_BRANCH}`], 'published');
+  assert.equal(f.syncPrs[0].head, 'main');
   assert.equal(f.syncPrs[0].base, 'cloudflare-migration');
   assert.equal(
-    f.writes.some((w) =>
-      /heads\/(main|cloudflare-migration)$/.test(w.ref || ''),
-    ),
+    f.writes.some((w) => w.ref || w.force),
     false,
   );
-  assert.equal(
-    f.writes.some((w) => w.force === true),
-    false,
-  );
-  f.comparison = 'ahead';
+  f.main = 'next-published';
   f.publishedSha = 'next-published';
   const record = JSON.parse(f.release.body.match(/```json\n(.*)\n```/)[1]);
   record.sha = 'next-published';
   f.release.body =
     '## デプロイ記録\n\n```json\n' + JSON.stringify(record) + '\n```';
-  // Development comparison is divergent; old published -> new published is ahead.
-  f.github.rest.repos.compareCommits = async ({ head }) =>
-    response({
-      status: head === 'cloudflare-migration' ? 'diverged' : 'ahead',
-    });
   await sync.syncPublished(f);
   assert.equal(f.syncPrs.length, 1);
-  assert.equal(f.refs[`heads/${sync.SYNC_BRANCH}`], 'next-published');
+  assert.match(f.syncPrs[0].body, /next-published/);
+  assert.equal(
+    f.writes.some((w) => w.ref || w.force),
+    false,
+  );
+});
+
+test('an unpublished main tip creates no sync PR and cannot be auto-merged', async () => {
+  const f = fixture();
+  published(f);
+  f.main = 'not-yet-published';
+  assert.equal((await sync.syncPublished(f)).state, 'waiting-for-publication');
+  assert.equal(f.syncPrs.length, 0);
+  assert.equal(f.writes.length, 0);
+  const g = automaticSync();
+  g.main = 'not-yet-published';
+  g.syncPr.head.sha = g.main;
+  assert.equal(
+    (await sync.autoMergePublishedSync(g)).state,
+    'waiting-for-publication',
+  );
+  assert.equal(g.merges.length, 0);
+});
+
+test('CI completed before publication resumes automatically after the new main is published', async () => {
+  const f = automaticSync();
+  f.main = 'next-main';
+  f.syncPr.head.sha = 'next-main';
+  f.ciRuns[0].head_sha = 'next-main';
+  f.ciRuns[0].pull_requests[0].head.sha = 'next-main';
+  assert.equal(
+    (await sync.autoMergePublishedSync(f)).state,
+    'waiting-for-publication',
+  );
+  assert.equal(f.merges.length, 0);
+  const record = JSON.parse(f.release.body.match(/```json\n(.*)\n```/)[1]);
+  record.sha = 'next-main';
+  f.publishedSha = 'next-main';
+  f.release.body =
+    '## デプロイ記録\n\n```json\n' + JSON.stringify(record) + '\n```';
+  assert.equal((await sync.autoMergePublishedSync(f)).state, 'merged');
+  assert.equal(f.merges[0].sha, 'next-main');
+});
+
+test('publication completed before CI waits for CI and then merges the published main', async () => {
+  const f = automaticSync();
+  f.ciRuns[0].status = 'in_progress';
+  assert.equal((await sync.autoMergePublishedSync(f)).state, 'waiting-for-ci');
+  assert.equal(f.merges.length, 0);
+  f.ciRuns[0].status = 'completed';
+  assert.equal((await sync.autoMergePublishedSync(f)).state, 'merged');
+});
+
+test('main advancing during final merge checks waits for its next publication', async () => {
+  const f = automaticSync();
+  const getRef = f.github.rest.git.getRef;
+  let mainReads = 0;
+  f.github.rest.git.getRef = async (args) => {
+    if (args.ref === 'heads/main' && ++mainReads === 2) f.main = 'new-main';
+    return getRef(args);
+  };
+  assert.equal(
+    (await sync.autoMergePublishedSync(f)).state,
+    'waiting-for-publication',
+  );
+  assert.equal(f.merges.length, 0);
+});
+
+test('publication callbacks re-evaluate sync even if its CI event arrived earlier', async () => {
+  const workflow = await readFile('.github/workflows/cloudflare.yml', 'utf8');
+  const job = workflow
+    .split('\n  sync-published:\n')[1]
+    .split('\n  restore-staging:\n')[0];
+  assert.match(job, /needs: \[deploy, release\]/);
+  assert.match(job, /needs.release.result == 'success'/);
+  assert.ok(
+    job.indexOf('await syncPublished(') <
+      job.indexOf('await autoMergePublishedSync('),
+  );
+  const governance = await readFile(
+    '.github/workflows/dependency-governance.yml',
+    'utf8',
+  );
+  assert.match(governance, /await autoMergePublishedSync\(options\)/);
 });
 
 test('publication failure, malformed provenance and already-synced code create no sync PR', async () => {
@@ -1199,6 +1259,7 @@ test('publication failure, malformed provenance and already-synced code create n
   f.publishedSha = 'other';
   await assert.rejects(sync.syncPublished(f), /successfully published/);
   published(f);
+  f.main = 'published';
   f.comparison = 'ahead';
   await sync.syncPublished(f);
   assert.equal(f.syncPrs.length, 0);

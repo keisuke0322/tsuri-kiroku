@@ -338,8 +338,12 @@ jobs:
         with:
           github-token: ${{ secrets.PROJECT_TOKEN }}
           script: |
-            const { syncPublished, cleanupMerged } = require('./scripts/dependency-sync.cjs');
+            const { syncPublished, autoMergePublishedSync, cleanupMerged } = require('./scripts/dependency-sync.cjs');
             await syncPublished({ github, context });
+            // CI may have finished before publication; re-evaluate after Release.
+            const result = await autoMergePublishedSync({ github, context });
+            await core.summary.addHeading('mainから開発ブランチへの同期')
+              .addCodeBlock(JSON.stringify(result, null, 2), 'json').write();
             await cleanupMerged({ github, context });
 
   restore-staging:

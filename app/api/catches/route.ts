@@ -39,45 +39,50 @@ export async function GET(req: Request) {
       if (!(error instanceof ApiError))
         console.error('Photo inventory will resume on the next request', error);
     }
-    const r = await db
-      .prepare(
-        `SELECT c.*,p.display_name AS authorName,
+    // One D1 response avoids repeating the binding's response decoding and
+    // tracing setup for each part of the same list. D1 batches also read these
+    // related rows in a single transaction.
+    const [r, fish, photos, positions, combinations] = (await db.batch([
+      db
+        .prepare(
+          `SELECT c.*,p.display_name AS authorName,
  (SELECT COUNT(*) FROM catch_likes l WHERE l.catch_id=c.id) AS likeCount,
  EXISTS(SELECT 1 FROM catch_likes l WHERE l.catch_id=c.id AND l.user_id=?) AS liked
  FROM catches c JOIN profiles p ON p.user_id=c.owner_id ORDER BY c.date DESC,c.id DESC`,
-      )
-      .bind(user.userId)
-      .all();
-    const fish = await db
-      .prepare(
+        )
+        .bind(user.userId),
+      db.prepare(
         'SELECT id,catch_id,species,count,length,sort_order FROM catch_fish ORDER BY catch_id,sort_order,id',
-      )
-      .all<{
+      ),
+      db.prepare('SELECT id,catch_id,species FROM catch_photos ORDER BY id'),
+      db
+        .prepare(
+          "SELECT cp.* FROM catch_positions cp JOIN catches c ON c.id=cp.catch_id WHERE c.owner_id=? OR c.location_visibility='exact'",
+        )
+        .bind(user.userId),
+      db.prepare(
+        'SELECT * FROM catch_combinations ORDER BY catch_id,sort_order',
+      ),
+    ])) as [
+      D1Result<Record<string, unknown>>,
+      D1Result<{
         id: number;
         catch_id: number;
         species: string;
         count: number;
         length: number | null;
         sort_order: number;
-      }>();
-    const photos = await db
-      .prepare('SELECT id,catch_id,species FROM catch_photos ORDER BY id')
-      .all<{ id: number; catch_id: number; species: string | null }>();
-    const positions = await db
-      .prepare(
-        "SELECT cp.* FROM catch_positions cp JOIN catches c ON c.id=cp.catch_id WHERE c.owner_id=? OR c.location_visibility='exact'",
-      )
-      .bind(user.userId)
-      .all<{
+      }>,
+      D1Result<{ id: number; catch_id: number; species: string | null }>,
+      D1Result<{
         catch_id: number;
         spot_id: number | null;
         latitude: number;
         longitude: number;
         source: string;
-      }>();
-    const combinations = await db
-      .prepare('SELECT * FROM catch_combinations ORDER BY catch_id,sort_order')
-      .all<CombinationRow>();
+      }>,
+      D1Result<CombinationRow>,
+    ];
     const fishByCatch = groupByCatch(fish.results),
       photosByCatch = groupByCatch(photos.results),
       combinationsByCatch = groupByCatch(combinations.results),
