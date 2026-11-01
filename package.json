@@ -1,6 +1,6 @@
 {
   "name": "tsuri-kiroku",
-  "version": "0.1.6",
+  "version": "0.1.7",
   "license": "MIT",
   "private": true,
   "engines": {
@@ -69,7 +69,7 @@
     "typescript": "6.0.3",
     "vinext": "1.0.0-beta.5",
     "vite": "8.3.4",
-    "wrangler": "4.151.1"
+    "wrangler": "4.152.0"
   },
   "type": "module",
   "overrides": {
