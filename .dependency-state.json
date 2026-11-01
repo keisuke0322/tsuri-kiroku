@@ -4,10 +4,10 @@
     "head": "b1b28332043c82526e378be823ddcefd031caec4",
     "base": "24b4e42844498da174f612facf3a95a2c17c217b",
     "controller": "24b4e42844498da174f612facf3a95a2c17c217b",
-    "phase": "reserved",
+    "phase": "validating",
     "actor": "keisuke0322",
     "runId": "41275378553",
-    "at": "2026-11-01T05:04:48.179Z"
+    "at": "2026-11-01T05:23:07.278Z"
   },
   "deferrals": {
     "53": {
