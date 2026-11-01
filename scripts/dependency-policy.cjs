@@ -1,3 +1,4 @@
+const { UpdatePending } = require('./update-progress.cjs');
 const { isDeepStrictEqual } = require('node:util');
 const {
   readJson,
@@ -252,17 +253,89 @@ async function requireUpdateEvidence(options, pr, { production = false } = {}) {
   const state = await readState(options);
   const { baseSha } = await inspectUpdate(options, pr, state, { production });
   const lease = state.lease;
-  if (
-    !matchesLease(lease, pr, baseSha) ||
-    lease.phase !== 'verified' ||
-    !lease.validation?.runId ||
-    !lease.approval ||
-    lease.approval.runId !== lease.validation.runId ||
-    !pr.labels?.some((l) => l.name === APPROVAL_LABEL)
-  )
-    throw Error(
-      'Current staging validation and administrator approval are required.',
+  const actions = `${options.context.serverUrl}/${options.context.repo.owner}/${options.context.repo.repo}/actions/workflows/cloudflare.yml`;
+  const ci = await latestContributionRun(options, pr);
+  if (!ci || ci.status !== 'completed')
+    throw new UpdatePending(
+      'ci',
+      'CI実行待ち：整形・型チェック・テスト・ビルドの終了を待ってください。',
+      actions,
     );
+  if (ci.conclusion !== 'success')
+    throw Error(
+      `Contribution checks must succeed for PR #${pr.number} at ${pr.head.sha}.`,
+    );
+  if (!matchesLease(lease, pr, baseSha))
+    throw new UpdatePending(
+      'start',
+      lease && lease.pr !== pr.number
+        ? `別のPR #${lease.pr} がstagingを使用中です。公開・復帰完了後、mainからstart-updateをPR番号${pr.number}で実行してください。`
+        : `検証未開始：mainからstart-updateをPR番号${pr.number}で実行してください。`,
+      actions,
+    );
+  if (lease.phase === 'restoring')
+    throw new UpdatePending(
+      'restore',
+      '開発用stagingへの復帰待ち：復帰処理の完了を待ってください。',
+      actions,
+    );
+  if (lease.phase !== 'verified' || !lease.validation?.runId) {
+    const { data: validationRun } =
+      await options.github.rest.actions.getWorkflowRun({
+        ...options.context.repo,
+        run_id: lease.runId,
+      });
+    if (
+      [
+        'failure',
+        'cancelled',
+        'timed_out',
+        'action_required',
+        'startup_failure',
+      ].includes(validationRun.conclusion)
+    )
+      throw Object.assign(
+        Error(
+          `staging検証失敗：実行${lease.runId}のログを確認し、原因を解消して再検証してください。`,
+        ),
+        {
+          url: `${actions.replace('/workflows/cloudflare.yml', '/runs/')}${lease.runId}`,
+        },
+      );
+    throw new UpdatePending(
+      'validation',
+      'staging検証中：デプロイ・E2E・稼働版確認の終了を待ってください。',
+      `${actions.replace('/workflows/cloudflare.yml', '/runs/')}${lease.runId}`,
+    );
+  }
+  const { data: stagingRun } = await options.github.rest.actions.getWorkflowRun(
+    {
+      ...options.context.repo,
+      run_id: lease.validation.runId,
+    },
+  );
+  if (!stagingRun.conclusion)
+    throw new UpdatePending(
+      'validation',
+      'staging検証中：検証結果の保存完了を待ってください。',
+      lease.validation.url,
+    );
+  if (
+    stagingRun.conclusion !== 'success' ||
+    stagingRun.path !== '.github/workflows/cloudflare.yml' ||
+    stagingRun.event !== 'workflow_dispatch' ||
+    stagingRun.head_sha !== lease.controller
+  )
+    throw Error('Staging workflow did not complete successfully.');
+  await requireRunningUpdate(options, lease);
+  if (!lease.approval || !pr.labels?.some((l) => l.name === APPROVAL_LABEL))
+    throw new UpdatePending(
+      'approval',
+      '動作確認待ち：stagingをPC・スマートフォンで確認し、「動作確認済み」ラベルを付けてください。',
+      'https://tsuri-kiroku-staging.keisuke0322.workers.dev/',
+    );
+  if (lease.approval.runId !== lease.validation.runId)
+    throw Error('Approval does not match the current staging validation.');
   const event = await latestApprovalEvent(options, pr);
   if (
     event?.event !== 'labeled' ||
