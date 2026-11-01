@@ -1,10 +1,10 @@
 const { optional, currentMain } = require('./dependency-state.cjs');
 const SYNC_BRANCH = 'main';
 
-async function publishedRelease({ github, context }) {
-  const { data: release } = await github.rest.repos.getLatestRelease(
-    context.repo,
-  );
+async function publishedRelease({ github, context }, selectedRelease) {
+  const release =
+    selectedRelease ||
+    (await github.rest.repos.getLatestRelease(context.repo)).data;
   if (
     release.draft ||
     release.prerelease ||
@@ -84,11 +84,12 @@ async function syncPublished(options) {
   if (prs.length > 1) throw Error('Multiple sync PRs found; resolve manually.');
   const body =
     `公開済み ${release.tag_name} (${record.sha}) を開発ブランチへ取り込みます。\n\n` +
+    `起点の公開PR: #${record.pr.number}\n\n` +
     `本番デプロイ・稼働情報検証・Release作成成功済み: ${release.html_url}\n\n` +
     'mainの先端の本番デプロイ・Release作成と、最新の開発ブランチとのContribution checksが成功して競合がない場合は自動マージします。mainに追加変更が入った間は公開成功を待ちます。競合・CI失敗・開発baseの変更は手動で確認してください。開発中の変更は保持します。';
   const values = {
     ...context.repo,
-    title: 'chore: sync main into development',
+    title: `chore: sync PR #${record.pr.number} (${release.tag_name}) into development`,
     body,
   };
   if (prs[0])

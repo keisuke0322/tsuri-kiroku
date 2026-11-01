@@ -1,0 +1,32 @@
+name: Complete published Issues
+run-name: >-
+  Issue完了確認｜${{ github.event.workflow_run.display_title || '手動再確認' }}
+on:
+  workflow_run:
+    workflows: [Deploy Cloudflare, Auto-merge published sync]
+    types: [completed]
+  workflow_dispatch:
+permissions:
+  contents: read
+  actions: read
+  pull-requests: read
+  issues: write
+concurrency:
+  group: project-7-status
+  cancel-in-progress: false
+jobs:
+  complete:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: main
+          persist-credentials: false
+      - uses: actions/github-script@v7
+        with:
+          github-token: ${{ secrets.PROJECT_TOKEN }}
+          script: |
+            const result = await require('./scripts/release-completion.cjs').completeReleases({ github, context, log: core.info });
+            await core.summary.addHeading('公開・開発同期・staging復帰の完了確認')
+              .addCodeBlock(JSON.stringify(result, null, 2), 'json').write();

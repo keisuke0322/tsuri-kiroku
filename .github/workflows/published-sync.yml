@@ -1,4 +1,6 @@
 name: Auto-merge published sync
+run-name: >-
+  開発同期｜${{ github.event.workflow_run.display_title || '手動再確認' }}
 on:
   workflow_run:
     workflows: [Contribution checks]

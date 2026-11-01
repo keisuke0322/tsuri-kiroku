@@ -272,7 +272,7 @@ async function selectDeployment(
         ref: 'heads/cloudflare-migration',
       })
     ).data.object.sha;
-    return { sha, kind: 'restore' };
+    return { sha, kind: 'restore', pr: state.lease?.pr || null };
   }
   if (action !== 'development') throw Error('Unsupported deployment action.');
   if (context.ref === 'refs/heads/main')
@@ -336,6 +336,13 @@ async function finishDeployment(
   } else if (selection.kind === 'restore') {
     if (state.lease && state.lease.phase !== 'restoring')
       throw Error('Restore no longer owns staging.');
+    state.lastRestoration = {
+      sha: record.sha,
+      runId: record.runId,
+      runAttempt: record.runAttempt,
+      controller: options.context.sha,
+      verifiedAt: record.verifiedAt,
+    };
     state.lease = null;
     await writeState(options, state);
   }

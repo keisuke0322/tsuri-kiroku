@@ -560,7 +560,7 @@ test('abort is administrator-only and retains restoring ownership until successf
   f.permission = 'admin';
   assert.deepEqual(
     await control.selectDeployment(f, { action: 'abort-update' }),
-    { sha: 'dev', kind: 'restore' },
+    { sha: 'dev', kind: 'restore', pr: 51 },
   );
   assert.equal(f.state.lease.phase, 'restoring');
   f.context.ref = 'refs/heads/cloudflare-migration';

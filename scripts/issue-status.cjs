@@ -1,5 +1,4 @@
 const { STATES, setStatus } = require('./project-status.cjs');
-const { findMergedReleasePullRequest } = require('./deployment-policy.cjs');
 // Only explicit local references are release targets; incidental #numbers are ignored.
 function references(text = '') {
   const result = new Set();
@@ -110,9 +109,9 @@ async function updateDeployment({ github, context, log }) {
       }
     }
   } else if (context.ref === 'refs/heads/main') {
-    status = '完了';
-    const pr = await findMergedReleasePullRequest({ github, context });
-    for (const number of references(pr.body)) targets.add(number);
+    throw new Error(
+      'Complete published Issues only after development sync and staging verification.',
+    );
   } else throw new Error('Unsupported deployment branch');
   for (const number of targets)
     await setStatus({
