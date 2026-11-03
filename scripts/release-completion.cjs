@@ -1,3 +1,4 @@
+const { getDevelopmentBranch } = require('./development-branch.cjs');
 const { readState } = require('./dependency-state.cjs');
 const { publishedRelease } = require('./dependency-sync.cjs');
 const { references, setStatus } = require('./issue-status.cjs');
@@ -8,15 +9,13 @@ async function completeReleases({ github, context, log = () => {} }) {
   const options = { github, context };
   const state = await readState(options);
   if (state.lease) return { state: 'waiting-for-staging-restoration' };
-  const { data: development } = await github.rest.git.getRef({
-    ...context.repo,
-    ref: 'heads/cloudflare-migration',
-  });
+  const { name: developmentBranch, data: development } =
+    await getDevelopmentBranch(options);
   const sha = development.object.sha;
   const runs = await github.paginate(github.rest.actions.listWorkflowRuns, {
     ...context.repo,
     workflow_id: 'cloudflare.yml',
-    branch: 'cloudflare-migration',
+    branch: developmentBranch,
     head_sha: sha,
     event: 'push',
     per_page: 100,
@@ -26,7 +25,7 @@ async function completeReleases({ github, context, log = () => {} }) {
       (r) =>
         r.head_sha === sha &&
         r.event === 'push' &&
-        r.head_branch === 'cloudflare-migration',
+        r.head_branch === developmentBranch,
     )
     .sort((a, b) => b.id - a.id)[0];
   const restored = state.lastRestoration;
@@ -100,7 +99,7 @@ async function completeReleases({ github, context, log = () => {} }) {
     const current = await readState(options);
     const { data: branch } = await github.rest.git.getRef({
       ...context.repo,
-      ref: 'heads/cloudflare-migration',
+      ref: `heads/${developmentBranch}`,
     });
     if (current.lease || branch.object.sha !== sha)
       return { state: 'development-changed', completed };

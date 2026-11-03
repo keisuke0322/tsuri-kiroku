@@ -6,7 +6,8 @@
 
 - GitHub: `keisuke0322/tsuri-kiroku`。このチェックアウトのGitHub向けremoteは`github`。`origin`は旧Sites用なので、push前にURLを確認し、旧Sitesへはpushしない。
 - React / TypeScript / Vinext、Cloudflare Workers / D1 / R2、Google認証を使用する。
-- 開発ブランチ: `cloudflare-migration`（継続利用）。本番ブランチ: `main`。
+- 開発ブランチ: `develop`（継続利用）。本番ブランチ: `main`。
+  名前変更の完了前は `cloudflare-migration` を継続使用し、[移行手順](docs/development-branch-rename.md)に従う。
 - staging: https://tsuri-kiroku-staging.keisuke0322.workers.dev
 - production: https://tsuri-kiroku-production.keisuke0322.workers.dev
 - 詳細は[README.md](README.md)、[CLOUDFLARE-MIGRATION.md](CLOUDFLARE-MIGRATION.md)、実際の[ワークフロー](.github/workflows/cloudflare.yml)を確認する。環境やブランチ構成を推測で変更しない。
@@ -30,25 +31,25 @@
 ## 実装からstagingまで
 
 1. 開発指示を受けたら、関連Issueと完了条件を確認する。Issueがない軽微な修正では、Issue作成を必須の障壁にしない。
-2. 未コミット変更を確認し、ユーザーの変更を保持する。開発前に`github`から最新状態を取得し、`cloudflare-migration`へ最新の`github/main`を取り込む。未コミット変更を勝手に破棄・上書きしない。
+2. 未コミット変更を確認し、ユーザーの変更を保持する。開発前に`github`から最新状態を取得し、`develop`へ最新の`github/main`を取り込む。未コミット変更を勝手に破棄・上書きしない。
 3. 指定された範囲を実装する。既存デザイン・認証・権限制御を維持し、不要なライブラリを追加しない。
 4. 機能変更では以下を実行し、変更に応じて回帰確認とPC・スマートフォンの操作確認を行う。
    - `corepack pnpm run typecheck`
    - `corepack pnpm test`
    - `corepack pnpm build`
 5. 説明書のみの変更では、記載内容と実際の設定の整合性、差分の確認を行う。実行コードを変えない場合、型チェック・テスト・ビルドのローカル再実行は不要。
-6. 通常の機能開発依頼は、検証後のコミット・`github`の`cloudflare-migration`へのpush・staging反映までを含む。ユーザーがローカル作業のみ等を指定した場合は、その範囲に従う。
+6. 通常の機能開発依頼は、検証後のコミット・`github`の`develop`へのpush・staging反映までを含む。ユーザーがローカル作業のみ等を指定した場合は、その範囲に従う。
 7. push後はGitHub Actionsの終了を確認する。失敗した場合は原因を調べ、成功していないデプロイを完了と報告しない。
 8. 変更内容、検証結果、staging URL、ユーザーに確認してほしい操作を簡潔に報告する。実施できていない確認は明示する。
 
 ## ユーザー確認から本番公開まで
 
-1. stagingでの受け入れ確認はユーザーが行う。ユーザーから確認完了とPR作成の指示を受けたら、AIが`cloudflare-migration`から`main`へのPRを作成する。明示的に依頼された場合は確認前のドラフトPRも作成できる。
+1. stagingでの受け入れ確認はユーザーが行う。ユーザーから確認完了とPR作成の指示を受けたら、AIが`develop`から`main`へのPRを作成する。明示的に依頼された場合は確認前のドラフトPRも作成できる。
 2. PRには変更の目的・最終的な動作・検証結果・関連Issueを記載する。対応が完了するIssueはPR本文の独立した行に`Refs #番号`で関連付ける（複数は`Refs #12, #13`）。本番デプロイ成功後にActionsが閉じるため、`Closes`・`Fixes`・`Resolves`は使わない。PRのURLを報告し、Codexのチャットにも添付する。
    公開PRには[資材のバージョン管理](docs/releases.md)に従い、`package.json`と一致する`Release-Version: vMAJOR.MINOR.PATCH`と`### DB変更・復旧`を記載する。本番デプロイ・Release作成・開発ブランチへの同期・その開発ソースのstaging検証が成功してからIssueが完了する。Release作成だけの失敗は失敗ジョブのみ再実行し、公開済みタグを移動しない。
 3. `PR checks`の成功を確認する。ワークフローはPR先端コミットのstaging成功を検証する。確認後に追加修正をpushした場合は、その変更をstagingで再確認してもらう。
 4. 1人運用のため承認レビューを必須にせず、ユーザー自身がPRを確認・マージする。AIは独断で本番向けPRをマージしない。公開後の開発同期PRだけは、下記の条件を満たすワークフローによる自動マージを許可する。
-5. 継続利用する開発ブランチなので、マージ方法は`Create a merge commit`とし、`cloudflare-migration`は削除しない。
+5. 継続利用する開発ブランチなので、マージ方法は`Create a merge commit`とし、`develop`は削除しない。
 6. mainへのマージでGitHub Actionsがmainのコードをproductionへ自動デプロイする。mainへ直接pushしない。ブランチ保護やデプロイ検証を迂回しない。
 7. 本番への手動デプロイ・再実行は、ユーザーが指示した場合に行う。手動ワークフローもmainはproduction、cloudflare-migrationはstagingに対応する。
 
@@ -90,5 +91,5 @@
 - main基準の依存更新PRは[依存更新の運用](docs/dependency-updates.md)に従う。通常の機能開発とは別ルートで、mainへの導入・setup成功後に有効となる。
 - 更新PRのCI成功後も共有stagingへ自動反映しない。管理者がmainから対象PRを指定する `start-update` を1回実行し、prepare・準備後のCI待ち・staging検証を連続実行する。E2E・稼働版照合と、管理者による画面確認後の動作確認済みラベルの監査記録を要求する。mainへのマージは引き続き手動とする。
 - `automation/dependency-state` は占有と確認の制御記録。削除や手編集で解除しない。失敗時も占有を保持し、明示的な中止・復帰手順を使う。
-- 公開成功後の同期PRは公開済みmainから開発へ向ける。同一リポジトリの `main → cloudflare-migration` に限り、main先端の本番デプロイ・正式Release成功、最新CIの先端/base記録一致、競合なしを再照合して自動マージする。mainが進んだ間は公開成功を待って再判定する。競合・CI失敗・開発base変更・判定不能では停止し、開発側で対応する。開発ブランチのreset・未公開mainの同期・mainへの自動マージは行わない。
+- 公開成功後の同期PRは公開済みmainから開発へ向ける。同一リポジトリの `main → develop` に限り、main先端の本番デプロイ・正式Release成功、最新CIの先端/base記録一致、競合なしを再照合して自動マージする。mainが進んだ間は公開成功を待って再判定する。競合・CI失敗・開発base変更・判定不能では停止し、開発側で対応する。開発ブランチのreset・未公開mainの同期・mainへの自動マージは行わない。
 - 未対応Dependabot更新と未同期mainは機能公開を止める。保留は管理者の理由付き30日期限とし、古い成功チェックやラベルで迂回しない。必要なGitHub設定・実更新・通知の未確認を明示する。

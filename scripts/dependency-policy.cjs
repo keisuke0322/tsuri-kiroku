@@ -1,3 +1,4 @@
+const { isDevelopmentBranch } = require('./development-branch.cjs');
 const { UpdatePending } = require('./update-progress.cjs');
 const { isDeepStrictEqual } = require('node:util');
 const {
@@ -98,7 +99,7 @@ async function inspectUpdate(options, pr, state, { production = false } = {}) {
     pr.base?.repo?.full_name !== repository ||
     pr.head?.repo?.full_name !== repository ||
     pr.head.ref === 'main' ||
-    pr.head.ref === 'cloudflare-migration' ||
+    isDevelopmentBranch(pr.head.ref) ||
     !pr.head.sha
   )
     throw Error(
@@ -392,9 +393,7 @@ async function requireFeatureReady(options, pr, { production = false } = {}) {
     per_page: 100,
   });
   if (!['ahead', 'identical'].includes(data.status))
-    throw Error(
-      'Merge current main into cloudflare-migration, then run staging again.',
-    );
+    throw Error('Merge current main into develop, then run staging again.');
   const state = await readState(options);
   if (state.lease)
     throw Error(`Staging is reserved for dependency PR #${state.lease.pr}.`);

@@ -20,7 +20,7 @@
    - production: `https://tsuri-kiroku-production.keisuke0322.workers.dev/*`
 3. API制限をMaps JavaScript APIとGeocoding APIに限定する。Google Cloudのクォータ上限と予算アラートを設定する。予算アラートだけでは課金は停止しないので、現在の料金・無料利用量を確認して上限を決める。
 4. GitHub → Settings → Environments → **staging** の Variables に `GOOGLE_MAPS_API_KEY` を設定する。キーはブラウザに公開される性質のため、リファラーとAPI制限が必須。チャットやコードにキーを貼らない。
-5. `cloudflare-migration` のDeploy Cloudflareを再実行するとstagingのWorker変数に反映される。productionは本番公開の手順に従い、productionのVariableに本番用キーを設定する。
+5. `develop` のDeploy Cloudflareを再実行するとstagingのWorker変数に反映される。productionは本番公開の手順に従い、productionのVariableに本番用キーを設定する。
 
 ローカルではWranglerの `.dev.vars`（Git管理外）に `GOOGLE_MAPS_API_KEY` を設定し、ローカル専用キーに `http://localhost:5173/*` を許可する。本番キーの制限を外さない。
 

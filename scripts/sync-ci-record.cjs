@@ -1,3 +1,4 @@
+const { isDevelopmentBranch } = require('./development-branch.cjs');
 const { readFileSync, mkdirSync, writeFileSync } = require('node:fs');
 
 function syncCIRecord(event, environment) {
@@ -5,7 +6,7 @@ function syncCIRecord(event, environment) {
   if (
     !/^[^/]+\/[^/]+$/.test(environment.GITHUB_REPOSITORY || '') ||
     !/^[1-9]\d*$/.test(String(pr?.number)) ||
-    pr?.base?.ref !== 'cloudflare-migration' ||
+    !isDevelopmentBranch(pr?.base?.ref) ||
     pr.head?.ref !== 'main' ||
     pr.head.repo?.full_name !== environment.GITHUB_REPOSITORY ||
     pr.base.repo?.full_name !== environment.GITHUB_REPOSITORY ||

@@ -1,17 +1,16 @@
+const { isDevelopmentBranch } = require('./development-branch.cjs');
 // Both PR validation and production promotion verify the source commit, not the merge SHA.
 const pause = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
 
 function validateSource(pr, repository, dependencyUpdate = false) {
   if (
     pr.base?.ref !== 'main' ||
-    (!dependencyUpdate && pr.head?.ref !== 'cloudflare-migration') ||
+    (!dependencyUpdate && !isDevelopmentBranch(pr.head?.ref)) ||
     pr.head?.repo?.full_name !== repository ||
     pr.base?.repo?.full_name !== repository ||
     !pr.head?.sha
   ) {
-    throw new Error(
-      'Only cloudflare-migration -> main PRs in this repository may release.',
-    );
+    throw new Error('Only develop -> main PRs in this repository may release.');
   }
   return pr.head.sha;
 }
@@ -131,7 +130,7 @@ async function requireStaging({
 async function checkPullRequest(options) {
   const { context } = options;
   const pr = context.payload.pull_request;
-  if (pr.head.ref !== 'cloudflare-migration') {
+  if (!isDevelopmentBranch(pr.head.ref)) {
     const { requireUpdateEvidence } = require('./dependency-policy.cjs');
     const attempts =
       options.attempts ?? (context.payload.action === 'labeled' ? 40 : 1);
@@ -186,7 +185,7 @@ async function checkProduction(options) {
     throw new Error('Production must deploy main.');
   const merged = await findMergedReleasePullRequest(options);
   let staging;
-  if (merged.head.ref !== 'cloudflare-migration') {
+  if (!isDevelopmentBranch(merged.head.ref)) {
     const { data: commit } = await github.rest.repos.getCommit({
       ...context.repo,
       ref: context.sha,

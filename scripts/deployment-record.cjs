@@ -1,3 +1,4 @@
+const { isDevelopmentBranch } = require('./development-branch.cjs');
 const { createHash } = require('node:crypto');
 const { execFileSync } = require('node:child_process');
 const {
@@ -25,7 +26,7 @@ async function prepareRecord({ github, context, selection }) {
   if (
     !production &&
     !selection &&
-    context.ref !== 'refs/heads/cloudflare-migration'
+    !isDevelopmentBranch(context.ref?.replace(/^refs\/heads\//, ''))
   )
     throw Error('Unsupported deployment branch.');
   let pr = null,

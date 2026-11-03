@@ -19,7 +19,7 @@ function fixture({
   const pr = {
     base: { ref: 'main', repo: { full_name: repository } },
     head: {
-      ref: 'cloudflare-migration',
+      ref: 'develop',
       sha: 'source',
       repo: { full_name: repository },
     },
@@ -97,7 +97,7 @@ test('an unrelated merged PR cannot authorize a different main commit', async ()
 });
 test('non-main manual deploy cannot promote production', async () => {
   const f = fixture();
-  f.context.ref = 'refs/heads/cloudflare-migration';
+  f.context.ref = 'refs/heads/develop';
   await assert.rejects(checkProduction(f), /must deploy main/);
 });
 for (const state of ['failure', 'error', 'pending', 'in_progress']) {
@@ -123,10 +123,7 @@ test('forks and other source branches cannot pass PR checks', async () => {
     const head = f.context.payload.pull_request.head;
     if (change === 'fork') head.repo.full_name = 'someone/fork';
     else head.ref = 'other';
-    await assert.rejects(
-      checkPullRequest(f),
-      /Only (cloudflare-migration|same-repository)/,
-    );
+    await assert.rejects(checkPullRequest(f), /Only (develop|same-repository)/);
   }
 });
 test('pending staging can finish while PR checks wait', async () => {
@@ -227,7 +224,7 @@ test('closed but unmerged, wrong-base and ambiguous PRs cannot authorize product
   const pr = f.context.payload.pull_request;
   for (const prs of [
     [{ ...pr, merged_at: null }],
-    [{ ...pr, base: { ...pr.base, ref: 'cloudflare-migration' } }],
+    [{ ...pr, base: { ...pr.base, ref: 'develop' } }],
     [pr, { ...pr, number: 99 }],
   ]) {
     f.github.paginate = async () => prs;
@@ -244,4 +241,13 @@ test('PR lookup API errors are propagated instead of treating a failed lookup as
     throw Object.assign(Error('API unavailable'), { status: 500 });
   };
   await assert.rejects(checkProduction(f), /API unavailable/);
+});
+
+test('migration release from the legacy development branch keeps staging evidence mandatory', async () => {
+  const f = fixture();
+  f.context.payload.pull_request.head.ref = 'cloudflare-migration';
+  await checkProduction(f);
+  const failed = fixture({ state: 'failure' });
+  failed.context.payload.pull_request.head.ref = 'cloudflare-migration';
+  await assert.rejects(checkProduction(failed), /Staging failed/);
 });
