@@ -5,7 +5,7 @@ stagingはコミットSHA、productionはGitタグとGitHub Releaseで管理し�
 
 ## 公開PRで指定する内容
 
-機能公開の `cloudflare-migration` または許可されたmain基準の依存更新ブランチから `main` へのPR本文に、次の形式で記載します。
+機能公開の `develop` または許可されたmain基準の依存更新ブランチから `main` へのPR本文に、次の形式で記載します。
 PRテンプレートの案内コメントと仮の値は置き換えてください。
 
 ```markdown

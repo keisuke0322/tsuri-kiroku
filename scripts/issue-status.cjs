@@ -1,3 +1,4 @@
+const { isDevelopmentBranch } = require('./development-branch.cjs');
 const { STATES, setStatus } = require('./project-status.cjs');
 // Only explicit local references are release targets; incidental #numbers are ignored.
 function references(text = '') {
@@ -66,7 +67,7 @@ async function updateEvent({ github, context, log }) {
   const pr = submission;
   if (
     pr.base.ref !== 'main' ||
-    pr.head.ref !== 'cloudflare-migration' ||
+    !isDevelopmentBranch(pr.head.ref) ||
     pr.head.repo?.full_name !== `${context.repo.owner}/${context.repo.repo}`
   )
     return;
@@ -79,7 +80,7 @@ async function updateDeployment({ github, context, log }) {
   const targets = new Set();
   let status;
   const releaseTargets = new Set();
-  if (context.ref === 'refs/heads/cloudflare-migration') {
+  if (isDevelopmentBranch(context.ref?.replace(/^refs\/heads\//, ''))) {
     status = 'staging確認待ち';
     const { data } = await github.rest.repos.compareCommitsWithBasehead({
       ...context.repo,
@@ -96,7 +97,7 @@ async function updateDeployment({ github, context, log }) {
       ...context.repo,
       state: 'open',
       base: 'main',
-      head: `${context.repo.owner}:cloudflare-migration`,
+      head: `${context.repo.owner}:${context.ref.replace(/^refs\/heads\//, '')}`,
       per_page: 100,
     });
     for (const pr of prs) {

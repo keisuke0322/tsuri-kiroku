@@ -1,3 +1,4 @@
+const { getDevelopmentBranch } = require('./development-branch.cjs');
 const { optional, currentMain } = require('./dependency-state.cjs');
 const SYNC_BRANCH = 'main';
 
@@ -67,17 +68,18 @@ async function syncPublished(options) {
   const { release, record } = await publishedRelease(options);
   if ((await currentMain(options)) !== record.sha)
     return { state: 'waiting-for-publication' };
+  const { name: developmentBranch } = await getDevelopmentBranch(options);
   const { data: development } = await github.rest.repos.compareCommits({
     ...context.repo,
     base: record.sha,
-    head: 'cloudflare-migration',
+    head: developmentBranch,
     per_page: 100,
   });
   if (['ahead', 'identical'].includes(development.status)) return;
   const prs = await github.paginate(github.rest.pulls.list, {
     ...context.repo,
     state: 'open',
-    base: 'cloudflare-migration',
+    base: developmentBranch,
     head: `${context.repo.owner}:${SYNC_BRANCH}`,
     per_page: 100,
   });
@@ -98,7 +100,7 @@ async function syncPublished(options) {
     await github.rest.pulls.create({
       ...values,
       head: SYNC_BRANCH,
-      base: 'cloudflare-migration',
+      base: developmentBranch,
     });
 }
 
@@ -116,10 +118,11 @@ async function autoMergePublishedSync(options) {
       event.path !== '.github/workflows/contribution-checks.yml')
   )
     return { state: 'ignored' };
+  const { name: developmentBranch } = await getDevelopmentBranch(options);
   const prs = await github.paginate(github.rest.pulls.list, {
     ...context.repo,
     state: 'open',
-    base: 'cloudflare-migration',
+    base: developmentBranch,
     head: `${context.repo.owner}:${SYNC_BRANCH}`,
     per_page: 100,
   });
@@ -134,7 +137,7 @@ async function autoMergePublishedSync(options) {
   if (
     pr.state !== 'open' ||
     pr.draft ||
-    pr.base?.ref !== 'cloudflare-migration' ||
+    pr.base?.ref !== developmentBranch ||
     pr.head?.ref !== SYNC_BRANCH ||
     pr.base.repo?.full_name !== repository ||
     pr.head.repo?.full_name !== repository ||
@@ -198,7 +201,7 @@ async function autoMergePublishedSync(options) {
   });
   const { data: development } = await github.rest.git.getRef({
     ...context.repo,
-    ref: 'heads/cloudflare-migration',
+    ref: `heads/${developmentBranch}`,
   });
   const { data: source } = await github.rest.git.getRef({
     ...context.repo,
@@ -214,7 +217,7 @@ async function autoMergePublishedSync(options) {
     return { state: 'waiting-for-publication', pr: pr.number };
   if (
     current.state !== 'open' ||
-    current.base?.ref !== 'cloudflare-migration' ||
+    current.base?.ref !== developmentBranch ||
     current.head?.ref !== SYNC_BRANCH ||
     current.base?.repo?.full_name !== repository ||
     current.head?.repo?.full_name !== repository ||

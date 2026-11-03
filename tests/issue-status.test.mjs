@@ -215,7 +215,7 @@ test('staging updates commit targets and re-verifies production-waiting PR targe
   ];
   await updateDeployment({
     github,
-    context: { ...context, ref: 'refs/heads/cloudflare-migration' },
+    context: { ...context, ref: 'refs/heads/develop' },
   });
   assert.deepEqual(calls, [
     ['field', 'status-field', 'option-2'],
@@ -244,7 +244,7 @@ test('external PR is classified itself and never updates its Refs targets', asyn
         pull_request: {
           number: 42,
           user: { login: 'guest', type: 'User' },
-          base: { ref: 'cloudflare-migration' },
+          base: { ref: 'develop' },
           head: { ref: 'feature', repo: { full_name: 'guest/fork' } },
           body: 'Refs #12',
         },

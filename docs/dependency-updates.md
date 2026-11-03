@@ -8,7 +8,7 @@ Issue #51。通常更新・緊急更新とも、現在の本番 `main` を基準
 **この変更がmainへ公開され、有効化確認が終わるまでは、従来のActionsで依存更新ブランチから本番公開できない。**
 開発ブランチのstaging確認だけで新ルートの実運用が完了したとは扱わない。
 
-1. この実装を通常の機能公開手順でstaging確認し、`cloudflare-migration → main` を公開する。
+1. この実装を通常の機能公開手順でstaging確認し、`develop → main` を公開する。
 2. 既存のリポジトリSecret `PROJECT_TOKEN` の権限を確認する。Project用の権限に加え、このリポジトリのContents・Pull requests・Issues・Actions・Commit statusesの書き込み、Dependabot alertsの読み取りが必要。初回setupにはAdministrationの書き込み、Environmentsの書き込みも必要になる。アプリ版準備・同期PRはこのトークンで作り、通常のCIを起動する。`GITHUB_TOKEN` によるpushでは後続CIが起動しないため代用しない。トークンをログへ出さない。
 3. 管理者がActions **Dependency governance** を `main`、`action=setup` で実行する。Dependabot alerts・security updatesを有効化し、「動作確認済み」ラベルを作成し、staging Environmentの既存cloudflare-migration許可を保持してmainのcontrollerを追加し、既存のmain専用Rulesetに `Contribution checks` と `Dependency release gate` を追加する。既存の `PR checks`・`Formatting`・厳密な最新base条件・直接push禁止・その他の規則を保持する。設定を読み戻した成功サマリーを確認する。権限不足・複数Ruleset等のエラーは未有効化として対処する。部分成功時も安全に再実行できる。
 4. mainが既定ブランチであること、Settings → Code securityのDependabot alerts・security updates・Dependency graphが有効であること、main Rulesetの4チェックが必須であることを管理画面でも確認する。管理者バイパスを追加しない。DependabotがActionsで動く場合はリポジトリのActions実行許可も確認する。
@@ -86,7 +86,7 @@ minimumReleaseAgeExclude:
 
 ## 未対応更新と30日の保留
 
-機能公開PR `cloudflare-migration → main` は未対応のmain宛てDependabot PRが残っていると止まる。majorも対象。閉じたPRやマージ済みブランチの残存は止めない。更新PR自身・同期PRはこの判定で自分を止めない。
+機能公開PR `develop → main` は未対応のmain宛てDependabot PRが残っていると止まる。majorも対象。閉じたPRやマージ済みブランチの残存は止めない。更新PR自身・同期PRはこの判定で自分を止めない。
 
 管理者がDependency governanceをmain、`action=defer`、`pr=番号`、`reason=新しい理由` で実行すると、対象head・理由・管理者・記録日時・30日後の期限を状態とPRコメントへ保存する。同じ理由の再送では延長できない。解除は `action=undefer`。ラベル・手書きコメントだけで保留にはならない。期限切れ・更新headの変更で無効になる。再保留には新しい理由を入力し、改めて判断する。Dependabotの未解決アラートが1件でもある場合は、保守的にすべての保留例外を無効として再確認を求める。アラート取得の権限不足・API失敗は公開を止める。
 
@@ -98,7 +98,7 @@ PRイベント・CI完了・main更新・保留操作・毎時の定期処理で
 
 Publish Release後の **Sync published main to development** は最新の正式Releaseに埋め込まれた本番成功記録、タグのSHA、DeployとPublish Releaseの成功を検証する。live mainに未公開コミットが進んでも同期しない。
 
-`main → cloudflare-migration` の同期PRを1本にまとめる。同期元の専用ブランチは作成・更新しない。mainの先端が本番デプロイ・正式Releaseの成功したSHAと一致した場合に作成する。CIは開発ブランチとのマージ結果を検証し、実際にテストしたbase・head・実行attemptを成果物へ記録する。
+`main → develop` の同期PRを1本にまとめる。同期元の専用ブランチは作成・更新しない。mainの先端が本番デプロイ・正式Releaseの成功したSHAと一致した場合に作成する。CIは開発ブランチとのマージ結果を検証し、実際にテストしたbase・head・実行attemptを成果物へ記録する。
 
 **Auto-merge published sync** はContribution checks完了後、mainの管理コードだけで以下を確認する。
 

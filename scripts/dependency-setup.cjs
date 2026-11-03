@@ -1,3 +1,4 @@
+const { getDevelopmentBranch } = require('./development-branch.cjs');
 const { requireAdmin, optional } = require('./dependency-state.cjs');
 const { APPROVAL_LABEL, GATE } = require('./dependency-policy.cjs');
 
@@ -27,6 +28,7 @@ async function setup(options) {
     throw Error(
       'Staging must use selected deployment branches; review environment policy manually.',
     );
+  const { name: developmentBranch } = await getDevelopmentBranch(options);
   const policies = await github.paginate(
     github.rest.repos.listDeploymentBranchPolicies,
     {
@@ -36,9 +38,7 @@ async function setup(options) {
     },
   );
   if (
-    !policies.some(
-      (p) => p.name === 'cloudflare-migration' && p.type === 'branch',
-    )
+    !policies.some((p) => p.name === developmentBranch && p.type === 'branch')
   )
     throw Error('Existing development staging branch policy is missing.');
   if (!policies.some((p) => p.name === 'main' && p.type === 'branch'))
@@ -57,8 +57,9 @@ async function setup(options) {
     },
   );
   if (
-    !['main', 'cloudflare-migration'].every((name) =>
-      updatedPolicies.some((p) => p.name === name && p.type === 'branch'),
+    !updatedPolicies.some((p) => p.name === 'main' && p.type === 'branch') ||
+    !updatedPolicies.some(
+      (p) => p.name === developmentBranch && p.type === 'branch',
     )
   )
     throw Error('Staging controller branch policy read-back failed.');

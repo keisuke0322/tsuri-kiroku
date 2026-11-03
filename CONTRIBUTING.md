@@ -17,7 +17,7 @@ GitHubアカウントでログインし、[既存Issue](https://github.com/keisu
 
 [元リポジトリ](https://github.com/keisuke0322/tsuri-kiroku)の「Fork」から、自分のGitHubアカウントへコピーします。「Copy the main branch only」のチェックを外すと開発ブランチもコピーできます。mainだけをコピーした場合でも、以下の手順で元リポジトリから開発ブランチを取得できます。
 
-**開発のベースとPRの提出先は `cloudflare-migration` です。** `main` は本番用です。
+**開発のベースとPRの提出先は `develop` です。** `main` は本番用です。
 
 ### 2. cloneし、元リポジトリをupstreamに登録する
 
@@ -37,7 +37,7 @@ git fetch upstream
 例として `feat/your-change` を使います。変更内容に合わせてブランチ名を付けてください。
 
 ```sh
-git switch --create feat/your-change --no-track upstream/cloudflare-migration
+git switch --create feat/your-change --no-track upstream/develop
 ```
 
 [READMEのローカル開発手順](README.md#ローカルで開発する)に従って、依存関係、`.dev.vars`、ローカルDBを用意して開発します。Google認証は自分のローカル用OAuthクライアントを使用します。元サイトのSecrets・本番データを取得する必要はありません。
@@ -46,7 +46,7 @@ git switch --create feat/your-change --no-track upstream/cloudflare-migration
 
 ```sh
 git fetch upstream
-git merge upstream/cloudflare-migration
+git merge upstream/develop
 ```
 
 ### 4. 検証する
@@ -88,7 +88,7 @@ GitHubで元リポジトリの「Pull requests」→「New pull request」→「
 | 項目            | 指定する内容                          |
 | --------------- | ------------------------------------- |
 | base repository | `keisuke0322/tsuri-kiroku`            |
-| base branch     | `cloudflare-migration`                |
+| base branch     | `develop`                             |
 | head repository | 自分のfork                            |
 | compare branch  | `feat/your-change` などの作業ブランチ |
 
@@ -104,18 +104,18 @@ PRには、変更の目的、変更後の動作、関連Issue、検証結果、�
 
 ### 外部PRの自動チェック
 
-`cloudflare-migration` 宛てのPRを作成・更新すると、`Contribution checks` がNode.js 24で型チェック・単体／結合テスト・ビルドを実行します。通常の `pull_request` イベントを使い、Cloudflare・Project等のSecrets、デプロイ環境、認証付きE2Eにはアクセスしません。checkoutの認証情報は作業ディレクトリに保持しません。
+`develop` 宛てのPRを作成・更新すると、`Contribution checks` がNode.js 24で型チェック・単体／結合テスト・ビルドを実行します。通常の `pull_request` イベントを使い、Cloudflare・Project等のSecrets、デプロイ環境、認証付きE2Eにはアクセスしません。checkoutの認証情報は作業ディレクトリに保持しません。
 
 初回のfork投稿などでは、GitHubが管理者によるActions実行承認を求めることがあります。管理者は変更内容を確認して承認してください。チェック失敗時はログを確認し、同じ作業ブランチで修正してpushします。main宛ての公開用 `PR checks` とは別のチェックです。
 
 ### 取り込みから本番公開まで
 
 1. 管理者が変更内容・関連Issue・`Contribution checks` の成功を確認し、必要な修正を依頼します。
-2. 管理者が外部PRを `Create a merge commit` で元リポジトリの `cloudflare-migration` へマージします。作者情報とコミット履歴を保持し、外部PRはこの時点で自動的に閉じます。
+2. 管理者が外部PRを `Create a merge commit` で元リポジトリの `develop` へマージします。作者情報とコミット履歴を保持し、外部PRはこの時点で自動的に閉じます。
 3. マージ画面のコミットメッセージに、管理者が確認した関連Issueを独立した行で `Refs #123` として記載します（複数は `Refs #123, #124`）。自動クローズする `Closes`・`Fixes`・`Resolves` が混入していないか、PR本文・コミットメッセージを事前に確認してください。
 4. マージによるpushでstagingへデプロイし、起動確認・認証付きE2E・ユーザーによる操作確認を行います。成功後、関連Issueは「staging確認待ち」になります。失敗時は関連Issueを開いたまま修正を追跡します。
-5. 管理者が `cloudflare-migration → main` の公開PRを作成し、本番へ反映する全関連Issueを独立した行の `Refs` で記載します。関連Issueは「本番反映待ち」になります。
-6. `PR checks` の成功とユーザー確認後、ユーザーが `Create a merge commit` でmainへマージします。継続利用する `cloudflare-migration` は削除しません。
+5. 管理者が `develop → main` の公開PRを作成し、本番へ反映する全関連Issueを独立した行の `Refs` で記載します。関連Issueは「本番反映待ち」になります。
+6. `PR checks` の成功とユーザー確認後、ユーザーが `Create a merge commit` でmainへマージします。継続利用する `develop` は削除しません。
 7. 本番デプロイ・起動確認の成功後、既存Actionsが関連Issueを閉じ、Project Statusを「完了」にします。
 
 **外部PRのクローズは「変更の受け入れ」、関連Issueのクローズは「本番反映の成功」を意味します。** 外部PRを取り込んだだけで、関連Issueや外部PRのProject Statusを「完了」にしません。PR自体のStatusは管理者がProject画面で管理し、進捗は関連Issueで追跡します。分類ラベル「外部提案」は保持します。

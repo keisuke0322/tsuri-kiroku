@@ -173,7 +173,7 @@ test('wrong environment, run, SHA, failed or incomplete record never creates a t
     assert.equal(f.calls.length, 0);
   }
   const f = fixture();
-  f.context.ref = 'refs/heads/cloudflare-migration';
+  f.context.ref = 'refs/heads/develop';
   await assert.rejects(publishRelease(f), /verified production/);
 });
 

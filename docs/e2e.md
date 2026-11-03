@@ -2,7 +2,7 @@
 
 CIではGitHub-hosted runnerのChromeを使用する。Cypress同梱ElectronはWebブラウザと描画エンジンの版が異なるため、実際のブラウザで同じ期待結果を検証する。ローカルは従来どおりElectronが既定で、`E2E_BROWSER=chrome corepack pnpm run e2e:staging`でChromeを選択できる。ResizeObserverなどの例外を一括で無視したり、失敗を避けるためにタイムアウトを延長したりしない。
 
-`cloudflare-migration`へのpushで、型チェック・単体テスト・ビルド・stagingデプロイ・未認証アクセス確認の後に実行する。同じDeployジョブ内なので、E2Eが失敗するとstagingのデプロイ結果も失敗となり、既存のPR checksと本番公開ポリシーがそのコミットの公開を止める。Workerへの反映自体はE2E前に完了しており、自動ロールバックはしない。
+`develop`へのpushで、型チェック・単体テスト・ビルド・stagingデプロイ・未認証アクセス確認の後に実行する。同じDeployジョブ内なので、E2Eが失敗するとstagingのデプロイ結果も失敗となり、既存のPR checksと本番公開ポリシーがそのコミットの公開を止める。Workerへの反映自体はE2E前に完了しており、自動ロールバックはしない。
 
 ブランチ単位のconcurrencyをデプロイからE2E完了まで保持する。テスト中は共有stagingにワークフロー外の手動デプロイを行わない。productionでは実行しない。
 
@@ -14,7 +14,7 @@ GitHub → Settings → Environments → staging → Environment secrets に設�
 - `E2E_OTHER_USER_ID`（任意）：別の既存GoogleユーザーID。一度stagingにログインしておく。未設定時は他ユーザーの編集・削除拒否をpendingとし、CIサマリーに未検証と記載する。
 - 既存の `CLOUDFLARE_API_TOKEN`：staging D1へのクエリ実行にも使用する。
 
-本人ID未設定やユーザー未登録はエラーとし、成功扱いにしない。設定後、Deploy Cloudflareを `cloudflare-migration` で再実行できる。
+本人ID未設定やユーザー未登録はエラーとし、成功扱いにしない。設定後、Deploy Cloudflareを `develop` で再実行できる。
 
 ## 認証
 

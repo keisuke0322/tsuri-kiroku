@@ -1,3 +1,7 @@
+const {
+  isDevelopmentBranch,
+  getDevelopmentBranch,
+} = require('./development-branch.cjs');
 const { UpdatePending, publishProgress } = require('./update-progress.cjs');
 const { readFileSync } = require('node:fs');
 const {
@@ -200,11 +204,10 @@ async function selectDeployment(
 ) {
   const { github, context } = options;
   if (
-    !['refs/heads/main', 'refs/heads/cloudflare-migration'].includes(
-      context.ref,
-    )
+    context.ref !== 'refs/heads/main' &&
+    !isDevelopmentBranch(context.ref?.replace(/^refs\/heads\//, ''))
   )
-    throw Error('Run the controller from main or cloudflare-migration.');
+    throw Error('Run the controller from main or develop.');
   const state = await readState(options);
   if (action === 'validate-update') {
     if (context.ref !== 'refs/heads/main')
@@ -267,12 +270,8 @@ async function selectDeployment(
       await writeState(options, state);
       await removeApproval(options, await getPr(options, state.lease.pr));
     }
-    const sha = (
-      await github.rest.git.getRef({
-        ...context.repo,
-        ref: 'heads/cloudflare-migration',
-      })
-    ).data.object.sha;
+    const { data } = await getDevelopmentBranch(options);
+    const sha = data.object.sha;
     return { sha, kind: 'restore', pr: state.lease?.pr || null };
   }
   if (action !== 'development') throw Error('Unsupported deployment action.');
@@ -282,12 +281,10 @@ async function selectDeployment(
     throw Error(
       `Staging held by PR #${state.lease.pr} (${state.lease.phase}); development deployment paused.`,
     );
-  const latest = (
-    await github.rest.git.getRef({
-      ...context.repo,
-      ref: 'heads/cloudflare-migration',
-    })
-  ).data.object.sha;
+  const { name, data } = await getDevelopmentBranch(options);
+  if (context.ref !== `refs/heads/${name}`)
+    throw Error('Deploy from the current development branch.');
+  const latest = data.object.sha;
   if (latest !== context.sha)
     throw Error('Superseded development commit; deploy latest branch instead.');
   return { sha: context.sha, kind: 'development' };
@@ -488,7 +485,7 @@ async function refreshGates(options) {
     let error;
     try {
       if (reconciliationError) throw reconciliationError;
-      if (pr.head.ref === 'cloudflare-migration')
+      if (isDevelopmentBranch(pr.head.ref))
         await requireFeatureReady(options, pr);
       else {
         await requireUpdateEvidence(options, pr);
@@ -525,7 +522,7 @@ async function refreshGates(options) {
         error?.url ||
         `${context.serverUrl}/${context.repo.owner}/${context.repo.repo}/actions/runs/${context.runId}`,
     });
-    if (pr.head.ref !== 'cloudflare-migration')
+    if (!isDevelopmentBranch(pr.head.ref))
       await publishProgress(options, pr, error);
     if (error) console.log(`#${pr.number}: ${error.message}`);
   }

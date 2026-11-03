@@ -29,7 +29,7 @@ GitHubアカウントでログインし、[既存のIssue](https://github.com/ke
 
 基本の流れは **fork → 作業ブランチで開発 → 自分のforkへpush → 元リポジトリへPR** です。
 
-**開発のベースと外部PRの提出先は `cloudflare-migration` です。** 元リポジトリの `main` は本番用です。fork先へのpushだけでは、このサイトや元リポジトリへ変更は反映されません。
+**開発のベースと外部PRの提出先は `develop` です。** 名前変更が未完了の場合は `cloudflare-migration` を使います（[移行手順](docs/development-branch-rename.md)）。 元リポジトリの `main` は本番用です。fork先へのpushだけでは、このサイトや元リポジトリへ変更は反映されません。
 
 [貢献ガイド](CONTRIBUTING.md#forkからprを提出する)に、fork・clone・upstream登録・作業ブランチ作成・検証・PR提出のコマンドを記載しています。
 
@@ -105,13 +105,13 @@ corepack pnpm build
 
 ## ブランチと公開の流れ
 
-| ブランチ・環境                        | 役割                                                   |
-| ------------------------------------- | ------------------------------------------------------ |
-| 外部開発者のforkの作業ブランチ        | 開発とPR提出。元サイトには自動デプロイされません。     |
-| 元リポジトリの `cloudflare-migration` | 管理者が変更を取り込み、stagingへ自動デプロイ。        |
-| 元リポジトリの `main`                 | 確認済みの公開PRをマージし、productionへ自動デプロイ。 |
+| ブランチ・環境                 | 役割                                                   |
+| ------------------------------ | ------------------------------------------------------ |
+| 外部開発者のforkの作業ブランチ | 開発とPR提出。元サイトには自動デプロイされません。     |
+| 元リポジトリの `develop`       | 管理者が変更を取り込み、stagingへ自動デプロイ。        |
+| 元リポジトリの `main`          | 確認済みの公開PRをマージし、productionへ自動デプロイ。 |
 
-管理者は外部PRをレビューし、開発ブランチへ取り込んでstagingを確認します。その後、`cloudflare-migration → main` のPRで公開します。stagingとproductionは別のWorkers・D1・R2を使用し、データは自動コピーしません。
+管理者は外部PRをレビューし、開発ブランチへ取り込んでstagingを確認します。その後、`develop → main` のPRで公開します。stagingとproductionは別のWorkers・D1・R2を使用し、データは自動コピーしません。
 
 運用・デプロイの詳細は[Cloudflare設定と公開手順](CLOUDFLARE-MIGRATION.md)を参照してください。
 

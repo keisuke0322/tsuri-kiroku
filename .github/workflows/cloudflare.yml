@@ -5,7 +5,7 @@ run-name: >-
       format('{0}｜{1}', github.ref_name == 'main' && '本番公開' || '開発staging', github.event.head_commit.message) }}
 on:
   push:
-    branches: [cloudflare-migration, main]
+    branches: [develop, cloudflare-migration, main]
   pull_request:
     branches: [main]
     types:
@@ -97,7 +97,7 @@ jobs:
 
   deploy:
     name: Deploy
-    if: github.event_name != 'pull_request' && (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/cloudflare-migration')
+    if: github.event_name != 'pull_request' && (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/develop' || github.ref == 'refs/heads/cloudflare-migration')
     runs-on: ubuntu-latest
     timeout-minutes: 35
     environment: ${{ github.ref == 'refs/heads/main' && (inputs.action == '' || inputs.action == 'development') && 'production' || 'staging' }}

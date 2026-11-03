@@ -95,8 +95,8 @@ function fixture() {
             return response({ object: { sha: f.revision } });
           if (ref === 'heads/main')
             return response({ object: { sha: f.main } });
-          if (ref === 'heads/cloudflare-migration')
-            return response({ object: { sha: f.dev } });
+          if (ref === `heads/${f.developmentBranch || 'develop'}`)
+            return response({ object: { type: 'commit', sha: f.dev } });
           if (ref.startsWith('tags/'))
             return response({
               object: { sha: f.publishedSha || 'published', type: 'commit' },
@@ -151,7 +151,9 @@ function fixture() {
           response({
             status:
               f.comparison ||
-              (head === 'cloudflare-migration' ? 'diverged' : 'ahead'),
+              (head === (f.developmentBranch || 'develop')
+                ? 'diverged'
+                : 'ahead'),
             merge_base_commit: { sha: base },
           }),
         getCommit: async () =>
@@ -204,7 +206,7 @@ function fixture() {
     paginate: async (method, args) => {
       if (method === 'files') return f.files;
       if (method === 'prs')
-        return args.base === 'cloudflare-migration'
+        return args.base === (f.developmentBranch || 'develop')
           ? f.syncPrs
           : args.state === 'closed'
             ? [pr]
@@ -529,7 +531,7 @@ for (const [name, change] of [
 test('staging lease persists after validation, blocks development/other PRs and resets approval on retry', async () => {
   const f = fixture();
   verified(f);
-  f.context.ref = 'refs/heads/cloudflare-migration';
+  f.context.ref = 'refs/heads/develop';
   f.context.sha = 'dev';
   await assert.rejects(control.selectDeployment(f), /paused/);
   f.context.ref = 'refs/heads/main';
@@ -567,7 +569,7 @@ test('abort is administrator-only and retains restoring ownership until successf
     { sha: 'dev', kind: 'restore', pr: 51 },
   );
   assert.equal(f.state.lease.phase, 'restoring');
-  f.context.ref = 'refs/heads/cloudflare-migration';
+  f.context.ref = 'refs/heads/develop';
   f.context.sha = 'dev';
   await assert.rejects(control.selectDeployment(f), /paused/);
 });
@@ -736,7 +738,7 @@ for (const [name, change] of [
   [
     'wrong branch',
     (f) => {
-      f.context.ref = 'refs/heads/cloudflare-migration';
+      f.context.ref = 'refs/heads/develop';
     },
   ],
   [
@@ -835,7 +837,7 @@ function automaticSync() {
     draft: false,
     mergeable: true,
     base: {
-      ref: 'cloudflare-migration',
+      ref: 'develop',
       sha: 'dev',
       repo: { full_name: fullName },
     },
@@ -1026,7 +1028,7 @@ test('immutable sync CI metadata binds the PR merge, head, base and run attempt'
         repo: { full_name: fullName },
       },
       base: {
-        ref: 'cloudflare-migration',
+        ref: 'develop',
         sha: 'b'.repeat(40),
         repo: { full_name: fullName },
       },
@@ -1049,7 +1051,7 @@ test('immutable sync CI metadata binds the PR merge, head, base and run attempt'
   });
   event.pull_request.base.ref = 'main';
   assert.throws(() => syncCIRecord(event, environment));
-  event.pull_request.base.ref = 'cloudflare-migration';
+  event.pull_request.base.ref = 'develop';
   event.pull_request.head.repo.full_name = 'fork/repo';
   assert.throws(() => syncCIRecord(event, environment));
 });
@@ -1154,7 +1156,7 @@ test('direct main sync creates one PR without creating or updating branch refs',
   await sync.syncPublished(f);
   assert.equal(f.syncPrs.length, 1);
   assert.equal(f.syncPrs[0].head, 'main');
-  assert.equal(f.syncPrs[0].base, 'cloudflare-migration');
+  assert.equal(f.syncPrs[0].base, 'develop');
   assert.equal(
     f.writes.some((w) => w.ref || w.force),
     false,
@@ -1345,7 +1347,7 @@ test('refresh marks known heads pending and then fails closed on reconciliation/
 test('setup preserves existing protection and development environment policy and verifies enabled settings', async () => {
   const f = fixture();
   const calls = [];
-  const policies = [{ name: 'cloudflare-migration', type: 'branch' }];
+  const policies = [{ name: 'develop', type: 'branch' }];
   let ruleset = {
     id: 1,
     name: 'main',
@@ -1415,7 +1417,7 @@ test('setup preserves existing protection and development environment policy and
   assert.ok(ruleset.rules.some((r) => r.type === 'deletion'));
   assert.deepEqual(
     policies.map((p) => p.name),
-    ['cloudflare-migration', 'main'],
+    ['develop', 'main'],
   );
   assert.ok(
     calls.includes('PUT /repos/{owner}/{repo}/automated-security-fixes'),
@@ -1604,4 +1606,45 @@ test('PR progress updates one trusted comment instead of adding repeated notices
   ];
   await publishProgress(f, f.pr, pending);
   assert.equal(f.comments.length, 1);
+});
+
+for (const name of ['cloudflare-migration', 'develop']) {
+  test(`development deploy and published sync work with ${name} during rename`, async () => {
+    const f = fixture();
+    f.developmentBranch = name;
+    f.context.ref = `refs/heads/${name}`;
+    f.context.sha = f.dev;
+    assert.equal((await control.selectDeployment(f)).kind, 'development');
+    published(f);
+    f.main = 'published';
+    await sync.syncPublished(f);
+    assert.equal(f.syncPrs[0].base, name);
+    const g = automaticSync();
+    g.developmentBranch = name;
+    g.syncPr.base.ref = name;
+    assert.equal((await sync.autoMergePublishedSync(g)).state, 'merged');
+  });
+}
+
+test('rename resolution prefers develop and never falls back on API errors', async () => {
+  const f = fixture();
+  f.refs['heads/cloudflare-migration'] = 'legacy-head';
+  f.context.ref = 'refs/heads/cloudflare-migration';
+  f.context.sha = 'legacy-head';
+  await assert.rejects(
+    control.selectDeployment(f),
+    /current development branch/,
+  );
+  const getRef = f.github.rest.git.getRef;
+  for (const status of [403, 429, 500]) {
+    const reads = [];
+    f.github.rest.git.getRef = async (args) => {
+      reads.push(args.ref);
+      if (args.ref === 'heads/develop')
+        throw Object.assign(Error('GitHub unavailable'), { status });
+      return getRef(args);
+    };
+    await assert.rejects(control.selectDeployment(f), /GitHub unavailable/);
+    assert.ok(!reads.includes('heads/cloudflare-migration'));
+  }
 });
