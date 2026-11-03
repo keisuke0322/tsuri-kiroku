@@ -1,5 +1,6 @@
 import { existsSync, readFileSync, writeFileSync } from 'node:fs';
 import { createHash } from 'node:crypto';
+import { runtimeConfigHash } from './staging-reuse.cjs';
 
 const stage = process.argv[2];
 if (!['staging', 'production'].includes(stage))
@@ -86,6 +87,7 @@ for (const [key, fallback] of [
 writeFileSync('wrangler.deploy.json', JSON.stringify(config, null, 2) + '\n');
 if (existsSync(recordPath)) {
   const record = JSON.parse(readFileSync(recordPath, 'utf8'));
+  record.runtimeConfigSha256 = runtimeConfigHash(config);
   record.configSha256 = createHash('sha256')
     .update(readFileSync('wrangler.deploy.json'))
     .digest('hex');

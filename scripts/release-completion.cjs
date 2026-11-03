@@ -69,6 +69,20 @@ async function completeReleases({ github, context, log = () => {} }) {
     !jobs.some((job) => job.name === 'Deploy' && job.conclusion === 'success')
   )
     return { state: 'waiting-for-development-staging' };
+  const deploy = jobs.find((job) => job.name === 'Deploy');
+  const reused = deploy.steps?.some(
+    (step) =>
+      step.name === 'Run authenticated staging E2E' &&
+      step.conclusion === 'skipped',
+  );
+  let stagingEvidence;
+  if (reused) {
+    stagingEvidence = await require('./staging-reuse.cjs').reusedStaging(
+      options,
+      sha,
+      { ...run, reused: true },
+    );
+  }
   const releases = await github.paginate(github.rest.repos.listReleases, {
     ...context.repo,
     per_page: 100,
@@ -118,6 +132,7 @@ async function completeReleases({ github, context, log = () => {} }) {
     completed,
     developmentSha: sha,
     stagingRun: run.id,
+    stagingEvidence: stagingEvidence || { sha, runId: run.id },
   };
 }
 

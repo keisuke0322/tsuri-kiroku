@@ -122,7 +122,24 @@ async function main() {
     return;
   }
   const config = JSON.parse(await readFile('wrangler.deploy.json', 'utf8'));
-  const verified = await captureDeployment(record, config);
+  const actual = await captureDeployment(record.reusedFrom || record, config);
+  if (record.reusedFrom) {
+    assert.deepEqual(actual.cloudflare, record.reusedFrom.cloudflare);
+    assert.deepEqual(
+      actual.appliedMigrations,
+      record.reusedFrom.appliedMigrations,
+    );
+  }
+  const verified = record.reusedFrom
+    ? {
+        ...record,
+        cloudflare: actual.cloudflare,
+        appliedMigrations: actual.appliedMigrations,
+        verifiedAt: actual.verifiedAt,
+        deployedAt: actual.deployedAt,
+        result: 'success',
+      }
+    : actual;
   await writeFile(path, JSON.stringify(verified, null, 2) + '\n');
   if (process.env.GITHUB_STEP_SUMMARY)
     await appendFile(
@@ -130,14 +147,23 @@ async function main() {
       [
         '## 稼働資材の確認成功',
         `環境: ${verified.environment} / 版: ${verified.release?.version || verified.sha}`,
-        `本番／稼働SHA: ${verified.sha}`,
+        `検証対象SHA: ${verified.sha}`,
+        `実際の稼働SHA: ${verified.reusedFrom?.sha || verified.sha}`,
+        ...(verified.reusedFrom
+          ? [
+              `同一内容の検証を再利用（再デプロイ・E2E省略）: ${verified.reusedFrom.actionsUrl}`,
+              `ソースtree: ${verified.sourceTree}`,
+            ]
+          : []),
         `検証したstaging SHA: ${verified.staging?.sha || verified.sha}`,
         `Cloudflare deployment: ${verified.cloudflare.deploymentId}`,
         `Cloudflare version: ${verified.cloudflare.versionId}`,
         `[稼働情報](${config.vars.APP_ORIGIN}/api/version) / [Actions](${verified.actionsUrl})`,
         verified.environment === 'production'
           ? '本番の反映と検証は成功しました。GitHub Release作成結果はPublish Releaseジョブを確認してください。'
-          : 'stagingの動作確認・E2Eと稼働SHAの照合が成功しました。',
+          : verified.reusedFrom
+            ? '同期後の同一内容・元のE2E成功・現在の稼働版の照合が成功しました。'
+            : 'stagingの動作確認・E2Eと稼働SHAの照合が成功しました。',
         '',
       ].join('\n\n'),
     );
