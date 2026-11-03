@@ -29,7 +29,7 @@ GitHubアカウントでログインし、[既存のIssue](https://github.com/ke
 
 基本の流れは **fork → 作業ブランチで開発 → 自分のforkへpush → 元リポジトリへPR** です。
 
-**開発のベースと外部PRの提出先は `develop` です。** 名前変更が未完了の場合は `cloudflare-migration` を使います（[移行手順](docs/development-branch-rename.md)）。 元リポジトリの `main` は本番用です。fork先へのpushだけでは、このサイトや元リポジトリへ変更は反映されません。
+**開発のベースと外部PRの提出先は `develop` です。** 元リポジトリの `main` は本番用です。fork先へのpushだけでは、このサイトや元リポジトリへ変更は反映されません。
 
 [貢献ガイド](CONTRIBUTING.md#forkからprを提出する)に、fork・clone・upstream登録・作業ブランチ作成・検証・PR提出のコマンドを記載しています。
 

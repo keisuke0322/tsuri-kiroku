@@ -22,10 +22,10 @@ Watchは内部投稿も通知対象です。Statusやラベルの付与だけで
 
 ## 有効化と復旧
 
-cloudflare-migrationへのpushでProject初期設定ActionsがStatus選択肢・分類ラベル・操作用ラベルを作成します。既存選択肢のID・色・説明は保持します。イベント処理は既定ブランチmainの信頼済みコードを実行するため、mainへマージしてから新規投稿の自動受付が有効になります。
+developへのpushでProject初期設定ActionsがStatus選択肢・分類ラベル・操作用ラベルを作成します。既存選択肢のID・色・説明は保持します。イベント処理は既定ブランチmainの信頼済みコードを実行するため、mainへマージしてから新規投稿の自動受付が有効になります。
 
 「Update Project from issue labels」と「Update Project Status for Issues and PRs」のActions結果を確認します。失敗時は権限・PROJECT_TOKEN・Project選択肢を確認して再実行してください。再実行は既存のProject項目を利用し、設定済みStatusを上書きしません。外部コードはSecrets付きで実行しません。
 
-外部PRは `Contribution checks` の成功と管理者レビュー後、merge commitでcloudflare-migrationへ取り込んだ時点で閉じます。関連Issueは本番成功まで開いたまま追跡し、外部PRのProject Statusも取り込み時点では「完了」にしません。詳細は[貢献ガイド](../CONTRIBUTING.md#取り込みから本番公開まで)を参照してください。
+外部PRは `Contribution checks` の成功と管理者レビュー後、merge commitでdevelopへ取り込んだ時点で閉じます。関連Issueは本番成功まで開いたまま追跡し、外部PRのProject Statusも取り込み時点では「完了」にしません。詳細は[貢献ガイド](../CONTRIBUTING.md#取り込みから本番公開まで)を参照してください。
 
-Issueフォームはmainへのマージ後にNew issueで選べます。外部PR用CIは提出先cloudflare-migrationにワークフローが入った後、そのブランチ宛てのPRの作成・更新で動作します。fork投稿ではGitHubのActions実行承認が必要な場合があります。
+Issueフォームはmainへのマージ後にNew issueで選べます。外部PR用CIは提出先developにワークフローが入った後、そのブランチ宛てのPRの作成・更新で動作します。fork投稿ではGitHubのActions実行承認が必要な場合があります。

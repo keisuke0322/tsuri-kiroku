@@ -7,10 +7,7 @@ test('contribution CI runs validation without privileged triggers or deployment 
     new URL('../.github/workflows/contribution-checks.yml', import.meta.url),
     'utf8',
   );
-  assert.match(
-    workflow,
-    /pull_request:\s*\n\s*branches: \[develop, cloudflare-migration, main\]/,
-  );
+  assert.match(workflow, /pull_request:\s*\n\s*branches: \[develop, main\]/);
   assert.match(
     workflow,
     /types: \[opened, synchronize, reopened, ready_for_review\]/,

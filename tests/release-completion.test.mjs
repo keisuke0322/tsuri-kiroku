@@ -256,18 +256,3 @@ test('a later successful restoration retry supersedes a newer cancelled push run
       : get(args);
   assert.equal((await completion.completeReleases(f)).state, 'completed');
 });
-
-test('release completion follows the legacy branch only until develop exists', async () => {
-  const f = fixture();
-  f.run.head_branch = 'cloudflare-migration';
-  const getRef = f.github.rest.git.getRef;
-  f.github.rest.git.getRef = async (args) => {
-    if (args.ref === 'heads/develop')
-      throw Object.assign(Error('Not found'), { status: 404 });
-    return getRef({
-      ...args,
-      ref: args.ref.replace('cloudflare-migration', 'develop'),
-    });
-  };
-  assert.equal((await completion.completeReleases(f)).state, 'completed');
-});
