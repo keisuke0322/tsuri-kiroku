@@ -3,7 +3,7 @@ run-name: >-
   PR #${{ github.event.pull_request.number }}｜整形・型チェック・テスト・ビルド｜${{ github.event.pull_request.title }}
 on:
   pull_request:
-    branches: [develop, cloudflare-migration, main]
+    branches: [develop, main]
     types: [opened, synchronize, reopened, ready_for_review]
 permissions:
   contents: read
@@ -29,10 +29,10 @@ jobs:
       - run: corepack pnpm test
       - run: corepack pnpm build
       - name: Record tested published sync commits
-        if: (github.base_ref == 'develop' || github.base_ref == 'cloudflare-migration') && github.head_ref == 'main' && github.event.pull_request.head.repo.full_name == github.repository
+        if: github.base_ref == 'develop' && github.head_ref == 'main' && github.event.pull_request.head.repo.full_name == github.repository
         run: node scripts/sync-ci-record.cjs
       - name: Preserve tested published sync identity
-        if: (github.base_ref == 'develop' || github.base_ref == 'cloudflare-migration') && github.head_ref == 'main' && github.event.pull_request.head.repo.full_name == github.repository
+        if: github.base_ref == 'develop' && github.head_ref == 'main' && github.event.pull_request.head.repo.full_name == github.repository
         uses: actions/upload-artifact@v4
         with:
           name: published-sync-ci-${{ github.run_id }}-${{ github.run_attempt }}-${{ github.event.pull_request.base.sha }}

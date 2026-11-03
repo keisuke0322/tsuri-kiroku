@@ -242,12 +242,3 @@ test('PR lookup API errors are propagated instead of treating a failed lookup as
   };
   await assert.rejects(checkProduction(f), /API unavailable/);
 });
-
-test('migration release from the legacy development branch keeps staging evidence mandatory', async () => {
-  const f = fixture();
-  f.context.payload.pull_request.head.ref = 'cloudflare-migration';
-  await checkProduction(f);
-  const failed = fixture({ state: 'failure' });
-  failed.context.payload.pull_request.head.ref = 'cloudflare-migration';
-  await assert.rejects(checkProduction(failed), /Staging failed/);
-});

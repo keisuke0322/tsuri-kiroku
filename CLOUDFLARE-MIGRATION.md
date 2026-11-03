@@ -75,7 +75,7 @@ Secrets:
 
 stagingのデータを本番へコピーする処理はありません。PRチェックは実機確認の代わりにはなりません。mainへの直接pushは本番デプロイの検証で拒否します。
 
-手動再実行はActions → Deploy Cloudflare → Run workflowを使えます。手動起動の既定は更新検証用の `action=start-update` です。通常の再デプロイでは `action=development` を明示し、 **Branch: mainは本番、cloudflare-migrationはstaging**です。main基準の依存更新検証・中止・開発復帰には[依存更新の運用](docs/dependency-updates.md)の専用actionを使います。ほかのブランチではデプロイしません。失敗した本番ジョブの再実行は同じコミットを使用します。
+手動再実行はActions → Deploy Cloudflare → Run workflowを使えます。手動起動の既定は更新検証用の `action=start-update` です。通常の再デプロイでは `action=development` を明示し、 **Branch: mainは本番、developはstaging**です。main基準の依存更新検証・中止・開発復帰には[依存更新の運用](docs/dependency-updates.md)の専用actionを使います。ほかのブランチではデプロイしません。失敗した本番ジョブの再実行は同じコミットを使用します。
 
 ### GitHub側で設定するmainの保護
 
@@ -88,7 +88,7 @@ Settings → Branches → Add classic branch protection ruleでmainを対象に�
 - Do not allow bypassing the above settings: ON（管理者も対象）
 - Allow force pushes / Allow deletions: OFF
 
-production EnvironmentのDeployment branches and tagsはSelected branches and tagsでmainのみ、stagingはcloudflare-migrationと、依存更新の信頼済みcontrollerとしてmainを許可します（新ルート導入後のsetupでmainを追加）。依存更新のソースブランチを直接許可しません。GitHub側の設定はワークフローファイルの変更だけでは適用されません。
+production EnvironmentのDeployment branches and tagsはSelected branches and tagsでmainのみ、stagingはdevelopと、依存更新の信頼済みcontrollerとしてmainを許可します（新ルート導入後のsetupでmainを追加）。依存更新のソースブランチを直接許可しません。GitHub側の設定はワークフローファイルの変更だけでは適用されません。
 
 初回PRはSites版mainへCloudflare版全体を取り込むため、以後の機能PRより差分が大きくなります。この初回PRをマージすると上記の運用が有効になります。
 

@@ -3,7 +3,7 @@ on:
   issues:
     types: [labeled]
   push:
-    branches: [develop, cloudflare-migration]
+    branches: [develop]
     paths:
       - .github/workflows/project-update.yml
       - scripts/project-status.cjs

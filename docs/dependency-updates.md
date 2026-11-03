@@ -10,7 +10,7 @@ Issue #51。通常更新・緊急更新とも、現在の本番 `main` を基準
 
 1. この実装を通常の機能公開手順でstaging確認し、`develop → main` を公開する。
 2. 既存のリポジトリSecret `PROJECT_TOKEN` の権限を確認する。Project用の権限に加え、このリポジトリのContents・Pull requests・Issues・Actions・Commit statusesの書き込み、Dependabot alertsの読み取りが必要。初回setupにはAdministrationの書き込み、Environmentsの書き込みも必要になる。アプリ版準備・同期PRはこのトークンで作り、通常のCIを起動する。`GITHUB_TOKEN` によるpushでは後続CIが起動しないため代用しない。トークンをログへ出さない。
-3. 管理者がActions **Dependency governance** を `main`、`action=setup` で実行する。Dependabot alerts・security updatesを有効化し、「動作確認済み」ラベルを作成し、staging Environmentの既存cloudflare-migration許可を保持してmainのcontrollerを追加し、既存のmain専用Rulesetに `Contribution checks` と `Dependency release gate` を追加する。既存の `PR checks`・`Formatting`・厳密な最新base条件・直接push禁止・その他の規則を保持する。設定を読み戻した成功サマリーを確認する。権限不足・複数Ruleset等のエラーは未有効化として対処する。部分成功時も安全に再実行できる。
+3. 管理者がActions **Dependency governance** を `main`、`action=setup` で実行する。Dependabot alerts・security updatesを有効化し、「動作確認済み」ラベルを作成し、staging Environmentの既存develop許可を保持してmainのcontrollerを追加し、既存のmain専用Rulesetに `Contribution checks` と `Dependency release gate` を追加する。既存の `PR checks`・`Formatting`・厳密な最新base条件・直接push禁止・その他の規則を保持する。設定を読み戻した成功サマリーを確認する。権限不足・複数Ruleset等のエラーは未有効化として対処する。部分成功時も安全に再実行できる。
 4. mainが既定ブランチであること、Settings → Code securityのDependabot alerts・security updates・Dependency graphが有効であること、main Rulesetの4チェックが必須であることを管理画面でも確認する。管理者バイパスを追加しない。DependabotがActionsで動く場合はリポジトリのActions実行許可も確認する。
 5. `action=refresh` が成功し、開いているmain向けPRの `Dependency release gate` が表示されることを確認する。
 6. Security → Dependabot / Insights → Dependency graph → Dependabotから **Check for updates** を開始する。更新ログにpnpm 11.25.0での解決・lockfile生成が成功していることと、更新PRのContribution checksを確認する。更新の採用・本番公開は下記手順で別途行う。
@@ -117,7 +117,7 @@ mainが進み、その先端の公開がまだ完了していない間は自動�
 
 同期PRの作成だけ失敗したら **Dependency governance** をmain、`action=sync` で再実行する。既に開発へ取り込まれていればPRを追加しない。自動マージの判定だけを再確認する場合は **Auto-merge published sync** をmainから実行する。本番の再デプロイは不要。Release作成だけの失敗は元の公開実行の失敗ジョブだけを再実行し、公開済みタグを移動しない。
 
-公開に取り込まれたDependabot由来・`dependabot/`配下のブランチだけを自動整理する。対象が公開済みコミットの祖先であり、ブランチ先端がマージ時から変わっていないことも確認する。手動の再整理は `action=cleanup`。main・cloudflare-migrationや未公開の更新ブランチは削除しない。
+公開に取り込まれたDependabot由来・`dependabot/`配下のブランチだけを自動整理する。対象が公開済みコミットの祖先であり、ブランチ先端がマージ時から変わっていないことも確認する。手動の再整理は `action=cleanup`。main・developや未公開の更新ブランチは削除しない。
 
 ## 通知・実運用の確認
 

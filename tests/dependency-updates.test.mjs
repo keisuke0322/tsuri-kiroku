@@ -1608,43 +1608,17 @@ test('PR progress updates one trusted comment instead of adding repeated notices
   assert.equal(f.comments.length, 1);
 });
 
-for (const name of ['cloudflare-migration', 'develop']) {
-  test(`development deploy and published sync work with ${name} during rename`, async () => {
-    const f = fixture();
-    f.developmentBranch = name;
-    f.context.ref = `refs/heads/${name}`;
-    f.context.sha = f.dev;
-    assert.equal((await control.selectDeployment(f)).kind, 'development');
-    published(f);
-    f.main = 'published';
-    await sync.syncPublished(f);
-    assert.equal(f.syncPrs[0].base, name);
-    const g = automaticSync();
-    g.developmentBranch = name;
-    g.syncPr.base.ref = name;
-    assert.equal((await sync.autoMergePublishedSync(g)).state, 'merged');
-  });
-}
-
-test('rename resolution prefers develop and never falls back on API errors', async () => {
+test('development deploy and published sync use develop', async () => {
   const f = fixture();
-  f.refs['heads/cloudflare-migration'] = 'legacy-head';
-  f.context.ref = 'refs/heads/cloudflare-migration';
-  f.context.sha = 'legacy-head';
-  await assert.rejects(
-    control.selectDeployment(f),
-    /current development branch/,
+  f.context.ref = 'refs/heads/develop';
+  f.context.sha = f.dev;
+  assert.equal((await control.selectDeployment(f)).kind, 'development');
+  published(f);
+  f.main = 'published';
+  await sync.syncPublished(f);
+  assert.equal(f.syncPrs[0].base, 'develop');
+  assert.equal(
+    (await sync.autoMergePublishedSync(automaticSync())).state,
+    'merged',
   );
-  const getRef = f.github.rest.git.getRef;
-  for (const status of [403, 429, 500]) {
-    const reads = [];
-    f.github.rest.git.getRef = async (args) => {
-      reads.push(args.ref);
-      if (args.ref === 'heads/develop')
-        throw Object.assign(Error('GitHub unavailable'), { status });
-      return getRef(args);
-    };
-    await assert.rejects(control.selectDeployment(f), /GitHub unavailable/);
-    assert.ok(!reads.includes('heads/cloudflare-migration'));
-  }
 });

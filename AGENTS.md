@@ -7,7 +7,6 @@
 - GitHub: `keisuke0322/tsuri-kiroku`。このチェックアウトのGitHub向けremoteは`github`。`origin`は旧Sites用なので、push前にURLを確認し、旧Sitesへはpushしない。
 - React / TypeScript / Vinext、Cloudflare Workers / D1 / R2、Google認証を使用する。
 - 開発ブランチ: `develop`（継続利用）。本番ブランチ: `main`。
-  名前変更の完了前は `cloudflare-migration` を継続使用し、[移行手順](docs/development-branch-rename.md)に従う。
 - staging: https://tsuri-kiroku-staging.keisuke0322.workers.dev
 - production: https://tsuri-kiroku-production.keisuke0322.workers.dev
 - 詳細は[README.md](README.md)、[CLOUDFLARE-MIGRATION.md](CLOUDFLARE-MIGRATION.md)、実際の[ワークフロー](.github/workflows/cloudflare.yml)を確認する。環境やブランチ構成を推測で変更しない。
@@ -51,7 +50,7 @@
 4. 1人運用のため承認レビューを必須にせず、ユーザー自身がPRを確認・マージする。AIは独断で本番向けPRをマージしない。公開後の開発同期PRだけは、下記の条件を満たすワークフローによる自動マージを許可する。
 5. 継続利用する開発ブランチなので、マージ方法は`Create a merge commit`とし、`develop`は削除しない。
 6. mainへのマージでGitHub Actionsがmainのコードをproductionへ自動デプロイする。mainへ直接pushしない。ブランチ保護やデプロイ検証を迂回しない。
-7. 本番への手動デプロイ・再実行は、ユーザーが指示した場合に行う。手動ワークフローもmainはproduction、cloudflare-migrationはstagingに対応する。
+7. 本番への手動デプロイ・再実行は、ユーザーが指示した場合に行う。手動ワークフローもmainはproduction、developはstagingに対応する。
 
 ## DB・写真・秘密情報
 
