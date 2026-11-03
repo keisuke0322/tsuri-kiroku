@@ -89,11 +89,11 @@
   },
   "lastDevelopmentValidation": {
     "environment": "staging",
-    "sha": "2e1d6076e702841a7fdc151fd1dff4b6b7f8a887",
-    "runId": "41608010134",
+    "sha": "37438f0a9f944a5d5d7124e901c071668a968e76",
+    "runId": "41635477657",
     "runAttempt": "1",
-    "actionsUrl": "https://github.com/keisuke0322/tsuri-kiroku/actions/runs/41608010134/attempts/1",
-    "builtAt": "2026-11-03T08:48:03.741Z",
+    "actionsUrl": "https://github.com/keisuke0322/tsuri-kiroku/actions/runs/41635477657/attempts/1",
+    "builtAt": "2026-11-03T12:24:55.937Z",
     "release": null,
     "staging": null,
     "changedMigrations": [],
@@ -152,99 +152,12 @@
     ],
     "result": "success",
     "runtimeConfigSha256": "4d8f615b5c20083ca0276be3c04da01b15b7975b83dd9f25a4ebc98a468bf5d4",
-    "configSha256": "62fd97eeb9fad2e540938213f83fe61064b71ad699ab8b0b3192c35a48137443",
-    "preparedConfigSha256": "d7f3ec1576070bbd670f7acceaa8f1515db5e3e1b10bc27c316490e3dd4d33c2",
-    "sourceTree": "3bb73a680a8a2e151cb8ac356dac36f6a23e182f",
-    "reusedFrom": {
-      "environment": "staging",
-      "sha": "fce0b98421355bfb5818fed39baa4400016c43e8",
-      "runId": "41605949481",
-      "runAttempt": "1",
-      "actionsUrl": "https://github.com/keisuke0322/tsuri-kiroku/actions/runs/41605949481/attempts/1",
-      "builtAt": "2026-11-03T08:48:03.741Z",
-      "release": null,
-      "staging": null,
-      "changedMigrations": [],
-      "pr": null,
-      "sourceIssues": [],
-      "toolchain": {
-        "node": "v24.22.1",
-        "packageManager": "pnpm@11.25.0"
-      },
-      "lockfileSha256": "46a8585ac9135ac09078e50daa4d9d1c9f338e59373229d4371fb8a02a16cf27",
-      "migrations": [
-        {
-          "name": "0000_slim_matthew_murdock.sql",
-          "sha256": "005197da4f935fedb40beba1cb9006db8d7c4cd566967cb98c9ddc61e9821706"
-        },
-        {
-          "name": "0001_cloudy_glorian.sql",
-          "sha256": "ec94b53e6af33daed76f69d44b9f303f159f00ff7275089de7c469d161fd0b50"
-        },
-        {
-          "name": "0002_dizzy_greymalkin.sql",
-          "sha256": "3d67665474d0b1783383f83e0be2f8bf12f4b78aa4e66d50534cf100da836d25"
-        },
-        {
-          "name": "0003_green_lily_hollister.sql",
-          "sha256": "05bc4749c9d4c270004505587fadf2e3dd20b7eaf61f8602a674cdd488cad274"
-        },
-        {
-          "name": "0004_mushy_frightful_four.sql",
-          "sha256": "02b259510752a9148bb7d5965b0c9d1e6a75126238593b499a4f9bdf20c8dde5"
-        },
-        {
-          "name": "0005_photo_storage.sql",
-          "sha256": "1b0e27e3588e6554eab31375a308b26e3b6c13867407b16c7fe48779e25c4724"
-        },
-        {
-          "name": "0006_fishing_map.sql",
-          "sha256": "37a49a485f75024a6ccc54a1f1d5b64b14fb0d4d795a311fe0573d956eac1378"
-        },
-        {
-          "name": "0007_location_visibility.sql",
-          "sha256": "9f1f5dc4e20a29317c9c82f60ca6436a3da9b7739936cf970acc3f4b59a70533"
-        },
-        {
-          "name": "0008_guest_public.sql",
-          "sha256": "a3db70240dc4ef73f13698f975ef5c6deb7bc8af6ed1e55a7f9351cdc01f6527"
-        },
-        {
-          "name": "0009_remove_guest_public.sql",
-          "sha256": "9a40220523226bc4baec4f196dbd526f88c11d2848c23786ff3a11b97a4712ee"
-        },
-        {
-          "name": "0010_gear.sql",
-          "sha256": "03f2e7dcbafcc4b23451e32926b99ace33ceb3a02407d5481258fd6db8df72d7"
-        }
-      ],
-      "result": "success",
-      "runtimeConfigSha256": "4d8f615b5c20083ca0276be3c04da01b15b7975b83dd9f25a4ebc98a468bf5d4",
-      "configSha256": "62fd97eeb9fad2e540938213f83fe61064b71ad699ab8b0b3192c35a48137443",
-      "deployedAt": "2026-11-03T08:49:13.596366Z",
-      "verifiedAt": "2026-11-03T08:57:02.497Z",
-      "cloudflare": {
-        "deploymentId": "d9868f8d-3939-49c6-83a8-f5309df4f339",
-        "versionId": "9fb5a3aa-83b6-4ac8-a56c-b7a7cd2ce238"
-      },
-      "appliedMigrations": [
-        "0000_slim_matthew_murdock.sql",
-        "0001_cloudy_glorian.sql",
-        "0002_dizzy_greymalkin.sql",
-        "0003_green_lily_hollister.sql",
-        "0004_mushy_frightful_four.sql",
-        "0005_photo_storage.sql",
-        "0006_fishing_map.sql",
-        "0007_location_visibility.sql",
-        "0008_guest_public.sql",
-        "0009_remove_guest_public.sql",
-        "0010_gear.sql"
-      ],
-      "sourceTree": "3bb73a680a8a2e151cb8ac356dac36f6a23e182f"
-    },
+    "configSha256": "4c4e73915cb185309cbe175a75d877d0cd842ec665fb7211a98f45db8f2043a3",
+    "deployedAt": "2026-11-03T12:26:06.655947Z",
+    "verifiedAt": "2026-11-03T12:35:30.822Z",
     "cloudflare": {
-      "deploymentId": "d9868f8d-3939-49c6-83a8-f5309df4f339",
-      "versionId": "9fb5a3aa-83b6-4ac8-a56c-b7a7cd2ce238"
+      "deploymentId": "2a5b2eb9-617a-4622-b275-43bc31e8e80f",
+      "versionId": "3cf45651-13be-4506-9c4c-5f9db472615a"
     },
     "appliedMigrations": [
       "0000_slim_matthew_murdock.sql",
@@ -259,8 +172,7 @@
       "0009_remove_guest_public.sql",
       "0010_gear.sql"
     ],
-    "verifiedAt": "2026-11-03T09:05:45.913Z",
-    "deployedAt": "2026-11-03T08:49:13.596366Z"
+    "sourceTree": "ec0f11de71228b2367708beef5a32e737072b03a"
   },
   "stagingReuses": {
     "17962536dca11703db8b2b84096ebd88a887de83": {
