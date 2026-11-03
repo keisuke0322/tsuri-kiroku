@@ -53,11 +53,15 @@ async function tagCommit(github, repo, version) {
   return object.sha;
 }
 
-async function validateRelease({ github, context, pr, production = false }) {
+async function validateRelease({
+  github,
+  context,
+  pr,
+  production = false,
+  packageVersion,
+}) {
   const release = parseRelease(pr.body);
-  const packageVersion = JSON.parse(
-    readFileSync('package.json', 'utf8'),
-  ).version;
+  packageVersion ??= JSON.parse(readFileSync('package.json', 'utf8')).version;
   if (release.version !== `v${packageVersion}`)
     throw Error('Release-Version must match package.json version.');
   const latest = await optional(() =>

@@ -2,13 +2,13 @@
 
 状態は [Project #7](https://github.com/users/keisuke0322/projects/7) の `Status` フィールドで管理する。
 
-| 操作                                           | Project Status  | 担当                                           |
-| ---------------------------------------------- | --------------- | ---------------------------------------------- |
-| Issue登録                                      | 検討中          | Issue opened Actions、AIのproject:検討中操作   |
-| 開発着手                                       | 開発中          | AIのproject:開発中操作                         |
-| stagingデプロイ・動作確認・E2E成功             | staging確認待ち | Deploy Cloudflareの後続ジョブ                  |
-| main向けPR登録                                 | 本番反映待ち    | PRイベントActions                              |
-| mainへマージ後productionデプロイ・動作確認成功 | 完了            | Deploy Cloudflareの後続ジョブ（Issueも閉じる） |
+| 操作                                             | Project Status  | 担当                                         |
+| ------------------------------------------------ | --------------- | -------------------------------------------- |
+| Issue登録                                        | 検討中          | Issue opened Actions、AIのproject:検討中操作 |
+| 開発着手                                         | 開発中          | AIのproject:開発中操作                       |
+| stagingデプロイ・動作確認・E2E成功               | staging確認待ち | Deploy Cloudflareの後続ジョブ                |
+| main向けPR登録                                   | 本番反映待ち    | PRイベントActions                            |
+| 本番公開・Release・開発同期・開発staging検証成功 | 完了            | Complete published Issues（Issueも閉じる）   |
 
 IssueがProjectに未登録なら自動で追加する。Status以外のフィールドや分類ラベルには触れない。Issueの通常ラベルは状態管理に使わない。
 
@@ -20,7 +20,7 @@ IssueがProjectに未登録なら自動で追加する。Status以外のフィ�
 
 開発コミットとPR本文に独立した行で `Refs #123` を記載する。複数のIssueは `Refs #123, #124`。PR本文には本番反映する全Issueを記載する。`Closes`などはマージ時にIssueを閉じるため、新規PRでは使用しない（過去の記載は解析可能）。
 
-stagingではmainとの差分コミットから対象を取得する。デプロイしたコミットと同じheadのmain向けPRが既にあれば、PRの対象Issueは `本番反映待ち` にする。productionではデプロイしたmainコミットに対応するマージ済みPRの本文だけを使用する。デプロイやテストが失敗した場合は状態を進めない。本番の完了はStatusを読み戻し確認した後にIssueを閉じる。
+stagingではmainとの差分コミットから対象を取得する。デプロイしたコミットと同じheadのmain向けPRが既にあれば、PRの対象Issueは `本番反映待ち` にする。productionの対象は、公開時のデプロイ記録に保存されたマージ済みPRのRefs行を使用する。公開コミットの開発への取り込みと、その開発先端のstaging成功も確認する。デプロイやテストが失敗した場合は状態を進めない。本番の完了はStatusを読み戻し確認した後にIssueを閉じる。
 
 ## 既存設定からの修正と有効化
 

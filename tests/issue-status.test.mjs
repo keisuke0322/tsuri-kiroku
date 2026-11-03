@@ -191,35 +191,13 @@ test('priority commands retain existing Status and unrelated labels', async () =
     ['remove', 'priority:高'],
   ]);
 });
-test('production completes only Issues from the exact merged release PR', async () => {
+test('production publication alone cannot complete Issues', async () => {
   const { github, calls } = mock({ labels: [] });
-  github.paginate = async () => [
-    {
-      merged_at: 'today',
-      merge_commit_sha: 'older',
-      base: { ref: 'main' },
-      head: { ref: 'cloudflare-migration' },
-      body: 'Refs #99',
-    },
-    {
-      merged_at: 'today',
-      merge_commit_sha: 'release',
-      base: { ref: 'main' },
-      head: { ref: 'cloudflare-migration' },
-      body: 'Refs #12',
-    },
-  ];
-  const numbers = [];
-  github.rest.issues.get = async (a) => {
-    numbers.push(a.issue_number);
-    return { data: { state: 'open', labels: [] } };
-  };
-  await updateDeployment({ github, context });
-  assert.deepEqual(numbers, [12]);
-  assert.deepEqual(calls, [
-    ['field', 'status-field', 'option-4'],
-    ['close', 'closed'],
-  ]);
+  await assert.rejects(
+    updateDeployment({ github, context }),
+    /development sync/,
+  );
+  assert.deepEqual(calls, []);
 });
 test('staging updates commit targets and re-verifies production-waiting PR targets', async () => {
   const { github, calls } = mock({ labels: [] });
@@ -456,35 +434,4 @@ test('replayed external PR uses its existing Project item and preserves review s
     },
   });
   assert.deepEqual(calls, [['labels', 42, ['外部提案']]]);
-});
-
-test('production Issue completion shares the exact-merge closed-PR lookup and propagates API failures', async () => {
-  const { github, calls } = mock({ labels: [] });
-  github.rest.repos.listPullRequestsAssociatedWithCommit = async () => {
-    throw Error('Association endpoint must not be called');
-  };
-  github.paginate = async (method, args) => {
-    assert.equal(method, github.rest.pulls.list);
-    assert.equal(args.state, 'closed');
-    assert.equal(args.base, 'main');
-    return [
-      {
-        merged_at: 'today',
-        merge_commit_sha: 'release',
-        base: { ref: 'main' },
-        body: 'Refs #12',
-      },
-    ];
-  };
-  await updateDeployment({ github, context });
-  assert.ok(calls.some((c) => c[0] === 'close'));
-  calls.length = 0;
-  github.paginate = async () => {
-    throw Error('API unavailable');
-  };
-  await assert.rejects(
-    updateDeployment({ github, context }),
-    /API unavailable/,
-  );
-  assert.equal(calls.length, 0);
 });

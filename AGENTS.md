@@ -45,7 +45,7 @@
 
 1. stagingでの受け入れ確認はユーザーが行う。ユーザーから確認完了とPR作成の指示を受けたら、AIが`cloudflare-migration`から`main`へのPRを作成する。明示的に依頼された場合は確認前のドラフトPRも作成できる。
 2. PRには変更の目的・最終的な動作・検証結果・関連Issueを記載する。対応が完了するIssueはPR本文の独立した行に`Refs #番号`で関連付ける（複数は`Refs #12, #13`）。本番デプロイ成功後にActionsが閉じるため、`Closes`・`Fixes`・`Resolves`は使わない。PRのURLを報告し、Codexのチャットにも添付する。
-   公開PRには[資材のバージョン管理](docs/releases.md)に従い、`package.json`と一致する`Release-Version: vMAJOR.MINOR.PATCH`と`### DB変更・復旧`を記載する。本番デプロイとRelease作成の両方が成功してからIssueが完了する。Release作成だけの失敗は失敗ジョブのみ再実行し、公開済みタグを移動しない。
+   公開PRには[資材のバージョン管理](docs/releases.md)に従い、`package.json`と一致する`Release-Version: vMAJOR.MINOR.PATCH`と`### DB変更・復旧`を記載する。本番デプロイ・Release作成・開発ブランチへの同期・その開発ソースのstaging検証が成功してからIssueが完了する。Release作成だけの失敗は失敗ジョブのみ再実行し、公開済みタグを移動しない。
 3. `PR checks`の成功を確認する。ワークフローはPR先端コミットのstaging成功を検証する。確認後に追加修正をpushした場合は、その変更をstagingで再確認してもらう。
 4. 1人運用のため承認レビューを必須にせず、ユーザー自身がPRを確認・マージする。AIは独断で本番向けPRをマージしない。公開後の開発同期PRだけは、下記の条件を満たすワークフローによる自動マージを許可する。
 5. 継続利用する開発ブランチなので、マージ方法は`Create a merge commit`とし、`cloudflare-migration`は削除しない。
@@ -79,7 +79,7 @@
 - 開発コミットのメッセージに独立した行で `Refs #番号` を記載する（複数は `Refs #12, #13`）。stagingへのpush前に対象Issueの記載漏れがないことを確認する。
 - stagingデプロイ・動作確認・E2Eがすべて成功した後、Actionsが対象IssueのProject Statusを `staging確認待ち` に変更する。
 - main向けPR本文に今回本番へ反映する全対象Issueを `Refs #番号` で記載する。PRイベントActionsがProject Statusを `本番反映待ち` に変更する。既存PRに追加修正をpushした場合も、staging成功後のActionsがStatusを更新する。
-- productionデプロイ・起動確認が成功した後、Actionsがマージ済みPR本文の対象IssueのProject Statusを `完了` に変更して閉じる。AIはマージ時点で完了にしない。
+- productionデプロイ・Release作成・開発同期・その開発先端のstaging検証が成功した後、Actionsが公開時に記録した対象IssueのProject Statusを `完了` に変更して閉じる。AIはマージ時点で完了にしない。
 - Project更新の操作用ラベルは `project:staging確認待ち` / `project:本番反映待ち` / `project:完了` も利用できる。デプロイ失敗時に操作用ラベルで状態を先に進めない。
 - `外部提案` は外部由来を示す分類ラベルでもある。Status変更後も分類ラベルを保持し、旧状態ラベルとして除去しない。外部PRはProject画面でStatusを変更する。判定・通知設定は [docs/external-proposals.md](docs/external-proposals.md) を参照する。
 - 通常のIssue分類ラベルとProjectの優先度・ほかの項目は変更しない。誤って導入した5種類のIssue状態ラベルは、Project Statusの更新を読み戻し確認した後でのみ外す。

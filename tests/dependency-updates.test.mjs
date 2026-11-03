@@ -6,6 +6,7 @@ import policy from '../scripts/dependency-policy.cjs';
 import control from '../scripts/dependency-control.cjs';
 import deployment from '../scripts/deployment-policy.cjs';
 import sync from '../scripts/dependency-sync.cjs';
+import { UpdatePending, publishProgress } from '../scripts/update-progress.cjs';
 import { syncCIRecord } from '../scripts/sync-ci-record.cjs';
 
 const { STATE_REF, readState, writeState } = stateApi;
@@ -192,6 +193,8 @@ function fixture() {
       },
       issues: {
         listEventsForTimeline: 'timeline',
+        listComments: 'comments',
+        updateComment: async (args) => f.comments.push(args),
         removeLabel: async () => {
           pr.labels = [];
         },
@@ -219,6 +222,7 @@ function fixture() {
           ]
         );
       if (method === 'timeline') return f.events;
+      if (method === 'comments') return [];
       if (method === 'jobs')
         return f.jobs.map((name) => ({ name, conclusion: 'success' }));
       if (method === 'artifacts') return f.artifacts || [];
@@ -560,7 +564,7 @@ test('abort is administrator-only and retains restoring ownership until successf
   f.permission = 'admin';
   assert.deepEqual(
     await control.selectDeployment(f, { action: 'abort-update' }),
-    { sha: 'dev', kind: 'restore' },
+    { sha: 'dev', kind: 'restore', pr: 51 },
   );
   assert.equal(f.state.lease.phase, 'restoring');
   f.context.ref = 'refs/heads/cloudflare-migration';
@@ -1504,4 +1508,100 @@ test('existing override versions may advance while override targets and unrelate
       workspace.replace('miniflare>sharp', 'other'),
     ),
   );
+});
+
+test('unstarted updates stay pending with an actionable PR instruction', async () => {
+  const f = fixture();
+  f.openPrs = [f.pr];
+  await control.refreshGates(f);
+  assert.equal(f.statuses.at(-1).state, 'pending');
+  assert.match(f.statuses.at(-1).description, /検証未開始/);
+  assert.match(f.comments.at(-1).body, /start-update/);
+});
+test('verified staging without approval stays pending and asks for device confirmation', async () => {
+  const f = fixture();
+  f.openPrs = [f.pr];
+  verified(f);
+  f.pr.labels = [];
+  delete f.state.lease.approval;
+  await control.refreshGates(f);
+  assert.equal(f.statuses.at(-1).state, 'pending');
+  assert.match(f.statuses.at(-1).description, /動作確認待ち/);
+  assert.match(f.comments.at(-1).body, /PC・スマートフォン/);
+  await assert.rejects(
+    policy.requireUpdateEvidence(f, f.pr),
+    (e) => e instanceof UpdatePending && e.stage === 'approval',
+  );
+});
+test('failed CI and staging remain failures instead of being presented as human waiting', async () => {
+  for (const kind of ['ci', 'staging']) {
+    const f = fixture();
+    f.openPrs = [f.pr];
+    verified(f);
+    delete f.state.lease.approval;
+    f.pr.labels = [];
+    if (kind === 'ci') f.ci = 'failure';
+    else f.runConclusion = 'failure';
+    await control.refreshGates(f);
+    assert.equal(f.statuses.at(-1).state, 'failure');
+    assert.match(f.comments.at(-1).body, /❌/);
+  }
+});
+test('a failed validation with no completed record is not described as still running', async () => {
+  const f = fixture();
+  f.openPrs = [f.pr];
+  verified(f);
+  f.state.lease.phase = 'validating';
+  f.state.lease.runId = '99';
+  delete f.state.lease.validation;
+  f.runConclusion = 'failure';
+  await control.refreshGates(f);
+  assert.equal(f.statuses.at(-1).state, 'failure');
+  assert.match(f.statuses.at(-1).description, /staging検証失敗/);
+});
+test('release metadata is still required before the gate can succeed', async () => {
+  const f = fixture();
+  f.openPrs = [f.pr];
+  verified(f);
+  f.github.rest.repos.getReleaseByTag = async () => notFound();
+  const getRef = f.github.rest.git.getRef;
+  f.github.rest.git.getRef = async (args) =>
+    args.ref.startsWith('tags/') ? notFound() : getRef(args);
+  await control.refreshGates(f);
+  assert.equal(f.statuses.at(-1).state, 'success');
+  f.pr.body = 'Release-Version: v9.0.0\n\n### DB変更・復旧\nDB変更なし';
+  await control.refreshGates(f);
+  assert.equal(f.statuses.at(-1).state, 'failure');
+  assert.match(f.statuses.at(-1).description, /match package/);
+});
+
+test('PR progress updates one trusted comment instead of adding repeated notices', async () => {
+  const f = fixture();
+  const pending = new UpdatePending(
+    'approval',
+    '動作確認待ち：PC・スマートフォンで確認してください。',
+    'https://example.com/staging',
+  );
+  const paginate = f.github.paginate;
+  f.github.paginate = async (method, args) =>
+    method === 'comments'
+      ? [
+          {
+            id: 7,
+            user: { login: repo.owner },
+            body: '<!-- dependency-update-progress -->\nold',
+          },
+        ]
+      : paginate(method, args);
+  await publishProgress(f, f.pr, pending);
+  assert.equal(f.comments.length, 1);
+  assert.equal(f.comments[0].comment_id, 7);
+  assert.match(f.comments[0].body, /動作確認待ち/);
+  assert.match(f.comments[0].body, /head/);
+  const body = f.comments[0].body;
+  f.github.paginate = async () => [
+    { id: 7, user: { login: repo.owner }, body },
+  ];
+  await publishProgress(f, f.pr, pending);
+  assert.equal(f.comments.length, 1);
 });

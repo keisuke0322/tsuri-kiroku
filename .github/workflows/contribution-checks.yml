@@ -1,4 +1,6 @@
 name: Contribution checks
+run-name: >-
+  PR #${{ github.event.pull_request.number }}｜整形・型チェック・テスト・ビルド｜${{ github.event.pull_request.title }}
 on:
   pull_request:
     branches: [cloudflare-migration, main]

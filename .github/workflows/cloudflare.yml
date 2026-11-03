@@ -1,4 +1,8 @@
 name: Deploy Cloudflare
+run-name: >-
+  ${{ github.event_name == 'pull_request' && format('PR #{0}｜公開条件チェック', github.event.pull_request.number) ||
+      github.event_name == 'workflow_dispatch' && format('PR #{0}｜{1}｜{2}', inputs.pr || '指定なし', inputs.action == 'start-update' && '依存更新のstaging検証' || inputs.action == 'validate-update' && '依存更新の再検証' || inputs.action == 'restore-development' && '開発用stagingへ復帰' || inputs.action == 'abort-update' && '更新を中止・staging復帰' || '開発デプロイ', github.ref_name) ||
+      format('{0}｜{1}', github.ref_name == 'main' && '本番公開' || '開発staging', github.event.head_commit.message) }}
 on:
   push:
     branches: [cloudflare-migration, main]
@@ -29,6 +33,9 @@ on:
           ]
       pr:
         description: 更新PR番号（start-updateで準備・CI待ち・staging検証を連続実行）
+        type: string
+      source_run:
+        description: 起動元のActions実行番号（自動起動時に引き継ぐ）
         type: string
 permissions:
   contents: read
@@ -69,7 +76,17 @@ jobs:
         with:
           script: |
             const { checkPullRequest } = require('./scripts/deployment-policy.cjs');
-            await checkPullRequest({ github, context, log: core.info, skipFeatureGate: true });
+            try {
+              await checkPullRequest({ github, context, log: core.info, skipFeatureGate: true });
+            } catch (error) {
+              const { UpdatePending } = require('./scripts/update-progress.cjs');
+              if (!(error instanceof UpdatePending)) throw error;
+              core.notice(error.message);
+              await core.summary.addHeading('⏳ 公開待ち（検証エラーではありません）')
+                .addRaw(error.message).addEOL().addLink('次の操作を行う', error.url)
+                .addEOL().addRaw('Dependency release gateは保留のまま維持されます。動作確認の記録がそろうまでマージできません。').write();
+              return;
+            }
             const { data: pkg } = await github.rest.repos.getContent({ ...context.repo,
               path: 'package.json', ref: context.payload.pull_request.head.sha });
             if (pkg.type !== 'file' || pkg.encoding !== 'base64') throw Error('Missing manifest');
@@ -133,6 +150,7 @@ jobs:
             core.setOutput('selection', JSON.stringify(selection));
             core.setOutput('sha', selection.sha);
             core.setOutput('kind', selection.kind);
+            await require('./scripts/workflow-summary.cjs').describeRun({ github, context, core, selection });
       - uses: actions/checkout@v4
         with:
           ref: ${{ steps.select.outputs.sha }}
@@ -298,9 +316,8 @@ jobs:
     name: Update Project Status after successful deployment
     needs: [deploy, release]
     if: >-
-      always() && needs.deploy.result == 'success' &&
-      (needs.release.result == 'success' ||
-       (needs.deploy.outputs.kind == 'development' && needs.release.result == 'skipped'))
+      always() && needs.deploy.outputs.kind == 'development' &&
+      needs.deploy.result == 'success' && needs.release.result == 'skipped'
     runs-on: ubuntu-latest
     timeout-minutes: 5
     permissions:
@@ -370,4 +387,4 @@ jobs:
             }
             await github.rest.actions.createWorkflowDispatch({ ...context.repo,
               workflow_id: 'cloudflare.yml', ref: 'main',
-              inputs: { action: 'restore-development' } });
+              inputs: { action: 'restore-development', pr: String(state.lease.pr), source_run: String(context.runId) } });

@@ -1,4 +1,8 @@
 name: Dependency governance
+run-name: >-
+  ${{ github.event.pull_request.number && format('PR #{0}｜依存更新の公開条件再確認', github.event.pull_request.number) ||
+      github.event_name == 'workflow_run' && format('公開条件再確認｜{0}｜起動元Run #{1}', github.event.workflow_run.display_title, github.event.workflow_run.id) ||
+      github.event_name == 'workflow_dispatch' && format('PR #{0}｜依存更新管理・{1}', inputs.pr || '全体', inputs.action) || '依存更新の公開条件定期確認' }}
 on:
   pull_request_target:
     branches: [main]

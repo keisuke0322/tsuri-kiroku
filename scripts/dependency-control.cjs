@@ -1,3 +1,4 @@
+const { UpdatePending, publishProgress } = require('./update-progress.cjs');
 const { readFileSync } = require('node:fs');
 const {
   readState,
@@ -272,7 +273,7 @@ async function selectDeployment(
         ref: 'heads/cloudflare-migration',
       })
     ).data.object.sha;
-    return { sha, kind: 'restore' };
+    return { sha, kind: 'restore', pr: state.lease?.pr || null };
   }
   if (action !== 'development') throw Error('Unsupported deployment action.');
   if (context.ref === 'refs/heads/main')
@@ -336,6 +337,13 @@ async function finishDeployment(
   } else if (selection.kind === 'restore') {
     if (state.lease && state.lease.phase !== 'restoring')
       throw Error('Restore no longer owns staging.');
+    state.lastRestoration = {
+      sha: record.sha,
+      runId: record.runId,
+      runAttempt: record.runAttempt,
+      controller: options.context.sha,
+      verifiedAt: record.verifiedAt,
+    };
     state.lease = null;
     await writeState(options, state);
   }
@@ -482,7 +490,21 @@ async function refreshGates(options) {
       if (reconciliationError) throw reconciliationError;
       if (pr.head.ref === 'cloudflare-migration')
         await requireFeatureReady(options, pr);
-      else await requireUpdateEvidence(options, pr);
+      else {
+        await requireUpdateEvidence(options, pr);
+        const manifest = await require('./dependency-state.cjs').readJson(
+          github,
+          context.repo,
+          'package.json',
+          pr.head.sha,
+        );
+        await require('./release-policy.cjs').validateRelease({
+          github,
+          context,
+          pr,
+          packageVersion: manifest.version,
+        });
+      }
     } catch (e) {
       error = e;
     }
@@ -490,12 +512,21 @@ async function refreshGates(options) {
       ...context.repo,
       sha: pr.head.sha,
       context: GATE,
-      state: error ? 'failure' : 'success',
+      state:
+        error instanceof UpdatePending
+          ? 'pending'
+          : error
+            ? 'failure'
+            : 'success',
       description: error
         ? error.message.slice(0, 140)
-        : 'Current dependency release policy satisfied',
-      target_url: `${context.serverUrl}/${context.repo.owner}/${context.repo.repo}/actions/runs/${context.runId}`,
+        : '確認済み：必須チェック成功後にマージできます。',
+      target_url:
+        error?.url ||
+        `${context.serverUrl}/${context.repo.owner}/${context.repo.repo}/actions/runs/${context.runId}`,
     });
+    if (pr.head.ref !== 'cloudflare-migration')
+      await publishProgress(options, pr, error);
     if (error) console.log(`#${pr.number}: ${error.message}`);
   }
 }
