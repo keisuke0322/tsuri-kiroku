@@ -61,6 +61,41 @@ async function requireStaging({
         state === 'success' ||
         (state === 'inactive' && statuses.some((s) => s.state === 'success'))
       ) {
+        const actionsUrl =
+          statuses.find((s) => s.state === 'success')?.log_url || null;
+        const runId = actionsUrl?.match(/\/actions\/runs\/(\d+)(?:\/|$)/)?.[1];
+        let skippedE2E = false;
+        if (runId && github.rest.actions?.listJobsForWorkflowRun) {
+          const jobs = await github.paginate(
+            github.rest.actions.listJobsForWorkflowRun,
+            {
+              ...context.repo,
+              run_id: runId,
+              filter: 'latest',
+              per_page: 100,
+            },
+          );
+          skippedE2E = jobs
+            .find((job) => job.name === 'Deploy')
+            ?.steps?.some(
+              (step) =>
+                step.name === 'Run authenticated staging E2E' &&
+                step.conclusion === 'skipped',
+            );
+        }
+        const reused = await require('./staging-reuse.cjs').reusedStaging(
+          { github, context },
+          sha,
+          runId ? { id: runId, reused: skippedE2E } : null,
+        );
+        if (reused) {
+          if (!runId) throw Error('Missing reused staging validation run URL.');
+          return {
+            ...reused,
+            deploymentId: latest.id,
+            validationActionsUrl: actionsUrl,
+          };
+        }
         log(`Verified staging success for ${sha}`);
         return {
           sha,

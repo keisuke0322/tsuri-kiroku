@@ -193,7 +193,24 @@ jobs:
           GOOGLE_MAPS_API_KEY: ${{ vars.GOOGLE_MAPS_API_KEY }}
           PHOTO_STORAGE_GLOBAL_LIMIT_BYTES: ${{ vars.PHOTO_STORAGE_GLOBAL_LIMIT_BYTES }}
           PHOTO_STORAGE_USER_LIMIT_BYTES: ${{ vars.PHOTO_STORAGE_USER_LIMIT_BYTES }}
+      - name: Select reusable staging evidence
+        if: steps.select.outputs.kind == 'development' && github.event_name == 'push'
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const fs = require('node:fs');
+            const record = JSON.parse(fs.readFileSync('.release-runtime/record.json', 'utf8'));
+            const candidate = await require('./scripts/staging-reuse.cjs').selectReuse({ github, context }, {
+              selection: ${{ steps.select.outputs.selection }}, record, log: core.info });
+            fs.writeFileSync('.release-runtime/reuse-candidate.json', JSON.stringify(candidate));
+      - name: Verify reusable staging deployment
+        id: reuse
+        if: steps.select.outputs.kind == 'development' && github.event_name == 'push'
+        run: node scripts/reuse-staging.mjs
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
       - run: corepack pnpm build
+        if: steps.reuse.outputs.reused != 'true'
         env:
           CF_CONFIG: wrangler.deploy.json
       - name: Recheck production authorization immediately before writes
@@ -207,30 +224,35 @@ jobs:
             const { validateRelease } = require('./scripts/release-policy.cjs');
             await validateRelease({ github, context, pr, production: true });
       - name: Apply compatible migrations before deployment
+        if: steps.reuse.outputs.reused != 'true'
         run: node scripts/cloudflare-migrations.mjs before
         env:
           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
       - name: Deploy tested build
+        if: steps.reuse.outputs.reused != 'true'
         run: corepack pnpm exec wrangler deploy --config dist/server/wrangler.json
         env:
           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
       - name: Verify unauthenticated access
+        if: steps.reuse.outputs.reused != 'true'
         run: node scripts/cloudflare-smoke.mjs
         env:
           APP_ORIGIN: ${{ vars.APP_ORIGIN }}
       - name: Remove retired guest schema with a D1 recovery bookmark
+        if: steps.reuse.outputs.reused != 'true'
         run: node scripts/cloudflare-migrations.mjs after
         env:
           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
       - name: Verify unauthenticated access after schema cleanup
+        if: steps.reuse.outputs.reused != 'true'
         run: node scripts/cloudflare-smoke.mjs
         env:
           APP_ORIGIN: ${{ vars.APP_ORIGIN }}
       - name: Install Cypress browser
-        if: steps.select.outputs.kind != 'production'
+        if: steps.select.outputs.kind != 'production' && steps.reuse.outputs.reused != 'true'
         run: corepack pnpm exec cypress install
       - name: Run authenticated staging E2E
-        if: steps.select.outputs.kind != 'production'
+        if: steps.select.outputs.kind != 'production' && steps.reuse.outputs.reused != 'true'
         run: corepack pnpm run e2e:staging
         env:
           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
@@ -238,7 +260,7 @@ jobs:
           E2E_OTHER_USER_ID: ${{ secrets.E2E_OTHER_USER_ID }}
           E2E_BROWSER: chrome
       - name: Save E2E failure screenshots
-        if: failure() && steps.select.outputs.kind != 'production'
+        if: failure() && steps.select.outputs.kind != 'production' && steps.reuse.outputs.reused != 'true'
         uses: actions/upload-artifact@v4
         with:
           name: staging-e2e-screenshots-${{ github.sha }}

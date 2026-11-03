@@ -305,7 +305,9 @@ async function finishDeployment(
     !record.verifiedAt
   )
     throw Error('Successful deployment, E2E and running identity required.');
-  if (selection.kind === 'update') {
+  if (selection.kind === 'development') {
+    await require('./staging-reuse.cjs').rememberStaging(options, record);
+  } else if (selection.kind === 'update') {
     const lease = state.lease;
     if (
       lease?.runId !== String(options.context.runId) ||

@@ -92,3 +92,5 @@ Node・pnpmの版、lockfileとSQLのSHA-256、環境別生成設定のSHA-256�
 破壊的な復旧には既存のバックアップ・D1 Time Travel手順を使い、本番の操作はユーザーの指示で行います。
 
 main基準の依存更新PRでは[依存更新の運用](dependency-updates.md)のprepare処理が最新の正式Releaseから次のPATCH版を準備する。管理者が番号を変更した場合も、番号を含むソースのCI・staging・動作確認をやり直す。依存更新でも本書のRelease・DB・稼働情報の条件を維持する。
+
+公開後のmain→develop同期で検証済みの内容と同一の場合は、[staging検証の再利用](staging-validation-reuse.md)の条件を満たす成功記録を使用できる。再利用が成立しない場合は通常のデプロイ・E2Eを行う。
