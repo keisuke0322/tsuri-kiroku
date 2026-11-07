@@ -105,6 +105,8 @@ corepack pnpm build
 
 ## ブランチと公開の流れ
 
+**[GitHub Actionsの使い方と全体フロー](docs/workflows.md)** に、8つすべてのworkflowの起動条件、開発・依存更新・進捗管理での使い方を図でまとめています。
+
 | ブランチ・環境                 | 役割                                                   |
 | ------------------------------ | ------------------------------------------------------ |
 | 外部開発者のforkの作業ブランチ | 開発とPR提出。元サイトには自動デプロイされません。     |
@@ -127,16 +129,17 @@ corepack pnpm build
 
 道具・基本セット・履歴の使い方と上限は[道具の管理](docs/gear.md)を参照してください。
 
-| ドキュメント                                        | 内容                                        |
-| --------------------------------------------------- | ------------------------------------------- |
-| [CONTRIBUTING.md](CONTRIBUTING.md)                  | 要望・不具合報告、forkからの開発・PR提出    |
-| [Cloudflare設定と公開手順](CLOUDFLARE-MIGRATION.md) | 環境作成、Google認証、Actions、DB変更、公開 |
-| [釣果マップ](docs/fishing-map.md)                   | 地図の設定、位置情報の公開範囲              |
-| [写真ストレージ](PHOTO-STORAGE.md)                  | 容量管理、既存写真の集計、障害復旧          |
-| [E2Eテスト](docs/e2e.md)                            | stagingでのCypress実行、認証、後片付け      |
-| [外部提案の受付](docs/external-proposals.md)        | 管理者の通知設定、受付一覧                  |
-| [Issueの状態管理](docs/issue-status.md)             | GitHub Project Statusの運用                 |
-| [ブランド素材](docs/brand.md)                       | ロゴと使用方針                              |
-| [AGENTS.md](AGENTS.md)                              | AIによる開発の作業ルール                    |
+| ドキュメント                                        | 内容                                          |
+| --------------------------------------------------- | --------------------------------------------- |
+| [CONTRIBUTING.md](CONTRIBUTING.md)                  | 要望・不具合報告、forkからの開発・PR提出      |
+| [Cloudflare設定と公開手順](CLOUDFLARE-MIGRATION.md) | 環境作成、Google認証、Actions、DB変更、公開   |
+| [釣果マップ](docs/fishing-map.md)                   | 地図の設定、位置情報の公開範囲                |
+| [写真ストレージ](PHOTO-STORAGE.md)                  | 容量管理、既存写真の集計、障害復旧            |
+| [E2Eテスト](docs/e2e.md)                            | stagingでのCypress実行、認証、後片付け        |
+| [外部提案の受付](docs/external-proposals.md)        | 管理者の通知設定、受付一覧                    |
+| [Actionsの使い方と全体フロー](docs/workflows.md)    | 全8workflowのトリガー・場面別フロー・手動操作 |
+| [Issueの状態管理](docs/issue-status.md)             | GitHub Project Statusの運用                   |
+| [ブランド素材](docs/brand.md)                       | ロゴと使用方針                                |
+| [AGENTS.md](AGENTS.md)                              | AIによる開発の作業ルール                      |
 
 依存パッケージの通常・緊急更新、共有stagingの占有、公開後の開発同期は[依存更新の運用](docs/dependency-updates.md)を参照してください。mainへの導入と有効化確認後に新ルートを利用できます。

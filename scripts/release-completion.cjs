@@ -70,6 +70,14 @@ async function completeReleases({ github, context, log = () => {} }) {
   )
     return { state: 'waiting-for-development-staging' };
   const deploy = jobs.find((job) => job.name === 'Deploy');
+  if (
+    !deploy.steps?.some(
+      (step) =>
+        step.name === 'Verify running version and record deployment result' &&
+        step.conclusion === 'success',
+    )
+  )
+    return { state: 'waiting-for-development-staging' };
   const reused = deploy.steps?.some(
     (step) =>
       step.name === 'Run authenticated staging E2E' &&

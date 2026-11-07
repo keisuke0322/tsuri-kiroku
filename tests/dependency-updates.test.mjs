@@ -1622,3 +1622,60 @@ test('development deploy and published sync use develop', async () => {
     'merged',
   );
 });
+
+test('another staging owner pauses preparation without writing state or passing the gate', async () => {
+  const f = fixture();
+  f.state.lease = { pr: 52, phase: 'validating' };
+  await assert.rejects(
+    control.startUpdate(f, 51),
+    (error) => error instanceof UpdatePending && error.stage === 'staging',
+  );
+  assert.equal(f.writes.length, 0);
+  assert.equal(f.state.lease.pr, 52);
+});
+
+test('development staging is paused while an update owns it', async () => {
+  const f = fixture();
+  f.context.ref = 'refs/heads/develop';
+  f.state.lease = { pr: 52, phase: 'verified' };
+  await assert.rejects(
+    control.selectDeployment(f),
+    (error) => error instanceof UpdatePending && error.stage === 'staging',
+  );
+  assert.equal(f.writes.length, 0);
+});
+
+test('a pause notice does not absorb real failures or publish deployment outputs', async () => {
+  const { reportPending } = await import('../scripts/workflow-pending.cjs');
+  const outputs = {};
+  let summary = '';
+  const core = {
+    setOutput: (key, value) => {
+      outputs[key] = value;
+    },
+    notice: () => {},
+    summary: {
+      addHeading(text) {
+        summary += text;
+        return this;
+      },
+      addRaw(text) {
+        summary += text;
+        return this;
+      },
+      addEOL() {
+        return this;
+      },
+      addLink() {
+        return this;
+      },
+      async write() {},
+    },
+  };
+  await assert.rejects(reportPending(core, Error('API denied')), /API denied/);
+  assert.deepEqual(outputs, {});
+  await reportPending(core, new UpdatePending('staging', 'PR #52の復帰待ち'));
+  assert.deepEqual(outputs, { paused: 'true' });
+  assert.match(summary, /デプロイは実施していません/);
+  assert.match(summary, /検証成功・公開可能を意味しません/);
+});

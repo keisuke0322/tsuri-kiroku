@@ -130,12 +130,19 @@ jobs:
           github-token: ${{ secrets.PROJECT_TOKEN }}
           script: |
             const { startUpdate } = require('./scripts/dependency-control.cjs');
-            const target = await startUpdate({ github, context, log: core.info }, process.env.UPDATE_PR);
+            let target;
+            try {
+              target = await startUpdate({ github, context, log: core.info }, process.env.UPDATE_PR);
+            } catch (error) {
+              await require('./scripts/workflow-pending.cjs').reportPending(core, error);
+              return;
+            }
             core.setOutput('head', target.head);
             await core.summary.addHeading('更新の準備・CI確認成功')
               .addRaw(`PR #${target.pr}: ${target.head}`).write();
       - name: Select source and acquire durable staging ownership
         id: select
+        if: steps.prepare-update.outputs.paused != 'true'
         uses: actions/github-script@v7
         env:
           CONTROL_ACTION: ${{ inputs.action == 'start-update' && 'validate-update' || inputs.action || 'development' }}
@@ -144,20 +151,28 @@ jobs:
         with:
           script: |
             const { selectDeployment } = require('./scripts/dependency-control.cjs');
-            const selection = await selectDeployment({ github, context }, {
-              action: process.env.CONTROL_ACTION, number: process.env.UPDATE_PR,
-              expectedHead: process.env.EXPECTED_UPDATE_HEAD });
+            let selection;
+            try {
+              selection = await selectDeployment({ github, context }, {
+                action: process.env.CONTROL_ACTION, number: process.env.UPDATE_PR,
+                expectedHead: process.env.EXPECTED_UPDATE_HEAD });
+            } catch (error) {
+              await require('./scripts/workflow-pending.cjs').reportPending(core, error);
+              return;
+            }
+            core.setOutput('ready', 'true');
             core.setOutput('selection', JSON.stringify(selection));
             core.setOutput('sha', selection.sha);
             core.setOutput('kind', selection.kind);
             await require('./scripts/workflow-summary.cjs').describeRun({ github, context, core, selection });
       - uses: actions/checkout@v4
+        if: steps.select.outputs.ready == 'true'
         with:
           ref: ${{ steps.select.outputs.sha }}
           fetch-depth: 0
           persist-credentials: false
       - name: Require a merged PR with successful staging
-        if: steps.select.outputs.kind == 'production'
+        if: steps.select.outputs.ready == 'true' && (steps.select.outputs.kind == 'production')
         uses: actions/github-script@v7
         with:
           github-token: ${{ secrets.PROJECT_TOKEN }}
@@ -165,9 +180,11 @@ jobs:
             const { checkProduction } = require('./scripts/deployment-policy.cjs');
             await checkProduction({ github, context, log: core.info });
       - uses: actions/setup-node@v4
+        if: steps.select.outputs.ready == 'true'
         with:
           node-version: '24'
       - name: Prepare deployment identity and release specification
+        if: steps.select.outputs.ready == 'true'
         uses: actions/github-script@v7
         with:
           github-token: ${{ secrets.PROJECT_TOKEN }}
@@ -175,14 +192,21 @@ jobs:
             const { prepareRecord } = require('./scripts/deployment-record.cjs');
             await prepareRecord({ github, context, selection: ${{ steps.select.outputs.selection }} });
       - name: Name deployment record
+        if: steps.select.outputs.ready == 'true'
         id: record-name
         run: echo "name=deployment-record-${GITHUB_RUN_ID}-${GITHUB_RUN_ATTEMPT}" >> "$GITHUB_OUTPUT"
       - run: corepack enable
+        if: steps.select.outputs.ready == 'true'
       - run: corepack pnpm install --frozen-lockfile
+        if: steps.select.outputs.ready == 'true'
       - run: corepack pnpm run format:check
+        if: steps.select.outputs.ready == 'true'
       - run: corepack pnpm run typecheck
+        if: steps.select.outputs.ready == 'true'
       - run: corepack pnpm test
+        if: steps.select.outputs.ready == 'true'
       - name: Configure target
+        if: steps.select.outputs.ready == 'true'
         run: node scripts/cloudflare-config.mjs "$TARGET_ENV"
         env:
           TARGET_ENV: ${{ steps.select.outputs.kind == 'production' && 'production' || 'staging' }}
@@ -194,7 +218,7 @@ jobs:
           PHOTO_STORAGE_GLOBAL_LIMIT_BYTES: ${{ vars.PHOTO_STORAGE_GLOBAL_LIMIT_BYTES }}
           PHOTO_STORAGE_USER_LIMIT_BYTES: ${{ vars.PHOTO_STORAGE_USER_LIMIT_BYTES }}
       - name: Select reusable staging evidence
-        if: steps.select.outputs.kind == 'development' && github.event_name == 'push'
+        if: steps.select.outputs.ready == 'true' && (steps.select.outputs.kind == 'development' && github.event_name == 'push')
         uses: actions/github-script@v7
         with:
           script: |
@@ -205,16 +229,16 @@ jobs:
             fs.writeFileSync('.release-runtime/reuse-candidate.json', JSON.stringify(candidate));
       - name: Verify reusable staging deployment
         id: reuse
-        if: steps.select.outputs.kind == 'development' && github.event_name == 'push'
+        if: steps.select.outputs.ready == 'true' && (steps.select.outputs.kind == 'development' && github.event_name == 'push')
         run: node scripts/reuse-staging.mjs
         env:
           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
       - run: corepack pnpm build
-        if: steps.reuse.outputs.reused != 'true'
+        if: steps.select.outputs.ready == 'true' && (steps.reuse.outputs.reused != 'true')
         env:
           CF_CONFIG: wrangler.deploy.json
       - name: Recheck production authorization immediately before writes
-        if: steps.select.outputs.kind == 'production'
+        if: steps.select.outputs.ready == 'true' && (steps.select.outputs.kind == 'production')
         uses: actions/github-script@v7
         with:
           github-token: ${{ secrets.PROJECT_TOKEN }}
@@ -224,35 +248,35 @@ jobs:
             const { validateRelease } = require('./scripts/release-policy.cjs');
             await validateRelease({ github, context, pr, production: true });
       - name: Apply compatible migrations before deployment
-        if: steps.reuse.outputs.reused != 'true'
+        if: steps.select.outputs.ready == 'true' && (steps.reuse.outputs.reused != 'true')
         run: node scripts/cloudflare-migrations.mjs before
         env:
           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
       - name: Deploy tested build
-        if: steps.reuse.outputs.reused != 'true'
+        if: steps.select.outputs.ready == 'true' && (steps.reuse.outputs.reused != 'true')
         run: corepack pnpm exec wrangler deploy --config dist/server/wrangler.json
         env:
           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
       - name: Verify unauthenticated access
-        if: steps.reuse.outputs.reused != 'true'
+        if: steps.select.outputs.ready == 'true' && (steps.reuse.outputs.reused != 'true')
         run: node scripts/cloudflare-smoke.mjs
         env:
           APP_ORIGIN: ${{ vars.APP_ORIGIN }}
       - name: Remove retired guest schema with a D1 recovery bookmark
-        if: steps.reuse.outputs.reused != 'true'
+        if: steps.select.outputs.ready == 'true' && (steps.reuse.outputs.reused != 'true')
         run: node scripts/cloudflare-migrations.mjs after
         env:
           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
       - name: Verify unauthenticated access after schema cleanup
-        if: steps.reuse.outputs.reused != 'true'
+        if: steps.select.outputs.ready == 'true' && (steps.reuse.outputs.reused != 'true')
         run: node scripts/cloudflare-smoke.mjs
         env:
           APP_ORIGIN: ${{ vars.APP_ORIGIN }}
       - name: Install Cypress browser
-        if: steps.select.outputs.kind != 'production' && steps.reuse.outputs.reused != 'true'
+        if: steps.select.outputs.ready == 'true' && (steps.select.outputs.kind != 'production' && steps.reuse.outputs.reused != 'true')
         run: corepack pnpm exec cypress install
       - name: Run authenticated staging E2E
-        if: steps.select.outputs.kind != 'production' && steps.reuse.outputs.reused != 'true'
+        if: steps.select.outputs.ready == 'true' && (steps.select.outputs.kind != 'production' && steps.reuse.outputs.reused != 'true')
         run: corepack pnpm run e2e:staging
         env:
           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
@@ -260,7 +284,7 @@ jobs:
           E2E_OTHER_USER_ID: ${{ secrets.E2E_OTHER_USER_ID }}
           E2E_BROWSER: chrome
       - name: Save E2E failure screenshots
-        if: failure() && steps.select.outputs.kind != 'production' && steps.reuse.outputs.reused != 'true'
+        if: steps.select.outputs.ready == 'true' && (failure() && steps.select.outputs.kind != 'production' && steps.reuse.outputs.reused != 'true')
         uses: actions/upload-artifact@v4
         with:
           name: staging-e2e-screenshots-${{ github.sha }}
@@ -268,13 +292,13 @@ jobs:
           if-no-files-found: ignore
           retention-days: 7
       - name: Verify running version and record deployment result
-        if: always() && steps.record-name.outcome == 'success'
+        if: steps.select.outputs.ready == 'true' && (always() && steps.record-name.outcome == 'success')
         run: node scripts/verify-version.mjs
         env:
           DEPLOYMENT_RESULT: ${{ job.status }}
           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
       - name: Preserve deployment provenance
-        if: always() && steps.record-name.outcome == 'success'
+        if: steps.select.outputs.ready == 'true' && (always() && steps.record-name.outcome == 'success')
         uses: actions/upload-artifact@v4
         with:
           name: ${{ steps.record-name.outputs.name }}
@@ -283,14 +307,14 @@ jobs:
           if-no-files-found: error
           retention-days: 90
       - name: Record successful update validation or restoration
-        if: success()
+        if: steps.select.outputs.ready == 'true' && (success())
         uses: actions/github-script@v7
         with:
           script: |
             const { finishDeployment } = require('./scripts/dependency-control.cjs');
             await finishDeployment({ github, context }, ${{ steps.select.outputs.selection }});
       - name: Refresh release gates after validation
-        if: success()
+        if: steps.select.outputs.ready == 'true' && (success())
         uses: actions/github-script@v7
         with:
           github-token: ${{ secrets.PROJECT_TOKEN }}
