@@ -101,11 +101,11 @@
   },
   "lastDevelopmentValidation": {
     "environment": "staging",
-    "sha": "ae288dbd28f74c95dcdf6e55ac846e22a474d481",
-    "runId": "42348941918",
-    "runAttempt": "1",
-    "actionsUrl": "https://github.com/keisuke0322/tsuri-kiroku/actions/runs/42348941918/attempts/1",
-    "builtAt": "2026-11-07T07:00:07.113Z",
+    "sha": "4744c63cf8d4f14aed7bc0d6351e3a2ad11d55b1",
+    "runId": "42350306554",
+    "runAttempt": "2",
+    "actionsUrl": "https://github.com/keisuke0322/tsuri-kiroku/actions/runs/42350306554/attempts/2",
+    "builtAt": "2026-11-07T07:26:11.409Z",
     "release": null,
     "staging": null,
     "changedMigrations": [],
@@ -166,12 +166,12 @@
     ],
     "result": "success",
     "runtimeConfigSha256": "4d8f615b5c20083ca0276be3c04da01b15b7975b83dd9f25a4ebc98a468bf5d4",
-    "configSha256": "ea32170c83599417b806684597a2618651bcd628d3ef117095a53b97ceae38fd",
-    "deployedAt": "2026-11-07T07:01:11.870335Z",
-    "verifiedAt": "2026-11-07T07:10:19.928Z",
+    "configSha256": "2969e33ef880a77e6a5f3455a862e6f49030334a28344e8804dcb0625a0a0cfa",
+    "deployedAt": "2026-11-07T07:27:14.283012Z",
+    "verifiedAt": "2026-11-07T07:34:29.546Z",
     "cloudflare": {
-      "deploymentId": "9584ac8e-df7b-4fdd-b527-7e4405b79b42",
-      "versionId": "01710d00-f84b-426a-8800-b168db12a4c2"
+      "deploymentId": "648f5539-2c4c-4da6-ac06-4bb1829ccaa1",
+      "versionId": "a38c6450-9adb-4e9b-a337-c0a3661bebcf"
     },
     "appliedMigrations": [
       "0000_slim_matthew_murdock.sql",
@@ -186,7 +186,7 @@
       "0009_remove_guest_public.sql",
       "0010_gear.sql"
     ],
-    "sourceTree": "335e4b89c39aca1035817d5bdbfc752d30490c7f"
+    "sourceTree": "dcd168aa8a6d7491c72c8d6fe1ab9d2d4206c5c3"
   },
   "stagingReuses": {
     "17962536dca11703db8b2b84096ebd88a887de83": {
