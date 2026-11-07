@@ -101,21 +101,23 @@
   },
   "lastDevelopmentValidation": {
     "environment": "staging",
-    "sha": "37438f0a9f944a5d5d7124e901c071668a968e76",
-    "runId": "41635477657",
+    "sha": "ae288dbd28f74c95dcdf6e55ac846e22a474d481",
+    "runId": "42348941918",
     "runAttempt": "1",
-    "actionsUrl": "https://github.com/keisuke0322/tsuri-kiroku/actions/runs/41635477657/attempts/1",
-    "builtAt": "2026-11-03T12:24:55.937Z",
+    "actionsUrl": "https://github.com/keisuke0322/tsuri-kiroku/actions/runs/42348941918/attempts/1",
+    "builtAt": "2026-11-07T07:00:07.113Z",
     "release": null,
     "staging": null,
     "changedMigrations": [],
     "pr": null,
-    "sourceIssues": [],
+    "sourceIssues": [
+      "Refs #95\n"
+    ],
     "toolchain": {
-      "node": "v24.22.1",
+      "node": "v24.22.2",
       "packageManager": "pnpm@11.25.0"
     },
-    "lockfileSha256": "46a8585ac9135ac09078e50daa4d9d1c9f338e59373229d4371fb8a02a16cf27",
+    "lockfileSha256": "8890d11d0495f8390e4249761b7a1062b0d5a38d45ac7653607b7da3c63fb571",
     "migrations": [
       {
         "name": "0000_slim_matthew_murdock.sql",
@@ -164,12 +166,12 @@
     ],
     "result": "success",
     "runtimeConfigSha256": "4d8f615b5c20083ca0276be3c04da01b15b7975b83dd9f25a4ebc98a468bf5d4",
-    "configSha256": "4c4e73915cb185309cbe175a75d877d0cd842ec665fb7211a98f45db8f2043a3",
-    "deployedAt": "2026-11-03T12:26:06.655947Z",
-    "verifiedAt": "2026-11-03T12:35:30.822Z",
+    "configSha256": "ea32170c83599417b806684597a2618651bcd628d3ef117095a53b97ceae38fd",
+    "deployedAt": "2026-11-07T07:01:11.870335Z",
+    "verifiedAt": "2026-11-07T07:10:19.928Z",
     "cloudflare": {
-      "deploymentId": "2a5b2eb9-617a-4622-b275-43bc31e8e80f",
-      "versionId": "3cf45651-13be-4506-9c4c-5f9db472615a"
+      "deploymentId": "9584ac8e-df7b-4fdd-b527-7e4405b79b42",
+      "versionId": "01710d00-f84b-426a-8800-b168db12a4c2"
     },
     "appliedMigrations": [
       "0000_slim_matthew_murdock.sql",
@@ -184,7 +186,7 @@
       "0009_remove_guest_public.sql",
       "0010_gear.sql"
     ],
-    "sourceTree": "ec0f11de71228b2367708beef5a32e737072b03a"
+    "sourceTree": "335e4b89c39aca1035817d5bdbfc752d30490c7f"
   },
   "stagingReuses": {
     "17962536dca11703db8b2b84096ebd88a887de83": {
