@@ -116,8 +116,10 @@ async function inspectUpdate(options, pr, state, { production = false } = {}) {
     comparison.status !== 'ahead' ||
     comparison.merge_base_commit?.sha !== baseSha
   )
-    throw Error(
-      'Update branch must include current main; rebase and revalidate.',
+    throw new UpdatePending(
+      'rebase',
+      `Update branch must include current main; rebase and revalidate. 最新mainの取り込み待ちです。PRでUpdate branchまたは @dependabot rebase を実行し、更新後にBranch main・action start-update・pr ${pr.number}で再検証してください。`,
+      `${context.serverUrl}/${repository}/actions/workflows/cloudflare.yml`,
     );
   const files = await github.paginate(github.rest.pulls.listFiles, {
     ...context.repo,
@@ -396,7 +398,10 @@ async function requireFeatureReady(options, pr, { production = false } = {}) {
     throw Error('Merge current main into develop, then run staging again.');
   const state = await readState(options);
   if (state.lease)
-    throw Error(`Staging is reserved for dependency PR #${state.lease.pr}.`);
+    throw new UpdatePending(
+      'staging',
+      `Staging is reserved for dependency PR #${state.lease.pr}. 公開・復帰の完了を待ってください。`,
+    );
   const prs = await github.paginate(github.rest.pulls.list, {
     ...context.repo,
     state: 'open',
@@ -419,7 +424,8 @@ async function requireFeatureReady(options, pr, { production = false } = {}) {
     (p) => alerts.length || !validDeferral(state.deferrals[p.number], p),
   );
   if (blocked.length)
-    throw Error(
+    throw new UpdatePending(
+      'dependencies',
       'Unresolved dependency updates: ' +
         blocked.map((p) => `#${p.number} ${p.html_url}`).join(', '),
     );

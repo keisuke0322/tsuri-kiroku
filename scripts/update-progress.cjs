@@ -24,12 +24,12 @@ async function publishProgress({ github, context }, pr, error) {
   );
   const next = !error
     ? 'PRの必須チェックがすべて成功していることを確認し、Create a merge commitでマージしてください。'
-    : pending && error.stage === 'start'
-      ? `${error.message}\n\n${start}`
-      : pending
-        ? error.message
-        : staleBase
-          ? `更新ブランチに最新のmainが含まれていません。PRのUpdate branch、またはDependabotへの \`@dependabot rebase\` で更新してください。更新後、${start}`
+    : staleBase
+      ? `更新ブランチに最新のmainが含まれていません。PRのUpdate branch、またはDependabotへの \`@dependabot rebase\` で更新してください。更新後、${start}`
+      : pending && error.stage === 'start'
+        ? `${error.message}\n\n${start}`
+        : pending
+          ? error.message
           : `実行の失敗箇所を確認し、原因を解消してください。\n\n${String(error.message).replaceAll('<', '&lt;')}`;
   const url = error?.url || run;
   const refs = require('./issue-status.cjs').references(pr.body);
