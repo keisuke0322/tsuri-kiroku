@@ -27,7 +27,6 @@ assert.deepEqual(parseCatch(valid), {
   date: '2024-02-29',
   location: '海',
   fish: [{ species: 'アジ', count: 2, length: null }],
-  method: '竿',
   memo: '記録',
   legacy: false,
 });
@@ -72,7 +71,6 @@ for (const length of [-1, 1000, Infinity, NaN, 'abc'])
   );
 for (const [field, max] of [
   ['location', 120],
-  ['method', 200],
   ['memo', 2000],
 ]) {
   assert.ok(parseCatch({ ...valid, [field]: 'あ'.repeat(max) }));
@@ -110,7 +108,6 @@ const invalid = {
     { species: ' アジ ', count: 0 },
     { species: ' ', count: 10000 },
   ],
-  method: '竿'.repeat(201),
   memo: '海'.repeat(2001),
 };
 const original = structuredClone(invalid),
@@ -124,7 +121,6 @@ for (const key of [
   'fish.0.count',
   'fish.1.count',
   'fish.2.count',
-  'method',
   'memo',
 ])
   assert.ok(errors[key], key);
@@ -140,7 +136,6 @@ assert.deepEqual(
     date: '2026-10-05',
     location: '海',
     fish: [{ species: '魚', count: 1, length: null }],
-    method: '',
     memo: '',
     legacy: true,
   },
@@ -149,4 +144,10 @@ for (const input of [null, undefined, [], 1, 'bad'])
   assert.equal(parseCatch(input), null);
 console.log(
   'Catch validation passed: required fields, dates, boundaries, coercion, duplicates by row, legacy payload and preserved input.',
+);
+
+assert.equal(
+  Object.hasOwn(parseCatch(valid), 'method'),
+  false,
+  'Retired input must not be persisted',
 );

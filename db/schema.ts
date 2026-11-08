@@ -36,7 +36,6 @@ export const catches = sqliteTable(
     species: text('species').notNull(),
     count: integer('count').notNull(),
     length: real('length'),
-    method: text('method').notNull().default(''),
     memo: text('memo').notNull().default(''),
     created_at: text('created_at').notNull().default(''),
     featuredPhotoId: integer('featured_photo_id'),

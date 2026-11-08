@@ -1,12 +1,6 @@
 'use client';
 
-import {
-  useEffect,
-  useEffectEvent,
-  useRef,
-  useState,
-  type ReactNode,
-} from 'react';
+import { useEffect, useEffectEvent, useRef, useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { ChevronDown } from 'lucide-react';
@@ -695,7 +689,6 @@ export function CombinationEditor({
   onCreated,
   onSaveSet,
   methods = [],
-  legacyMethod,
 }: {
   value: Combination[];
   onChange: (v: Combination[]) => void;
@@ -705,7 +698,6 @@ export function CombinationEditor({
   onCreated: (g: Gear) => void;
   onSaveSet: (c: Combination) => void;
   methods?: string[];
-  legacyMethod?: ReactNode;
 }) {
   const [historyOpen, setHistoryOpen] = useState(false);
   // UI-only identities keep each card's draft and expansion attached on removal.
@@ -751,9 +743,8 @@ export function CombinationEditor({
     >
       <legend>使用した釣り道具（任意）</legend>
       <p className="gear-help">
-        この釣行で使った道具を記録できます。基本セットから選ぶこともできます。最大20組・各30点。
+        この釣行で使った道具と釣り方を、組み合わせごとに記録できます。基本セットから選ぶか、「道具・詳細を変更」で入力してください。最大20組・各30点。
       </p>
-      {legacyMethod}
       {value.map((c, index) => (
         <CombinationCard
           key={keys[index]}

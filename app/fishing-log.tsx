@@ -57,7 +57,6 @@ import {
   type GearSet,
 } from './gear';
 import MyPage from './my-page';
-import MethodField from './method-field';
 import { toast, Toaster } from 'sonner';
 
 type FishLine = {
@@ -83,7 +82,6 @@ type Entry = LocationEntry & {
   fish: FishLine[];
   photos: CatchPhoto[];
   featured_photo_id: number | null;
-  method: string;
   memo: string;
   created_at: string;
   owner_id: string;
@@ -106,7 +104,6 @@ const makeEmpty = () => ({
   locationVisibility: 'area' as LocationVisibility,
   position: null as Position | null,
   fish: [{ species: '', count: 1, length: '' }] as FishForm[],
-  method: '',
   memo: '',
   combinations: [emptyCombination()],
 });
@@ -550,7 +547,6 @@ export default function FishingLog({
               species: { type: 'string' },
               count: { type: 'integer' },
               length: { type: 'number' },
-              method: { type: 'string' },
               memo: { type: 'string' },
             },
             required: ['date', 'location', 'species', 'count'],
@@ -595,7 +591,7 @@ export default function FishingLog({
     (x) =>
       (speciesFilter === 'すべて' ||
         x.fish.some((f) => f.species === speciesFilter)) &&
-      `${x.location} ${x.fish.map((f) => f.species).join(' ')} ${x.method} ${(x.combinations || []).map((c) => c.method).join(' ')} ${x.memo}`
+      `${x.location} ${x.fish.map((f) => f.species).join(' ')} ${(x.combinations || []).map((c) => c.method).join(' ')} ${x.memo}`
         .toLowerCase()
         .includes(query.toLowerCase()),
   );
@@ -618,7 +614,6 @@ export default function FishingLog({
       locationVisibility: x.locationVisibility,
       position: x.position,
       fish: x.fish.map((f) => ({ ...f, length: f.length?.toString() ?? '' })),
-      method: x.method,
       memo: x.memo,
       combinations: x.combinations?.length
         ? structuredClone(x.combinations)
@@ -710,9 +705,7 @@ export default function FishingLog({
 
   const methodSuggestions = items
     .filter((x) => x.owner_id === userId)
-    .flatMap((x) => [x.method, ...(x.combinations || []).map((c) => c.method)]);
-  const legacyMethodVisible =
-    !!editing && !!items.find((x) => x.id === editing)?.method;
+    .flatMap((x) => (x.combinations || []).map((c) => c.method));
   const fishNames = form.fish.map((f) => f.species.trim()).filter(Boolean);
 
   async function submit(e: React.FormEvent) {
@@ -1279,24 +1272,6 @@ export default function FishingLog({
                 <CombinationEditor
                   value={form.combinations}
                   methods={methodSuggestions}
-                  legacyMethod={
-                    legacyMethodVisible ? (
-                      <div className="legacy-method">
-                        <MethodField
-                          label="以前の釣り方・仕掛け（記録全体）"
-                          dataCy="legacy-method"
-                          value={form.method}
-                          onChange={(method) => setForm({ ...form, method })}
-                          suggestions={methodSuggestions}
-                          inputProps={fieldProps('method')}
-                        />
-                        <p className="gear-help">
-                          以前の記録で入力した内容です。各組み合わせとは別に保持します。
-                        </p>
-                        {fieldError('method')}
-                      </div>
-                    ) : null
-                  }
                   onChange={(combinations) =>
                     setForm({ ...form, combinations })
                   }
@@ -1520,7 +1495,6 @@ export default function FishingLog({
                           ))}
                         </div>
                         <LocationMapDialog entry={x} apiKey={mapsApiKey} />
-                        {x.method && <p className="details">{x.method}</p>}
                         {!!x.combinations?.length && (
                           <details className="catch-combinations">
                             <summary>

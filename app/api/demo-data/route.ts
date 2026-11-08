@@ -87,14 +87,13 @@ export async function POST(req: Request) {
       statements.push(
         db
           .prepare(
-            `INSERT INTO catches(date,location,species,count,length,method,memo,created_at,owner_id) SELECT ?,?,?,?,NULL,?,?,?,? WHERE NOT EXISTS(SELECT 1 FROM data_migrations WHERE name=?)`,
+            `INSERT INTO catches(date,location,species,count,length,memo,created_at,owner_id) SELECT ?,?,?,?,NULL,?,?,? WHERE NOT EXISTS(SELECT 1 FROM data_migrations WHERE name=?)`,
           )
           .bind(
             date,
             location,
             species,
             count,
-            species === 'シロギス' ? 'ちょい投げ' : '堤防釣り',
             '【ダミーデータ】表示確認用の架空の釣果です。実際の釣況ではありません。',
             posted,
             owners[i % 3],

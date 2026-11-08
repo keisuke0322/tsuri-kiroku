@@ -430,7 +430,6 @@ const badInputs = [
   { ...valid, species: '魚'.repeat(81) },
   ...['', null, 0, -1, 1.5, 10000, 'abc'].map((count) => ({ ...valid, count })),
   ...[-1, 1000, 'abc', 'Infinity'].map((length) => ({ ...valid, length })),
-  { ...valid, method: '竿'.repeat(201) },
   { ...valid, memo: '海'.repeat(2001) },
   { ...valid, fish: [] },
   {

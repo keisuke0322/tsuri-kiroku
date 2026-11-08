@@ -2590,11 +2590,6 @@ button.featured-photo {
 .combination-chevron.expanded {
   transform: rotate(180deg);
 }
-.legacy-method {
-  padding: 12px;
-  border: 1px solid #dce8e9;
-  border-radius: 8px;
-}
 
 /* Matching boundaries and headings for the three catch input sections. */
 .entry-form > .catch-section {
@@ -2624,4 +2619,16 @@ button.featured-photo {
   .entry-form > .catch-section {
     padding: 12px;
   }
+}
+
+/* The retired record-level field no longer separates the help and first card. */
+.entry-form > .combination-editor > .combination-card,
+.entry-form > .combination-editor > .gear-help,
+.entry-form > .combination-editor > .gear-actions {
+  margin-block: 0;
+}
+.entry-form > .combination-editor > .gear-actions > button {
+  flex: 1 1 180px;
+  min-height: 44px;
+  white-space: normal;
 }

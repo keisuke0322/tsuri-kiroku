@@ -114,6 +114,7 @@ export async function GET(req: Request) {
           public_latitude,
           public_longitude,
           guest_public: _retiredGuestPublic,
+          method: _retiredMethod,
           ...shared
         } = row;
         const own = row.owner_id === user.userId,
@@ -184,7 +185,7 @@ export async function POST(req: Request) {
       first = v.fish[0],
       r = await db
         .prepare(
-          'INSERT INTO catches (date,location,species,count,length,method,memo,created_at,owner_id,location_visibility,public_latitude,public_longitude) VALUES (?,?,?,?,?,?,?,?,?,?,?,?)',
+          'INSERT INTO catches (date,location,species,count,length,memo,created_at,owner_id,location_visibility,public_latitude,public_longitude) VALUES (?,?,?,?,?,?,?,?,?,?,?)',
         )
         .bind(
           v.date,
@@ -192,7 +193,6 @@ export async function POST(req: Request) {
           first.species,
           first.count,
           first.length,
-          v.method,
           v.memo,
           new Date().toISOString(),
           user.userId,

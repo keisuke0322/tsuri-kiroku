@@ -13,6 +13,10 @@ import { fileURLToPath } from 'node:url';
 import { command } from './e2e-command.mjs';
 
 export const cleanupMigration = '0009_remove_guest_public.sql';
+export const cleanupMigrations = [
+  cleanupMigration,
+  '0011_remove_legacy_method.sql',
+];
 const cli = ['node_modules/wrangler/bin/wrangler.js', 'd1'];
 
 export async function beforeDeployment(
@@ -25,7 +29,7 @@ export async function beforeDeployment(
     const database = config.d1_databases.find((db) => db.binding === 'DB');
     const migrations = resolve(dirname(configPath), database.migrations_dir);
     for (const file of await readdir(migrations))
-      if (file.endsWith('.sql') && file !== cleanupMigration)
+      if (file.endsWith('.sql') && !cleanupMigrations.includes(file))
         await copyFile(join(migrations, file), join(directory, file));
     const temporary = join(directory, 'wrangler.json');
     await writeFile(
@@ -44,7 +48,7 @@ export async function beforeDeployment(
       },
     );
     console.log(
-      'Applied compatible migrations; guest column removal is deferred until after Worker verification.',
+      'Applied compatible migrations; retired column removal is deferred until after Worker verification.',
     );
   } finally {
     await rm(directory, { recursive: true, force: true });
@@ -55,7 +59,7 @@ export async function afterDeployment(
   configPath = 'wrangler.deploy.json',
   run = command,
   record = async (bookmark) => {
-    const message = `D1 recovery bookmark before ${cleanupMigration}: ${bookmark}\n`;
+    const message = `D1 recovery bookmark before retired schema cleanup (${cleanupMigrations.join(', ')}): ${bookmark}\n`;
     console.log(message.trim());
     if (process.env.GITHUB_STEP_SUMMARY)
       await appendFile(process.env.GITHUB_STEP_SUMMARY, message);
@@ -85,7 +89,7 @@ export async function afterDeployment(
   if (
     (
       await query(
-        "SELECT name FROM pragma_table_info('catches') WHERE name='guest_public'",
+        "SELECT name FROM pragma_table_info('catches') WHERE name IN ('guest_public','method')",
       )
     ).length
   ) {
@@ -113,15 +117,15 @@ export async function afterDeployment(
   if (
     (
       await query(
-        "SELECT name FROM pragma_table_info('catches') WHERE name='guest_public' UNION ALL SELECT name FROM sqlite_master WHERE name='idx_catches_guest_date'",
+        "SELECT name FROM pragma_table_info('catches') WHERE name IN ('guest_public','method') UNION ALL SELECT name FROM sqlite_master WHERE name='idx_catches_guest_date'",
       )
     ).length
   )
-    throw Error('Guest schema was not fully removed.');
+    throw Error('Retired schema was not fully removed.');
   if ((await query('PRAGMA foreign_key_check')).length)
     throw Error('Foreign key validation failed after cleanup.');
   console.log(
-    'Verified guest column and index removed; foreign key check passed. No catches or photo objects deleted.',
+    'Verified guest and legacy method columns removed; foreign key check passed. No catches or photo objects deleted.',
   );
 }
 

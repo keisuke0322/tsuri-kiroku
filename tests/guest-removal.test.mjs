@@ -8,6 +8,7 @@ import {
   beforeDeployment,
   afterDeployment,
   cleanupMigration,
+  cleanupMigrations,
 } from '../scripts/cloudflare-migrations.mjs';
 
 test('removing both opt-in values restores the original schema and preserves every existing row', async () => {
@@ -98,7 +99,8 @@ test('pre-deployment migration set excludes the destructive migration and remove
       const config = JSON.parse(await readFile(temporary, 'utf8'));
       const files = await readdir(config.d1_databases[0].migrations_dir);
       assert.ok(files.includes('0008_guest_public.sql'));
-      assert.ok(!files.includes(cleanupMigration));
+      for (const migration of cleanupMigrations)
+        assert.ok(!files.includes(migration));
     });
     await assert.rejects(readFile(temporary), { code: 'ENOENT' });
   } finally {
