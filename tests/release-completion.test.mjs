@@ -137,7 +137,16 @@ function fixture() {
       if (method === github.rest.actions.listWorkflowRuns) return [run];
       if (method === github.rest.actions.listJobsForWorkflowRun)
         return [
-          { name: 'Deploy', conclusion: 'success' },
+          {
+            name: 'Deploy',
+            conclusion: 'success',
+            steps: [
+              {
+                name: 'Verify running version and record deployment result',
+                conclusion: 'success',
+              },
+            ],
+          },
           { name: 'Publish Release', conclusion: 'success' },
         ];
       if (method === github.rest.repos.listReleases)
@@ -255,4 +264,28 @@ test('a later successful restoration retry supersedes a newer cancelled push run
         }
       : get(args);
   assert.equal((await completion.completeReleases(f)).state, 'completed');
+});
+
+test('a normally completed paused job cannot complete Issues', async () => {
+  const f = fixture();
+  const paginate = f.github.paginate;
+  f.github.paginate = async (method, args) =>
+    method === f.github.rest.actions.listJobsForWorkflowRun
+      ? [
+          {
+            name: 'Deploy',
+            conclusion: 'success',
+            steps: [
+              {
+                name: 'Verify running version and record deployment result',
+                conclusion: 'skipped',
+              },
+              { name: 'Run authenticated staging E2E', conclusion: 'skipped' },
+            ],
+          },
+        ]
+      : paginate(method, args);
+  const result = await completion.completeReleases(f);
+  assert.equal(result.state, 'waiting-for-development-staging');
+  assert.deepEqual(f.closed, []);
 });

@@ -72,8 +72,9 @@ async function prepareUpdate(options, number, { expectedHead } = {}) {
     throw Error('PR changed before preparation; start validation again.');
   if (pr.state !== 'open') throw Error('Update PR must be open.');
   if (state.lease && state.lease.pr !== pr.number)
-    throw Error(
-      'Another PR owns staging. Finish or explicitly abort it first.',
+    throw new UpdatePending(
+      'staging',
+      `Another PR owns staging. Finish or explicitly abort it first. PR #${state.lease.pr} の公開・復帰完了後にstart-updateを再実行してください。`,
     );
   // This explicit, administrator-only action authorizes a manual update PR.
   state.manuals[pr.number] = {
@@ -231,7 +232,10 @@ async function selectDeployment(
     )
       throw Error('Controller is stale; start again from latest main.');
     if (state.lease && state.lease.pr !== pr.number)
-      throw Error(`Staging is reserved for PR #${state.lease.pr}.`);
+      throw new UpdatePending(
+        'staging',
+        `Staging is reserved for PR #${state.lease.pr}. 公開・復帰完了後に再実行してください。`,
+      );
     await requireCI(options, pr);
     state.lease = {
       pr: pr.number,
@@ -278,15 +282,19 @@ async function selectDeployment(
   if (context.ref === 'refs/heads/main')
     return { sha: context.sha, kind: 'production' };
   if (state.lease)
-    throw Error(
-      `Staging held by PR #${state.lease.pr} (${state.lease.phase}); development deployment paused.`,
+    throw new UpdatePending(
+      'staging',
+      `Staging held by PR #${state.lease.pr} (${state.lease.phase}); development deployment paused. 公開・復帰完了後、最新developのデプロイを再実行してください。`,
     );
   const { name, data } = await getDevelopmentBranch(options);
   if (context.ref !== `refs/heads/${name}`)
     throw Error('Deploy from the current development branch.');
   const latest = data.object.sha;
   if (latest !== context.sha)
-    throw Error('Superseded development commit; deploy latest branch instead.');
+    throw new UpdatePending(
+      'superseded',
+      'Superseded development commit; deploy latest branch instead. 最新developの実行結果を確認してください。',
+    );
   return { sha: context.sha, kind: 'development' };
 }
 

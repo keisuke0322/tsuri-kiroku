@@ -1,0 +1,37 @@
+name: Track dependency progress
+run-name: 更新状況表示｜${{ github.event.workflow_run.display_title || 'PRの最新状態' }}
+on:
+  workflow_run:
+    workflows:
+      [Deploy Cloudflare, Contribution checks, Auto-merge published sync]
+    types: [requested, in_progress, completed]
+  pull_request_target:
+    branches: [main]
+    types: [opened, synchronize, reopened, closed]
+  schedule:
+    - cron: '*/5 * * * *'
+  workflow_dispatch:
+permissions:
+  contents: read
+  actions: read
+  pull-requests: read
+  issues: write
+# Display refreshes must never wait behind deployments or mutate their locks.
+concurrency:
+  group: dependency-progress-display
+  cancel-in-progress: false
+jobs:
+  track:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: main
+          persist-credentials: false
+      # Execute trusted main only, never code supplied by a PR or workflow_run.
+      - uses: actions/github-script@v7
+        with:
+          github-token: ${{ secrets.PROJECT_TOKEN }}
+          script: |
+            await require('./scripts/update-tracking.cjs').trackUpdates({ github, context });
