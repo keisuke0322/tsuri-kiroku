@@ -1,21 +1,5 @@
 {
-  "lease": {
-    "pr": 111,
-    "head": "2c89c34afb902542aa985bb683caf7c4c21fcb10",
-    "base": "0ec5ce891d3fc1a5ceaedac1c100ee812cf6c8d9",
-    "controller": "0ec5ce891d3fc1a5ceaedac1c100ee812cf6c8d9",
-    "phase": "restoring",
-    "actor": "keisuke0322",
-    "runId": "42442795770",
-    "at": "2026-11-08T03:29:07.226Z",
-    "validation": {
-      "runId": "42442795770",
-      "deploymentId": "8f2fa9dd-7813-443c-9c60-8d544e3a3c59",
-      "url": "https://github.com/keisuke0322/tsuri-kiroku/actions/runs/42442795770/attempts/1",
-      "cloudflareVersionId": "24db332f-e7af-4043-afef-41f0c9758274",
-      "at": "2026-11-08T03:37:24.568Z"
-    }
-  },
+  "lease": null,
   "deferrals": {
     "53": {
       "reason": "依存更新ルート（Issue #51）の初回導入を先に本番公開するため、一時保留する。公開・有効化の完了後に各更新を検証し、保留を解除して対応する。",
@@ -117,11 +101,11 @@
   },
   "schema": 1,
   "lastRestoration": {
-    "sha": "4744c63cf8d4f14aed7bc0d6351e3a2ad11d55b1",
-    "runId": "42354186819",
+    "sha": "8f7ee3c79cf0535505e6e884ca9e31788129fc5f",
+    "runId": "42443947153",
     "runAttempt": "1",
-    "controller": "0ec5ce891d3fc1a5ceaedac1c100ee812cf6c8d9",
-    "verifiedAt": "2026-11-07T08:17:34.874Z"
+    "controller": "4fdd02b71cef52765c95c62ead26920928e05f5b",
+    "verifiedAt": "2026-11-08T03:53:08.424Z"
   },
   "lastDevelopmentValidation": {
     "environment": "staging",
