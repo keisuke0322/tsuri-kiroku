@@ -111,7 +111,7 @@ export async function PUT(
       ),
       db
         .prepare(
-          'UPDATE catches SET date=?,location=?,species=?,count=?,length=?,method=?,memo=?,featured_photo_id=? WHERE id=? AND owner_id=?',
+          'UPDATE catches SET date=?,location=?,species=?,count=?,length=?,memo=?,featured_photo_id=? WHERE id=? AND owner_id=?',
         )
         .bind(
           v.date,
@@ -119,7 +119,6 @@ export async function PUT(
           first.species,
           first.count,
           first.length,
-          v.method,
           v.memo,
           featured,
           id,

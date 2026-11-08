@@ -135,3 +135,18 @@ Workers FreeのCPU時間上限は1リクエスト10msである。共通の初期
 - https://developers.cloudflare.com/d1/reference/migrations/
 - https://developers.cloudflare.com/r2/pricing/
 - https://developers.google.com/identity/openid-connect/openid-connect
+
+### 旧「釣り方・仕掛け」の削除（0011）
+
+ユーザー指定により、釣果全体に保存していた `catches.method` を物理削除する。
+組み合わせ `catch_combinations.method`・基本セット `gear_sets.method` は維持する。
+保存済みの旧文字列は移行・コピーせず削除する。釣果・魚・写真・位置・道具のデータは削除しない。
+
+0011は通常の事前マイグレーションから除外し、新Workerの反映と起動確認後に実行する。
+直前のD1 Time Travel bookmarkをActionsサマリーへ保存できない場合は削除しない。
+削除後にカラムの不存在・外部キー整合性を検証し、再度の起動確認・staging E2Eを行う。
+新Workerは削除前後のDBで動くが、旧Workerの登録・編集SQLはこの列を要求するため、
+削除後に旧Workerだけを戻すことはできない。復旧は新Workerの修正を優先し、
+旧データの復元が必要なら記録したbookmarkとD1 Time Travelの保持期間を確認する。
+DB全体の復元は削除後の新規更新にも影響するため、対象環境・復元時点・差分を照合して実施する。
+本番DBへの適用は通常どおりmainへの公開時に行う。

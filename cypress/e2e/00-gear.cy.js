@@ -255,7 +255,7 @@ describe('所有道具・基本セット・当日の組み合わせ', () => {
         catchIds.push(response.body.id);
         request('GET', '/api/catches').then(({ body }) => {
           const entry = body.find((c) => c.id === response.body.id);
-          expect(entry.method).to.equal('');
+          expect(entry).not.to.have.property('method');
           expect(entry.combinations[0].method).to.equal('ちょい投げ、6号');
         });
         cy.reload();
@@ -271,7 +271,7 @@ describe('所有道具・基本セット・当日の組み合わせ', () => {
         );
       });
     });
-    it(`以前の釣り方・仕掛けと組み合わせを別々に保持して編集（${width}px）`, () => {
+    it(`旧入力欄を表示せず組み合わせの釣り方を編集（${width}px）`, () => {
       cy.viewport(width, 900);
       createCatch(
         [
@@ -287,10 +287,8 @@ describe('所有道具・基本セット・当日の組み合わせ', () => {
       ).then((id) => {
         visit();
         cy.get(`[data-catch-id="${id}"]`).find(by('edit-catch')).click();
-        cy.get(by('legacy-method'))
-          .scrollIntoView()
-          .should('have.value', 'ちょい投げ、6号');
-        cy.get(by('legacy-method')).clear().type('胴突き、3本針');
+        cy.get(by('legacy-method')).should('not.exist');
+        cy.contains('以前の釣り方・仕掛け').should('not.exist');
         cy.get(by('combination-details-toggle')).scrollIntoView().click();
         cy.get(by('combination-method')).should('have.value', 'テンヤ');
         cy.get(by('combination-method')).clear().type('テンヤ、浅場');
@@ -301,9 +299,12 @@ describe('所有道具・基本セット・当日の組み合わせ', () => {
           .should('equal', 200);
         cy.reload();
         cy.get(`[data-catch-id="${id}"]`).find(by('edit-catch')).click();
-        cy.get(by('legacy-method'))
-          .scrollIntoView()
-          .should('have.value', '胴突き、3本針');
+        cy.get(by('legacy-method')).should('not.exist');
+        request('GET', '/api/catches').then(({ body }) => {
+          expect(body.find((entry) => entry.id === id)).not.to.have.property(
+            'method',
+          );
+        });
         cy.get(by('combination-details-toggle')).scrollIntoView().click();
         cy.get(by('combination-method')).should('have.value', 'テンヤ、浅場');
       });

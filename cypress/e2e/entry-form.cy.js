@@ -110,7 +110,7 @@ function headings(width) {
   });
   cy.get(by('gear-section')).should(
     'contain',
-    'この釣行で使った道具を記録できます。',
+    'この釣行で使った道具と釣り方を、組み合わせごとに記録できます。',
   );
   for (const name of ['latitude', 'longitude', 'apply-coordinates'])
     cy.get(by(name)).should('not.exist');

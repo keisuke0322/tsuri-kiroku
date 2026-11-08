@@ -103,10 +103,6 @@ export const catchSchema = v.object({
   ),
   location: requiredText('場所', 120),
   fish: fishListSchema,
-  method: v.pipe(
-    text(),
-    v.maxLength(200, '釣り方・仕掛けは200文字以内で入力してください。'),
-  ),
   memo: v.pipe(
     text(),
     v.maxLength(2000, 'メモは2000文字以内で入力してください。'),
