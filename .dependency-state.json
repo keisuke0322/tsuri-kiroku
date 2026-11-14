@@ -4,7 +4,7 @@
     "head": "cca7d440741907864f401bc64e00e3720efec2c4",
     "base": "f674ab431d3f8ff979ef6b5c6ef95ed696f63ca9",
     "controller": "f674ab431d3f8ff979ef6b5c6ef95ed696f63ca9",
-    "phase": "validating",
+    "phase": "reserved",
     "actor": "keisuke0322",
     "runId": "43612585980",
     "at": "2026-11-14T15:55:08.106Z"
@@ -109,7 +109,7 @@
     },
     "121": {
       "actor": "keisuke0322",
-      "at": "2026-11-14T15:53:39.920Z"
+      "at": "2026-11-14T16:12:00.671Z"
     }
   },
   "schema": 1,
