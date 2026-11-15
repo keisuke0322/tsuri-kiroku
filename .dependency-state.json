@@ -4,7 +4,7 @@
     "head": "c675609f3b81acc9204036f8930b9a150ccbb12c",
     "base": "bfec650373887c31f1bbad3d92dc822da0acb190",
     "controller": "bfec650373887c31f1bbad3d92dc822da0acb190",
-    "phase": "verified",
+    "phase": "restoring",
     "actor": "keisuke0322",
     "runId": "43660178506",
     "at": "2026-11-15T00:52:15.808Z",
@@ -14,14 +14,6 @@
       "url": "https://github.com/keisuke0322/tsuri-kiroku/actions/runs/43660178506/attempts/1",
       "cloudflareVersionId": "31ed63ca-7b1e-4dea-879c-a4902e5daba7",
       "at": "2026-11-15T01:02:07.944Z"
-    },
-    "approval": {
-      "actor": "keisuke0322",
-      "at": "2026-11-15T01:28:43Z",
-      "eventId": 36163603335,
-      "runId": "43660178506",
-      "head": "c675609f3b81acc9204036f8930b9a150ccbb12c",
-      "base": "bfec650373887c31f1bbad3d92dc822da0acb190"
     }
   },
   "deferrals": {
