@@ -10,7 +10,7 @@ import path from 'node:path';
 import type { Plugin } from 'vite';
 
 // Use package files, rather than minifier comments, so attribution survives builds.
-export function thirdPartyLicenses(): Plugin {
+export function thirdPartyLicenses(publicDirectory = 'dist/client'): Plugin {
   const packages = new Map<string, { root: string; files: Set<string> }>();
   let projectRoot = process.cwd();
   let combinedNotices = '';
@@ -79,6 +79,10 @@ export function thirdPartyLicenses(): Plugin {
               `${path.relative(entry.root, file)}\n\n${readFileSync(file, 'utf8')}`,
           );
         const supplements: Record<string, string> = {
+          'storybook@10.6.7': 'storybook.LICENSE',
+          '@storybook/react-dom-shim@10.6.7': 'storybook.LICENSE',
+          '@storybook/react@10.6.7': 'storybook.LICENSE',
+          '@storybook/addon-docs@10.6.7': 'storybook.LICENSE',
           '@vitejs/plugin-rsc@0.5.26': 'vite-plugin-rsc.LICENSE',
           '@vitejs/plugin-rsc@0.5.38': 'vite-plugin-rsc.LICENSE',
           'drizzle-orm@0.45.2': 'drizzle-orm.LICENSE',
@@ -117,7 +121,7 @@ export function thirdPartyLicenses(): Plugin {
     },
     writeBundle() {
       // Vinext builds rsc, client, then ssr. Keep the public copy inclusive of all three.
-      const directory = path.join(projectRoot, 'dist/client');
+      const directory = path.join(projectRoot, publicDirectory);
       mkdirSync(directory, { recursive: true });
       writeFileSync(
         path.join(directory, 'third-party-licenses.txt'),

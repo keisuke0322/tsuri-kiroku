@@ -262,6 +262,12 @@ jobs:
         run: node scripts/cloudflare-smoke.mjs
         env:
           APP_ORIGIN: ${{ vars.APP_ORIGIN }}
+      - name: Verify Storybook availability
+        if: steps.select.outputs.ready == 'true' && (steps.reuse.outputs.reused != 'true')
+        run: node scripts/storybook-smoke.mjs
+        env:
+          APP_ORIGIN: ${{ vars.APP_ORIGIN }}
+          TARGET_ENV: ${{ steps.select.outputs.kind == 'production' && 'production' || 'staging' }}
       - name: Remove retired guest schema with a D1 recovery bookmark
         if: steps.select.outputs.ready == 'true' && (steps.reuse.outputs.reused != 'true')
         run: node scripts/cloudflare-migrations.mjs after

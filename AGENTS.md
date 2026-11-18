@@ -94,3 +94,10 @@
 - 未対応Dependabot更新と未同期mainは機能公開を止める。保留は管理者の理由付き30日期限とし、古い成功チェックやラベルで迂回しない。必要なGitHub設定・実更新・通知の未確認を明示する。
 
 公開後のmain→develop同期で検証済みの内容と同一の場合は、[staging検証の再利用](docs/staging-validation-reuse.md)の条件を満たす成功記録を使用できる。再利用が成立しない場合は通常のデプロイ・E2Eを行う。
+
+## Storybookとデザイン統一
+
+- UI部品を追加・変更したら、同じ変更で`stories/`のStoryと用途の説明を更新する。既存部品と`app/globals.css`のデザイン設定を優先し、新しい種類が必要な場合は理由をレビューに記載する。
+- Storyは実際の部品を読み込み、通常・エラー・無効状態など適用可能な状態とPC・スマートフォン幅を確認する。StoryのMetaには重複しない英数字の`id`を指定する。
+- 公開はstagingの`/storybook/`のみ。架空の固定データを使い、API・DB・R2を呼び出さない。詳しくは[Storybook運用](docs/storybook.md)を参照する。
+- UI変更時は`corepack pnpm run build-storybook`も実行する。本番の生成物にStorybookを含めない制御と404検証を維持する。

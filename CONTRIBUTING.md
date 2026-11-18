@@ -123,3 +123,9 @@ PRには、変更の目的、変更後の動作、関連Issue、検証結果、�
 共有stagingのE2Eは管理者が実行します。外部PRを提出しただけでは共有stagingへのデプロイや本番公開は起動しません。外部開発者が元サイトへ直接デプロイする必要はありません。
 
 管理者向けの通知設定と受付確認は[外部提案の管理](docs/external-proposals.md)を参照してください。
+
+## 画面部品とStorybook
+
+UI部品を追加・変更するときは、既存の部品と共通CSSを利用し、`stories/`のStory・用途の説明も同じ変更で更新してください。新しい見た目の種類が必要な場合は、その理由をPRに記載します。
+
+`corepack pnpm storybook`でローカル起動し、`corepack pnpm run build-storybook`でビルドを確認します。通常・エラー・無効状態、キーボード操作、PCとスマートフォン幅を確認してください。詳しくは[Storybook運用](docs/storybook.md)を参照してください。
