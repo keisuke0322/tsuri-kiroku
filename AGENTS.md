@@ -8,6 +8,7 @@
 - React / TypeScript / Vinext、Cloudflare Workers / D1 / R2、Google認証を使用する。
 - 開発ブランチ: `develop`（継続利用）。本番ブランチ: `main`。
 - staging: https://tsuri-kiroku-staging.keisuke0322.workers.dev
+- Storybook（UIデザインの基準・staging限定公開）: https://tsuri-kiroku-staging.keisuke0322.workers.dev/storybook/
 - production: https://tsuri-kiroku-production.keisuke0322.workers.dev
 - 詳細は[README.md](README.md)、[CLOUDFLARE-MIGRATION.md](CLOUDFLARE-MIGRATION.md)、実際の[ワークフロー](.github/workflows/cloudflare.yml)を確認する。環境やブランチ構成を推測で変更しない。
 
