@@ -97,7 +97,9 @@
 
 ## Storybookとデザイン統一
 
-- UI部品を追加・変更したら、同じ変更で`stories/`のStoryと用途の説明を更新する。既存部品と`app/globals.css`のデザイン設定を優先し、新しい種類が必要な場合は理由をレビューに記載する。
+- 画面の新規開発・機能追加・改修では、[Storybook](https://tsuri-kiroku-staging.keisuke0322.workers.dev/storybook/)に登録された部品・デザインを使用することを必須とする。着手前に対象部品のStoryと用途を確認し、既存の部品・variant・共通CSSを再利用する。公開版と作業ブランチが異なる場合は、作業ブランチのローカルStorybookで確認する。
+- 色・文字・角丸などは`app/globals.css`の共通デザイン設定を使用し、同じ用途の部品や独自の見た目を画面ごとに重複して作らない。
+- 既存部品で要件を満たせない場合は、必要な拡張・新規部品と、そのStory・用途の説明を同じ変更で追加する。必要な理由と既存デザインとの整合性をPRに記載する。既存UI部品を変更する場合もStoryと説明を同時に更新する。
 - Storyは実際の部品を読み込み、通常・エラー・無効状態など適用可能な状態とPC・スマートフォン幅を確認する。StoryのMetaには重複しない英数字の`id`を指定する。
 - 公開はstagingの`/storybook/`のみ。架空の固定データを使い、API・DB・R2を呼び出さない。詳しくは[Storybook運用](docs/storybook.md)を参照する。
 - UI変更時は`corepack pnpm run build-storybook`も実行する。本番の生成物にStorybookを含めない制御と404検証を維持する。
