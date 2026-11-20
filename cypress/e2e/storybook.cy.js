@@ -25,9 +25,14 @@ describe('stagingの公開Storybook', () => {
       cy.visit(
         '/storybook/iframe.html?id=method-field--default&viewMode=story',
       );
-      cy.get('[role="combobox"]').type('サビキ');
+      cy.get('#storybook-root input[data-cy="combination-method"]')
+        .should('have.length', 1)
+        .type('サビキ');
       cy.get('[role="option"]').contains('サビキ').click();
-      cy.get('[role="combobox"]').should('have.value', 'サビキ');
+      cy.get('#storybook-root input[data-cy="combination-method"]').should(
+        'have.value',
+        'サビキ',
+      );
 
       cy.visit(
         '/storybook/iframe.html?id=catch-date-field--default&viewMode=story',
@@ -42,7 +47,7 @@ describe('stagingの公開Storybook', () => {
       cy.get('[role="dialog"]')
         .should('be.visible')
         .and('contain', '釣行の詳細');
-      cy.get('body').type('{esc}');
+      cy.focused().type('{esc}');
       cy.get('[role="dialog"]').should('not.exist');
       cy.contains('button', '詳細を開く').should('have.focus');
     });
