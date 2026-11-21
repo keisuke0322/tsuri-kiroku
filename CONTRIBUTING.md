@@ -123,3 +123,11 @@ PRには、変更の目的、変更後の動作、関連Issue、検証結果、�
 共有stagingのE2Eは管理者が実行します。外部PRを提出しただけでは共有stagingへのデプロイや本番公開は起動しません。外部開発者が元サイトへ直接デプロイする必要はありません。
 
 管理者向けの通知設定と受付確認は[外部提案の管理](docs/external-proposals.md)を参照してください。
+
+## 画面部品とStorybook
+
+画面の新規開発・機能追加・改修では、[Storybook](https://tsuri-kiroku-staging.keisuke0322.workers.dev/storybook/)に登録された部品・デザインを使用することを必須とします。着手前に対象部品のStoryと用途を確認し、既存の部品・variant・共通CSSを再利用してください。公開版と作業ブランチが異なる場合は、作業ブランチのローカルStorybookで確認します。
+
+色・文字・角丸などは`app/globals.css`の共通デザイン設定を使用し、同じ用途の部品や独自の見た目を画面ごとに重複して作らないでください。既存部品で要件を満たせない場合は、必要な拡張・新規部品と、そのStory・用途の説明を同じ変更で追加し、必要な理由と既存デザインとの整合性をPRに記載してください。既存UI部品を変更する場合もStoryと説明を同時に更新します。
+
+`corepack pnpm storybook`でローカル起動し、`corepack pnpm run build-storybook`でビルドを確認します。通常・エラー・無効状態、キーボード操作、PCとスマートフォン幅を確認してください。詳しくは[Storybook運用](docs/storybook.md)を参照してください。

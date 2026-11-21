@@ -55,6 +55,7 @@ config.r2_buckets = [
 ];
 config.vars = {
   APP_ORIGIN: origin.origin,
+  APP_ENV: stage,
   GOOGLE_CLIENT_ID: process.env.GOOGLE_CLIENT_ID,
 };
 const recordPath = '.release-runtime/record.json';

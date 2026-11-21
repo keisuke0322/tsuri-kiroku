@@ -4,11 +4,33 @@ import { GET as listCatches } from './app/api/catches/route';
 type ShellEnv = {
   ASSETS: Fetcher;
   APP_SHELL_BUILD?: string;
+  APP_ENV?: string;
 };
 
 const worker = {
   async fetch(request: Request, env: ShellEnv, ctx: ExecutionContext) {
     const url = new URL(request.url);
+    if (
+      url.pathname === '/storybook' ||
+      url.pathname.startsWith('/storybook/')
+    ) {
+      if (env.APP_ENV !== 'staging') {
+        return new Response('Not Found', { status: 404 });
+      }
+      if (!['GET', 'HEAD'].includes(request.method)) {
+        return new Response('Method Not Allowed', {
+          status: 405,
+          headers: { Allow: 'GET, HEAD' },
+        });
+      }
+      if (url.pathname === '/storybook') {
+        url.pathname = '/storybook/';
+        return Response.redirect(url, 308);
+      }
+      if (url.pathname === '/storybook/') url.pathname += 'index.html';
+      url.search = '';
+      return env.ASSETS.fetch(new Request(url, { method: request.method }));
+    }
     // This handler uses the supplied Request and Cloudflare bindings directly;
     // it does not need Vinext's React rendering or request-context setup.
     if (url.pathname === '/api/catches' && request.method === 'GET')

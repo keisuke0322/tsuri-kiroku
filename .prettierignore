@@ -19,3 +19,6 @@ dist/
 coverage/
 cypress/screenshots/
 cypress/videos/
+
+# Storybook generated output
+storybook-static/

@@ -143,3 +143,7 @@ corepack pnpm build
 | [AGENTS.md](AGENTS.md)                              | AIによる開発の作業ルール                      |
 
 依存パッケージの通常・緊急更新、共有stagingの占有、公開後の開発同期は[依存更新の運用](docs/dependency-updates.md)を参照してください。mainへの導入と有効化確認後に新ルートを利用できます。
+
+## 画面部品のカタログ
+
+[stagingのStorybook](https://tsuri-kiroku-staging.keisuke0322.workers.dev/storybook/)で使用中の共通部品と主要な専用部品を確認できます。ログイン不要・架空データのみで、本番には公開しません。ローカルでは`corepack pnpm storybook`を使用します。追加・更新手順は[Storybook運用](docs/storybook.md)を参照してください。
