@@ -4,10 +4,17 @@
     "head": "2e190d787e881484ac2c666f1bc09e4472cf0d70",
     "base": "0897cdb034bd4d939592929abd2f75abdd8f4c2b",
     "controller": "0897cdb034bd4d939592929abd2f75abdd8f4c2b",
-    "phase": "validating",
+    "phase": "verified",
     "actor": "keisuke0322",
     "runId": "44876228478",
-    "at": "2026-11-21T06:36:24.753Z"
+    "at": "2026-11-21T06:36:24.753Z",
+    "validation": {
+      "runId": "44876228478",
+      "deploymentId": "30de195e-3440-43d3-ae4a-7d95470c6748",
+      "url": "https://github.com/keisuke0322/tsuri-kiroku/actions/runs/44876228478/attempts/1",
+      "cloudflareVersionId": "dca1a8ea-e158-4f88-9953-a82a2cf1273d",
+      "at": "2026-11-21T06:46:11.734Z"
+    }
   },
   "deferrals": {
     "53": {
