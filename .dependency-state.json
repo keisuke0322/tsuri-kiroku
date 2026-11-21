@@ -133,21 +133,21 @@
   },
   "lastDevelopmentValidation": {
     "environment": "staging",
-    "sha": "367ec5b06cccf68186d5250bcece35c7ffc720a6",
-    "runId": "44761236520",
+    "sha": "a5a6a0605217bdc6488ed6d46fb4a0592fc33794",
+    "runId": "44873808098",
     "runAttempt": "1",
-    "actionsUrl": "https://github.com/keisuke0322/tsuri-kiroku/actions/runs/44761236520/attempts/1",
-    "builtAt": "2026-11-20T15:22:13.047Z",
+    "actionsUrl": "https://github.com/keisuke0322/tsuri-kiroku/actions/runs/44873808098/attempts/1",
+    "builtAt": "2026-11-21T06:04:43.071Z",
     "release": null,
     "staging": null,
     "changedMigrations": [],
     "pr": null,
     "sourceIssues": [],
     "toolchain": {
-      "node": "v24.22.2",
+      "node": "v24.22.3",
       "packageManager": "pnpm@11.25.0"
     },
-    "lockfileSha256": "fe05ac030b511d6c5a4ff91971dcafa659ee2990201882cbb87e412ea33f2967",
+    "lockfileSha256": "3ef032952613cf54b91f23a667453932e127758281ca4136c1c894c7c9bf0e03",
     "migrations": [
       {
         "name": "0000_slim_matthew_murdock.sql",
@@ -200,12 +200,12 @@
     ],
     "result": "success",
     "runtimeConfigSha256": "d62a1844bbf9ea2ec47c7c95b84520c179808a5741d65534f1a7da4dab962dcb",
-    "configSha256": "89749b98654449645e66164cf69bb25a3fa62c43ad405baf0761ad97006c8296",
-    "deployedAt": "2026-11-20T15:23:22.874738Z",
-    "verifiedAt": "2026-11-20T15:32:38.683Z",
+    "configSha256": "24b64e699a08c4f61527b914dde396bacb7ce60882c54e3832f5f4a432121c59",
+    "deployedAt": "2026-11-21T06:06:12.66527Z",
+    "verifiedAt": "2026-11-21T06:13:48.028Z",
     "cloudflare": {
-      "deploymentId": "5f3d6b50-531d-44a4-bf5a-df7f6785790d",
-      "versionId": "fbc719c2-a5f6-4191-9232-6849b0d20ac5"
+      "deploymentId": "9dbf2c79-a5b9-455b-8e01-63b17ee8a7c8",
+      "versionId": "c17d8441-52aa-44b0-b375-61f66c44bb94"
     },
     "appliedMigrations": [
       "0000_slim_matthew_murdock.sql",
@@ -221,7 +221,7 @@
       "0010_gear.sql",
       "0011_remove_legacy_method.sql"
     ],
-    "sourceTree": "740ead5a614a8572e6919ab38ceaeaf6fa1f3915"
+    "sourceTree": "ea4496050e30d9354453329d9f55e96ed60fdf27"
   },
   "stagingReuses": {
     "17962536dca11703db8b2b84096ebd88a887de83": {
