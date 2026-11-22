@@ -14,6 +14,14 @@
       "url": "https://github.com/keisuke0322/tsuri-kiroku/actions/runs/45025828902/attempts/1",
       "cloudflareVersionId": "515c63a8-6713-4be0-87d1-5d1e9cf0e996",
       "at": "2026-11-22T13:19:38.520Z"
+    },
+    "approval": {
+      "actor": "keisuke0322",
+      "at": "2026-11-22T13:23:38Z",
+      "eventId": 36925203410,
+      "runId": "45025828902",
+      "head": "3c45629ccf463068c6cbcb7fe5c45897521a53ba",
+      "base": "3684f745c5041d6c0cde58786f63a22563db375d"
     }
   },
   "deferrals": {
