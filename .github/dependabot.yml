@@ -4,8 +4,7 @@ updates:
     directory: /
     target-branch: main
     schedule:
-      interval: weekly
-      day: saturday
+      interval: monthly
       time: '09:00'
       timezone: Asia/Tokyo
     open-pull-requests-limit: 5

@@ -19,7 +19,7 @@ flowchart TD
     labels --> project
     init[手動実行 または developで関連設定を更新] -->|初期設定・移行| labels
 
-    weekly[毎週土曜 日本時間9時が目安] --> bot[④ Dependabot Updates]
+    monthly[毎月1日 日本時間9時が目安] --> bot[④ Dependabot Updates]
     bot -->|更新があればmain宛てPR作成| pr
     pr -->|develop・main宛てPRの作成・追加コミットなど| ci[① Contribution checks]
     pr -->|main宛てPRの作成・更新・ラベル変更など| deploy[② Deploy Cloudflare]
@@ -88,7 +88,7 @@ main宛てPRで②が動いても、その実行は検査です。本番公開�
 
 ```mermaid
 flowchart TD
-    A[毎週土曜 日本時間9時が目安] --> B[④ Dependabot Updates：更新候補を確認]
+    A[毎月1日 日本時間9時が目安] --> B[④ Dependabot Updates：更新候補を確認]
     B -->|更新あり| C[main宛て更新PRを作成]
     C -->|PRイベント| D[① Contribution checks：コード検査]
     C -->|main宛てPRイベント| E[② Deploy Cloudflare：公開条件チェックのみ]
@@ -124,7 +124,7 @@ GitHubの **Actions → Deploy Cloudflare → Run workflow** で入力します�
 更新PRのCI成功だけではstagingに反映しません。
 更新検証中は共有stagingを占有するため、通常開発のデプロイが止まることがあります。
 中止・失敗時は状態ブランチを編集せず、[依存更新の運用](dependency-updates.md)の復帰手順を使ってください。
-セキュリティ更新は週次の通常更新とは別枠で扱われます。
+セキュリティ更新は月次の通常更新とは別枠で扱われます。
 
 ## 場面C：公開後に開発へ同期し、Issueを完了する
 
@@ -195,7 +195,7 @@ PRの「更新」はイベントによって意味が異なります。追加コ
 | ① Contribution checks                      | develop・main宛てPRの `opened` / `synchronize` / `reopened` / `ready_for_review`                                                                          | Run workflowなし。既存実行の再実行は可能                                 |
 | ② Deploy Cloudflare                        | develop・mainへのpush。main宛てPRの `opened` / `reopened` / `synchronize` / `edited` / `ready_for_review` / `labeled` / `unlabeled`                       | 可能。検証・復帰などは他の処理から自動で手動イベントを発行する場合もある |
 | ③ Auto-merge published sync                | ①の終了。実処理は同一リポジトリのmainからのPRが対象                                                                                                       | mainから再確認可能                                                       |
-| ④ Dependabot Updates                       | 毎週土曜9時（Asia/Tokyo）が目安。セキュリティ更新は別枠                                                                                                   | Dependabot画面のCheck for updates                                        |
+| ④ Dependabot Updates                       | 毎月1日9時（Asia/Tokyo）が目安。セキュリティ更新は別枠                                                                                                    | Dependabot画面のCheck for updates                                        |
 | ⑤ Dependency governance                    | main宛てPRの `opened` / `synchronize` / `reopened` / `closed` / `edited` / `labeled` / `unlabeled` / `ready_for_review`。mainへのpush。①②の終了。毎時17分 | mainから実行                                                             |
 | ⑥ Complete published Issues                | ②③の終了                                                                                                                                                  | 再確認可能                                                               |
 | ⑦ Update Project from issue labels         | Issueへの対象ラベル付与。developで `.github/workflows/project-update.yml` または `scripts/project-status.cjs` を変更するpush                              | 初期設定・移行を実行                                                     |

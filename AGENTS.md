@@ -8,6 +8,7 @@
 - React / TypeScript / Vinext、Cloudflare Workers / D1 / R2、Google認証を使用する。
 - 開発ブランチ: `develop`（継続利用）。本番ブランチ: `main`。
 - staging: https://tsuri-kiroku-staging.keisuke0322.workers.dev
+- Storybook（UIデザインの基準・staging限定公開）: https://tsuri-kiroku-staging.keisuke0322.workers.dev/storybook/
 - production: https://tsuri-kiroku-production.keisuke0322.workers.dev
 - 詳細は[README.md](README.md)、[CLOUDFLARE-MIGRATION.md](CLOUDFLARE-MIGRATION.md)、実際の[ワークフロー](.github/workflows/cloudflare.yml)を確認する。環境やブランチ構成を推測で変更しない。
 
@@ -94,3 +95,12 @@
 - 未対応Dependabot更新と未同期mainは機能公開を止める。保留は管理者の理由付き30日期限とし、古い成功チェックやラベルで迂回しない。必要なGitHub設定・実更新・通知の未確認を明示する。
 
 公開後のmain→develop同期で検証済みの内容と同一の場合は、[staging検証の再利用](docs/staging-validation-reuse.md)の条件を満たす成功記録を使用できる。再利用が成立しない場合は通常のデプロイ・E2Eを行う。
+
+## Storybookとデザイン統一
+
+- 画面の新規開発・機能追加・改修では、[Storybook](https://tsuri-kiroku-staging.keisuke0322.workers.dev/storybook/)に登録された部品・デザインを使用することを必須とする。着手前に対象部品のStoryと用途を確認し、既存の部品・variant・共通CSSを再利用する。公開版と作業ブランチが異なる場合は、作業ブランチのローカルStorybookで確認する。
+- 色・文字・角丸などは`app/globals.css`の共通デザイン設定を使用し、同じ用途の部品や独自の見た目を画面ごとに重複して作らない。
+- 既存部品で要件を満たせない場合は、必要な拡張・新規部品と、そのStory・用途の説明を同じ変更で追加する。必要な理由と既存デザインとの整合性をPRに記載する。既存UI部品を変更する場合もStoryと説明を同時に更新する。
+- Storyは実際の部品を読み込み、通常・エラー・無効状態など適用可能な状態とPC・スマートフォン幅を確認する。StoryのMetaには重複しない英数字の`id`を指定する。
+- 公開はstagingの`/storybook/`のみ。架空の固定データを使い、API・DB・R2を呼び出さない。詳しくは[Storybook運用](docs/storybook.md)を参照する。
+- UI変更時は`corepack pnpm run build-storybook`も実行する。本番の生成物にStorybookを含めない制御と404検証を維持する。
