@@ -19,7 +19,7 @@ Issue #51。通常更新・緊急更新とも、現在の本番 `main` を基準
 
 ## 通常更新
 
-Dependabotは毎週土曜9:00（Asia/Tokyo）を目安にmain宛て更新PRを作る。通常PRの同時上限は5本（グループは1本）。セキュリティ更新はGitHubの別枠で、週次や通常の5本上限を待たない。
+Dependabotは毎月1日9:00（Asia/Tokyo）を目安にmain宛て更新PRを作る。パッチも含めて月1回確認し、毎週の対応負荷を減らす。通常PRの同時上限は5本（グループは1本）。セキュリティ更新はGitHubの別枠で、月次や通常の5本上限を待たない。
 
 通常更新は公開から7日待つ。Dependabotのcooldownと既存のpnpm `minimumReleaseAge: 10080` を維持する。patch/minor/majorを検知し、React本体・DOM・RSC・型はpatch/minorとmajorを分けてグループ化する。WranglerとWorkers型のpatch/minorもまとめる。VinextのbetaやViteプラグインの0.xは個別に互換性を確認する。セキュリティ更新には通常更新のcooldownを適用しない。
 
@@ -73,7 +73,7 @@ productionとReleaseの成功後、**Restore development staging after publicati
 
 ## 緊急・手動更新
 
-脆弱性の通知や障害情報を確認したら週次を待たず、Dependabotの **Check for updates**、または最新mainからの一時ブランチ・main宛ての手動更新PRで開始する。脆弱性情報にない不具合も同じルートを使う。
+脆弱性の通知や障害情報を確認したら月次を待たず、Dependabotの **Check for updates**、または最新mainからの一時ブランチ・main宛ての手動更新PRで開始する。脆弱性情報にない不具合も同じルートを使う。
 
 7日未満の版が必要ならPR本文に `Emergency-Reason: 対象と緊急採用の理由` を書き、`pnpm-workspace.yaml` に対象の**完全なpackage@versionだけ**を追加する。
 
