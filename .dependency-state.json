@@ -1,5 +1,14 @@
 {
-  "lease": null,
+  "lease": {
+    "pr": 137,
+    "head": "3c45629ccf463068c6cbcb7fe5c45897521a53ba",
+    "base": "3684f745c5041d6c0cde58786f63a22563db375d",
+    "controller": "3684f745c5041d6c0cde58786f63a22563db375d",
+    "phase": "validating",
+    "actor": "keisuke0322",
+    "runId": "45025828902",
+    "at": "2026-11-22T13:09:14.361Z"
+  },
   "deferrals": {
     "53": {
       "reason": "依存更新ルート（Issue #51）の初回導入を先に本番公開するため、一時保留する。公開・有効化の完了後に各更新を検証し、保留を解除して対応する。",
