@@ -55,7 +55,7 @@ function visit() {
   // response before a test can reload and cancel it.
   cy.wait('@list').its('response.statusCode').should('equal', 200);
   cy.get(by('record-catch')).should('be.visible');
-  cy.get('.discovery-loading').should('not.exist');
+  cy.get('[data-cy="discovery-loading"]').should('not.exist');
   cy.request('/api/catches').its('status').should('equal', 200);
 }
 function reload() {
@@ -76,7 +76,7 @@ function reload() {
     return cy
       .get(by('record-catch'))
       .should('be.visible')
-      .get('.discovery-loading')
+      .get('[data-cy="discovery-loading"]')
       .should('not.exist')
       .then(() => interception);
   });
@@ -175,7 +175,7 @@ describe('釣果の主要操作', () => {
       cy.get(by('catch-date-trigger')).click();
       cy.get(by('catch-date-loading')).should('be.visible');
       cy.get(by('confirm-catch-date')).should('not.exist');
-      cy.get('.catch-date-actions').should('not.exist');
+      cy.get('[data-cy="catch-date-actions"]').should('not.exist');
       cy.then(() => releaseCalendar());
       cy.wait('@calendarChunk');
       cy.get('[data-slot="calendar"]').should('be.visible');
@@ -225,29 +225,31 @@ describe('釣果の主要操作', () => {
         if (width <= 650)
           card(id).then(($card) => {
             const main = $card[0]
-              .querySelector('.card-main')
+              .querySelector('[data-cy="card-main"]')
               .getBoundingClientRect();
             const actions = $card[0]
-              .querySelector('.card-actions')
+              .querySelector('[data-cy="card-actions"]')
               .getBoundingClientRect();
             expect(actions.top).to.be.at.least(main.bottom);
             const like = $card[0]
-              .querySelector('.card-actions .like-button')
+              .querySelector('[data-cy="card-actions"] [data-cy="like-catch"]')
               .getBoundingClientRect();
             const edit = $card[0]
               .querySelector('[data-cy="edit-catch"]')
               .getBoundingClientRect();
             expect(like.left).to.equal(actions.left);
             expect(edit.left - like.right).to.be.greaterThan(20);
-            $card[0].querySelectorAll('.catch-title').forEach((row) => {
-              const fish = row.querySelector('h3').getBoundingClientRect();
-              const recipe = row
-                .querySelector('.recipe-trigger')
-                .getBoundingClientRect();
-              expect(recipe.top).to.be.lessThan(fish.bottom);
-              expect(recipe.bottom).to.be.greaterThan(fish.top);
-              expect(recipe.right).to.be.at.most(main.right);
-            });
+            $card[0]
+              .querySelectorAll('[data-cy="catch-title"]')
+              .forEach((row) => {
+                const fish = row.querySelector('h3').getBoundingClientRect();
+                const recipe = row
+                  .querySelector('[data-cy="recipe-trigger"]')
+                  .getBoundingClientRect();
+                expect(recipe.top).to.be.lessThan(fish.bottom);
+                expect(recipe.bottom).to.be.greaterThan(fish.top);
+                expect(recipe.right).to.be.at.most(main.right);
+              });
           });
         for (const name of fishNames) {
           const selector = `${by('recipe-trigger')}[aria-label="${name}のレシピを探す"]`;
@@ -457,10 +459,10 @@ describe('釣果の主要操作', () => {
           cy.get(by('map-start')).clear();
           cy.get(`${by('map-spot')}[data-spot-id="${spotId}"]`).click();
           cy.get(by('edit-spot')).click();
-          cy.get('.spot-edit ' + by('get-location')).click();
+          cy.get('[data-cy="spot-edit"] ' + by('get-location')).click();
           cy.get(by('spot-name')).clear().type(`${marker}-renamed-${width}`);
           // Renaming must retain the selected GPS position.
-          cy.get('.spot-edit ' + by('selected-position')).should(
+          cy.get('[data-cy="spot-edit"] ' + by('selected-position')).should(
             'contain',
             '36.000000',
           );

@@ -100,7 +100,7 @@ test('public version API exposes only allowed deployment identifiers and disable
     { context },
   );
   const code = ts.transpileModule(
-    await readFile('app/api/version/route.ts', 'utf8'),
+    await readFile('app/api/version/handlers.ts', 'utf8'),
     {
       compilerOptions: {
         module: ts.ModuleKind.ESNext,

@@ -1,3 +1,4 @@
+import type { Spot } from '../../../lib/api/generated/types.gen';
 import { getDb } from '../catches/db';
 import { authenticate, json, apiError } from '../access';
 
@@ -9,7 +10,7 @@ export async function GET(req: Request) {
           'SELECT id,name,latitude,longitude,favorite FROM fishing_spots WHERE owner_id=? ORDER BY favorite DESC,name,id',
         )
         .bind(user.userId)
-        .all();
+        .all<Spot>();
     return json(
       rows.results.map((row) => ({ ...row, favorite: !!row.favorite })),
     );

@@ -1,3 +1,5 @@
+import { readJson } from '../../../../server/input';
+import { vUpdateSpotBody } from '../../../../lib/api/generated/valibot.gen';
 import { getDb } from '../../catches/db';
 import { authenticate, json, apiError, ApiError } from '../../access';
 import { parsePosition } from '../../../fishing-position';
@@ -17,7 +19,10 @@ export async function PUT(
       .bind(id, user.userId)
       .first();
     if (!old) throw new ApiError(404, '釣り場が見つかりません。');
-    const body = (await req.json()) as Record<string, unknown>,
+    const body = (await readJson(req, vUpdateSpotBody)) as Record<
+        string,
+        unknown
+      >,
       position = parsePosition({ ...body, source: 'map' }),
       name = typeof body.name === 'string' ? body.name.trim() : '';
     if (

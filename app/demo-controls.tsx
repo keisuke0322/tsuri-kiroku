@@ -1,21 +1,20 @@
 'use client';
 
+import { browserApi } from '../lib/api/generated/browser.gen';
 import { useEffect, useEffectEvent, useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { toast } from 'sonner';
+import { appStyles } from '@/lib/app-styles';
 
 type DemoState = { count: number; initialized: boolean };
 
 async function fetchDemoState() {
-  const r = await fetch('/api/demo-data', { cache: 'no-store' });
+  const r = await browserApi.getDemoState();
   if (!r.ok) throw Error();
   let value = (await r.json()) as DemoState;
   const seeded = !value.initialized;
   if (seeded) {
-    const r = await fetch('/api/demo-data', {
-      method: 'POST',
-      cache: 'no-store',
-    });
+    const r = await browserApi.createDemoData();
     if (!r.ok) throw Error();
     value = (await r.json()) as DemoState;
   }
@@ -77,7 +76,9 @@ export default function DemoControls({
       return;
     setBusy(true);
     try {
-      const r = await fetch('/api/demo-data', { method, cache: 'no-store' });
+      const r = await (method === 'POST'
+        ? browserApi.createDemoData()
+        : browserApi.deleteDemoData());
       if (!r.ok) throw Error();
       const next = (await r.json()) as { count: number; initialized: boolean };
       setState(next);
@@ -97,7 +98,7 @@ export default function DemoControls({
 
   if (state?.initialized && !state.count) return null;
   return (
-    <aside className="demo-controls" aria-label="ダミーデータ管理">
+    <aside className={appStyles.demoControls} aria-label="ダミーデータ管理">
       <p>
         {state?.count
           ? `表示確認用のダミー釣果：${state.count}件。実際の釣果とは区別して削除できます。`

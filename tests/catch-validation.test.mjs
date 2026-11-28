@@ -1,21 +1,49 @@
 import assert from 'node:assert/strict';
 import { readFile } from 'node:fs/promises';
 import ts from 'typescript';
+import vm from 'node:vm';
+import * as valibot from 'valibot';
 
-const source = ts
-  .transpileModule(await readFile('app/catch-validation.ts', 'utf8'), {
+const context = vm.createContext({ Date, Number, String, Object });
+const validator = new vm.SyntheticModule(
+  Object.keys(valibot),
+  function () {
+    for (const [key, value] of Object.entries(valibot))
+      this.setExport(key, value);
+  },
+  { context },
+);
+const generated = new vm.SourceTextModule(
+  ts.transpileModule(
+    await readFile('lib/api/generated/valibot.gen.ts', 'utf8'),
+    {
+      compilerOptions: {
+        module: ts.ModuleKind.ESNext,
+        target: ts.ScriptTarget.ES2022,
+      },
+    },
+  ).outputText,
+  { context },
+);
+await generated.link(() => validator);
+await generated.evaluate();
+const source = new vm.SourceTextModule(
+  ts.transpileModule(await readFile('app/catch-validation.ts', 'utf8'), {
     compilerOptions: {
       module: ts.ModuleKind.ESNext,
       target: ts.ScriptTarget.ES2022,
     },
-  })
-  .outputText.replace(
-    "from 'valibot'",
-    `from '${import.meta.resolve('valibot')}'`,
-  );
-const { validateCatch, parseCatch } = await import(
-  'data:text/javascript;base64,' + Buffer.from(source).toString('base64')
+  }).outputText,
+  { context },
 );
+await source.link((name) => (name === 'valibot' ? validator : generated));
+await source.evaluate();
+const { validateCatch, parseCatch: rawParseCatch } = source.namespace;
+const parseCatch = (value) => {
+  const result = rawParseCatch(value);
+  return result ? JSON.parse(JSON.stringify(result)) : result;
+};
+
 const valid = {
   date: '2024-02-29',
   location: ' 海 ',
@@ -129,7 +157,7 @@ assert.deepEqual(
   original,
   'Validation must retain the entered values',
 );
-assert.deepEqual(validateCatch(valid).errors, {});
+assert.equal(Object.keys(validateCatch(valid).errors).length, 0);
 assert.deepEqual(
   parseCatch({ date: '2026-10-05', location: '海', species: '魚', count: '1' }),
   {
@@ -150,4 +178,26 @@ assert.equal(
   Object.hasOwn(parseCatch(valid), 'method'),
   false,
   'Retired input must not be persisted',
+);
+
+// Retain the existing field messages when switching to generated schemas.
+const missing = validateCatch({
+  date: '',
+  location: '',
+  fish: [{ species: '', count: '' }],
+  memo: '',
+}).errors;
+assert.equal(missing.location, '場所を入力してください。');
+assert.equal(missing['fish.0.species'], '魚種を入力してください。');
+assert.equal(missing.date, '釣行日を選択してください。');
+assert.equal(missing['fish.0.count'], '匹数を入力してください。');
+assert.equal(
+  validateCatch({ ...valid, location: '海'.repeat(121) }).errors.location,
+  '場所は120文字以内で入力してください。',
+);
+assert.equal(
+  validateCatch({ ...valid, fish: [{ species: '魚', count: 0 }] }).errors[
+    'fish.0.count'
+  ],
+  '匹数は1〜9999で入力してください。',
 );

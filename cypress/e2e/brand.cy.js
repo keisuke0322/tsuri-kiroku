@@ -44,7 +44,7 @@ describe('つりめぐりのブランド表示', () => {
       cy.wait('@bootstrapRecovery')
         .its('response.statusCode')
         .should('equal', 401);
-      cy.get('.google-login-button')
+      cy.get('[data-cy="google-login-button"]')
         .should('be.visible')
         .and('not.have.attr', 'aria-disabled', 'true');
       cy.get('[data-cy="record-catch"]').should('not.exist');
@@ -69,15 +69,19 @@ describe('つりめぐりのブランド表示', () => {
             };
           },
         });
-        cy.get(hour === 12 ? '.login-day' : '.login-night').should('exist');
+        cy.get(
+          hour === 12
+            ? '[data-cy="login-screen"][data-theme="day"]'
+            : '[data-cy="login-screen"][data-theme="night"]',
+        ).should('exist');
         checkBrand();
-        cy.get('.login-art')
+        cy.get('[data-cy="login-art"]')
           .should('be.visible')
           .and(($img) => {
             expect($img[0].naturalWidth, 'artwork loaded').to.be.greaterThan(0);
             expect($img[0].currentSrc).to.include('/images/optimized/login-');
           });
-        cy.get('.google-login-button')
+        cy.get('[data-cy="google-login-button"]')
           .should('be.visible')
           .and('have.attr', 'href', '/api/auth/google');
         cy.get('[data-cy="guest-entry"]').should('not.exist');
@@ -93,7 +97,7 @@ describe('つりめぐりのブランド表示', () => {
       cy.clearCookies();
       cy.viewport(width, height);
       cy.visit('/?guest=1');
-      cy.get('.google-login-button')
+      cy.get('[data-cy="google-login-button"]')
         .should('be.visible')
         .and('have.attr', 'href', '/api/auth/google');
       cy.get('[data-cy="guest-entry"]').should('not.exist');
@@ -124,7 +128,7 @@ describe('つりめぐりのブランド表示', () => {
       cy.visit('/');
       cy.wait('@list').its('response.statusCode').should('equal', 200);
       checkBrand();
-      cy.get('.seasonal-hero-art img')
+      cy.get('[data-cy="seasonal-hero-art"] img')
         .should('be.visible')
         .and(($img) => {
           expect(

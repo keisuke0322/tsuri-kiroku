@@ -9,6 +9,8 @@ import {
 } from './discovery';
 import LocationMapDialog from './location-map-dialog';
 import type { LocationEntry } from './location-privacy';
+import { appStyles } from '@/lib/app-styles';
+import { cn } from '@/lib/utils';
 
 type Entry = DiscoveryEntry &
   LocationEntry & {
@@ -43,8 +45,11 @@ export default function DiscoveryPanel<T extends Entry>({
 }) {
   const { fish, featured, hasLikes } = aggregateDiscovery(items, days, now);
   return (
-    <section className="discovery" aria-label="みんなの釣果のトレンド">
-      <div className="discovery-toolbar">
+    <section
+      className={appStyles.discovery}
+      aria-label="みんなの釣果のトレンド"
+    >
+      <div className={appStyles.discoveryToolbar}>
         <span>最近の釣果をチェック</span>
         <Tabs
           value={String(days)}
@@ -56,24 +61,27 @@ export default function DiscoveryPanel<T extends Entry>({
           </TabsList>
         </Tabs>
       </div>
-      <section className="fish-ranking" aria-labelledby="fish-ranking-title">
-        <div className="discovery-title">
+      <section
+        className={appStyles.fishRanking}
+        aria-labelledby="fish-ranking-title"
+      >
+        <div className={appStyles.discoveryTitle}>
           <h2 id="fish-ranking-title">
             最近釣れている魚 <small>TOP3</small>
           </h2>
           <p>釣行日で集計 · 過去{days}日間</p>
         </div>
         {fish.length ? (
-          <ol className="ranking-list">
+          <ol className={appStyles.rankingList}>
             {fish.map((row, index) => (
               <li key={row.species}>
                 <button
                   onClick={() => onSpecies(row.species)}
                   aria-label={`${row.species}の釣果を一覧で見る`}
                 >
-                  <span className="ranking-number">{index + 1}</span>
-                  <span className="ranking-name">{row.species}</span>
-                  <span className="ranking-count">
+                  <span className={appStyles.rankingNumber}>{index + 1}</span>
+                  <span className={appStyles.rankingName}>{row.species}</span>
+                  <span className={appStyles.rankingCount}>
                     <strong>{row.records}件</strong>
                     <span> · {row.fish}匹</span>
                   </span>
@@ -82,20 +90,20 @@ export default function DiscoveryPanel<T extends Entry>({
             ))}
           </ol>
         ) : (
-          <p className="discovery-empty">
+          <p className={appStyles.discoveryEmpty}>
             過去{days}日間の釣行記録はありません。
           </p>
         )}
       </section>
       <section aria-labelledby="featured-title">
-        <div className="discovery-title">
+        <div className={appStyles.discoveryTitle}>
           <h2 id="featured-title">{hasLikes ? '注目の釣果' : '最近の釣果'}</h2>
           <p>
             過去{days}日間の投稿{hasLikes ? ' · いいね順' : ' · 新着順'}
           </p>
         </div>
         {featured.length ? (
-          <div className="featured-grid">
+          <div className={appStyles.featuredGrid}>
             {featured.map((item) => {
               const photo = item.photos.find(
                   (p) => p.id === item.featured_photo_id,
@@ -104,10 +112,10 @@ export default function DiscoveryPanel<T extends Entry>({
                   photo?.species || item.fish[0]?.species || '釣果',
                 others = Math.max(0, item.fish.length - 1);
               return (
-                <article className="featured-card" key={item.id}>
+                <article className={appStyles.featuredCard} key={item.id}>
                   {photo ? (
                     <PhotoViewer
-                      className="featured-photo"
+                      className={appStyles.featuredPhoto}
                       photos={item.photos}
                       initialPhotoId={photo.id}
                       fish={item.fish}
@@ -122,22 +130,29 @@ export default function DiscoveryPanel<T extends Entry>({
                     </PhotoViewer>
                   ) : (
                     <div
-                      className="featured-photo photo-fallback"
+                      className={cn(
+                        appStyles.featuredPhoto,
+                        appStyles.photoFallback,
+                      )}
                       role="img"
                       aria-label="写真なし"
                     >
                       <Fish size={48} />
                     </div>
                   )}
-                  <div className="featured-info">
-                    <div className="featured-heading">
+                  <div className={appStyles.featuredInfo}>
+                    <div className={appStyles.featuredHeading}>
                       <h3>
                         {representative}
                         {others > 0 && <small> ほか{others}種</small>}
                       </h3>
-                      <div className="card-actions">
+                      <div
+                        className={appStyles.cardActions}
+                        data-cy="card-actions"
+                      >
                         <button
-                          className={`like-button ${item.liked ? 'is-liked' : ''}`}
+                          className={`${appStyles.likeButton} ${item.liked ? appStyles.isLiked : ''}`}
+                          data-cy="like-catch"
                           aria-label={
                             item.liked ? 'いいねを取り消す' : 'いいね'
                           }
@@ -154,13 +169,13 @@ export default function DiscoveryPanel<T extends Entry>({
                       </div>
                     </div>
                     <button
-                      className="author-button"
+                      className={appStyles.authorButton}
                       onClick={() => onProfile(item.owner_id)}
                     >
                       <Avatar name={item.authorName} />
                       <span>{item.authorName}</span>
                     </button>
-                    <p className="featured-date">
+                    <p className={appStyles.featuredDate}>
                       <CalendarDays size={15} />
                       <time dateTime={item.date}>
                         {item.date.replaceAll('-', '/')}
@@ -173,7 +188,9 @@ export default function DiscoveryPanel<T extends Entry>({
             })}
           </div>
         ) : (
-          <p className="discovery-empty">過去{days}日間の投稿はありません。</p>
+          <p className={appStyles.discoveryEmpty}>
+            過去{days}日間の投稿はありません。
+          </p>
         )}
       </section>
     </section>

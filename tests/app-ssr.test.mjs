@@ -8,6 +8,8 @@ import * as jsxRuntime from 'react/jsx-runtime';
 import { renderToString } from 'react-dom/server';
 import dynamic from 'vinext/shims/dynamic';
 import ts from 'typescript';
+import * as clsx from 'clsx';
+import * as tailwindMerge from 'tailwind-merge';
 
 test('the prebuilt root renders a public login screen without authentication or user data', async () => {
   const context = vm.createContext({ console });
@@ -22,6 +24,18 @@ test('the prebuilt root renders a public login screen without authentication or 
       { context },
     );
   modules.set('react', synthetic(react));
+  modules.set(
+    '../lib/api/generated/browser.gen',
+    synthetic({
+      browserApi: {
+        getBootstrap() {
+          throw Error('SSR must not request API');
+        },
+      },
+    }),
+  );
+  modules.set('clsx', synthetic(clsx));
+  modules.set('tailwind-merge', synthetic(tailwindMerge));
   modules.set('react/jsx-runtime', synthetic(jsxRuntime));
   modules.set(
     './fishing-app',
@@ -32,6 +46,8 @@ test('the prebuilt root renders a public login screen without authentication or 
     }),
   );
   for (const [specifier, filename] of [
+    ['@/lib/app-styles', 'lib/app-styles.ts'],
+    ['@/lib/utils', 'lib/utils.ts'],
     ['./brand', 'app/brand.tsx'],
     ['./login-screen', 'app/login-screen.tsx'],
     ['./fishing-root', 'app/fishing-root.tsx'],
@@ -94,12 +110,20 @@ test('authenticated startup renders without importing the dashboard on the Worke
       },
     });
   }
-  const brand = await component('app/brand.tsx'),
+  const styles = await component('lib/app-styles.ts'),
+    utils = await component('lib/utils.ts'),
+    clsxModule = synthetic(clsx),
+    tailwindMergeModule = synthetic(tailwindMerge),
+    brand = await component('app/brand.tsx'),
     app = await component('app/fishing-app.tsx');
   await app.link((specifier) => {
     if (specifier === 'react/jsx-runtime') return jsx;
     if (specifier === 'next/dynamic') return dynamicModule;
     if (specifier === './brand') return brand;
+    if (specifier === '@/lib/app-styles') return styles;
+    if (specifier === '@/lib/utils') return utils;
+    if (specifier === 'clsx') return clsxModule;
+    if (specifier === 'tailwind-merge') return tailwindMergeModule;
     throw Error(`Unexpected server import: ${specifier}`);
   });
   await app.evaluate();

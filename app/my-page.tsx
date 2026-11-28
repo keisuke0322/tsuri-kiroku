@@ -1,16 +1,15 @@
 'use client';
 
+import { browserApi } from '../lib/api/generated/browser.gen';
 import { useEffect, useEffectEvent, useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import type { Profile } from './profile-dialog';
 import { gearRequest } from './gear-controls';
+import { appStyles } from '@/lib/app-styles';
+import { cn } from '@/lib/utils';
 
-type StorageSummary = {
-  usedBytes: number;
-  limitBytes: number;
-  initialized: boolean;
-};
+import type { StorageSummary } from '../lib/api/generated/types.gen';
 
 export default function MyPage({
   profile,
@@ -38,7 +37,7 @@ export default function MyPage({
   useEffect(() => {
     if (!active) return;
     let current = true;
-    void gearRequest<StorageSummary>('/api/profile/storage')
+    void gearRequest(browserApi.getPhotoStorage())
       .then((v) => {
         if (current) apply(v);
       })
@@ -50,9 +49,9 @@ export default function MyPage({
     };
   }, [active]);
   return (
-    <section className="container my-page">
+    <section className={cn(appStyles.container, appStyles.myPage)}>
       <h1>マイページ</h1>
-      <section className="gear-card">
+      <section className={appStyles.gearCard}>
         <h2>{profile.displayName}</h2>
         <p>{profile.bio || '自己紹介はまだありません。'}</p>
         <Button
@@ -66,7 +65,8 @@ export default function MyPage({
         </Button>
         {draft && (
           <form
-            className="entry-form gear-edit"
+            className={cn(appStyles.entryForm, appStyles.gearEdit)}
+            data-cy="entry-form"
             onSubmit={async (e) => {
               e.preventDefault();
               if (busy) return;
@@ -104,7 +104,7 @@ export default function MyPage({
           </form>
         )}
       </section>
-      <section className="gear-card">
+      <section className={appStyles.gearCard}>
         <h2>写真の保存容量</h2>
         {storage ? (
           <>
@@ -123,7 +123,7 @@ export default function MyPage({
           <p role="status">{storageError || '読み込み中…'}</p>
         )}
       </section>
-      <section className="gear-card">
+      <section className={appStyles.gearCard}>
         <h2>設定</h2>
         <Button type="button" variant="outline" onClick={onLogout}>
           ログアウト

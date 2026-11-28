@@ -1,0 +1,35 @@
+// Generated from openapi/openapi.yaml. Do not edit.
+export const operations = [
+{ id: 'getVersion', method: 'GET', path: '/api/version' },
+{ id: 'getBootstrap', method: 'GET', path: '/api/bootstrap' },
+{ id: 'listCatches', method: 'GET', path: '/api/catches' },
+{ id: 'createCatch', method: 'POST', path: '/api/catches' },
+{ id: 'updateCatch', method: 'PUT', path: '/api/catches/:id' },
+{ id: 'deleteCatch', method: 'DELETE', path: '/api/catches/:id' },
+{ id: 'likeCatch', method: 'PUT', path: '/api/catches/:id/like' },
+{ id: 'unlikeCatch', method: 'DELETE', path: '/api/catches/:id/like' },
+{ id: 'uploadPhoto', method: 'POST', path: '/api/catches/:id/photos' },
+{ id: 'deletePhoto', method: 'DELETE', path: '/api/catches/:id/photos/:photoId' },
+{ id: 'getPhoto', method: 'GET', path: '/api/photos/:photoId' },
+{ id: 'getProfile', method: 'GET', path: '/api/profile' },
+{ id: 'updateProfile', method: 'PUT', path: '/api/profile' },
+{ id: 'getUserProfile', method: 'GET', path: '/api/profiles/:userId' },
+{ id: 'getPhotoStorage', method: 'GET', path: '/api/profile/storage' },
+{ id: 'listSpots', method: 'GET', path: '/api/spots' },
+{ id: 'updateSpot', method: 'PUT', path: '/api/spots/:id' },
+{ id: 'listGear', method: 'GET', path: '/api/gear' },
+{ id: 'createGear', method: 'POST', path: '/api/gear' },
+{ id: 'updateGear', method: 'PUT', path: '/api/gear/:id' },
+{ id: 'listGearSets', method: 'GET', path: '/api/gear-sets' },
+{ id: 'createGearSet', method: 'POST', path: '/api/gear-sets' },
+{ id: 'updateGearSet', method: 'PUT', path: '/api/gear-sets/:id' },
+{ id: 'getGearHistory', method: 'GET', path: '/api/gear-history' },
+{ id: 'getDemoState', method: 'GET', path: '/api/demo-data' },
+{ id: 'createDemoData', method: 'POST', path: '/api/demo-data' },
+{ id: 'deleteDemoData', method: 'DELETE', path: '/api/demo-data' },
+{ id: 'startGoogleLogin', method: 'GET', path: '/api/auth/google' },
+{ id: 'completeGoogleLogin', method: 'GET', path: '/api/auth/google/callback' },
+{ id: 'logout', method: 'POST', path: '/api/auth/logout' }
+] as const;
+
+export type OperationId = (typeof operations)[number]['id'];

@@ -1,3 +1,5 @@
+import { readJson } from '../../../../server/input';
+import { vUpdateGearBody } from '../../../../lib/api/generated/valibot.gen';
 import { authenticate, json, apiError } from '../../access';
 import { getDb } from '../../catches/db';
 import { gearInput } from '../storage';
@@ -10,7 +12,7 @@ export async function PUT(
   try {
     const user = await authenticate(req),
       id = validId((await ctx.params).id),
-      v = gearInput(await req.json());
+      v = gearInput(await readJson(req, vUpdateGearBody));
     if (!id) return json({ error: '道具が見つかりません。' }, 404);
     const r = await getDb()
       .prepare(

@@ -3,6 +3,7 @@
 import { useEffect, useRef, useState } from 'react';
 import type { PublicArea } from './location-privacy';
 import type { Position } from './fishing-position';
+import { appStyles } from '@/lib/app-styles';
 
 type LatLng = { lat: () => number; lng: () => number };
 
@@ -266,16 +267,16 @@ export default function GoogleMap({
 
   if (!apiKey)
     return (
-      <p className="map-notice">
+      <p className={appStyles.mapNotice}>
         {editable
           ? '地図は準備中です。地図での位置指定・場所名検索は利用できません。'
           : '地図は準備中です。時間をおいて再度お試しください。'}
       </p>
     );
   return (
-    <div className="google-map-wrap">
+    <div>
       {editable && !loadError && (
-        <div className="map-search">
+        <div className={appStyles.mapSearch}>
           <input
             data-cy="map-search-input"
             aria-label="地図で場所名を検索"
@@ -301,7 +302,7 @@ export default function GoogleMap({
       )}
       <div
         ref={element}
-        className="google-map"
+        className={appStyles.googleMap}
         data-cy="google-map"
         aria-label={
           editable
@@ -315,7 +316,7 @@ export default function GoogleMap({
       {loadError && <p role="alert">{loadError}</p>}
       {error && <p role="alert">{error}</p>}
       {editable && maps && !loadError && (
-        <p className="photo-help">
+        <p className={appStyles.photoHelp}>
           検索後、地図をタップして位置を指定してください。検索だけでは位置は確定しません。ピンをドラッグして調整できます。
         </p>
       )}

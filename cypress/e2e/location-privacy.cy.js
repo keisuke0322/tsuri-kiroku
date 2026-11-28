@@ -46,7 +46,7 @@ function create(label, visibility) {
 const card = (id) => cy.get(`${by('catch-card')}[data-catch-id="${id}"]`);
 function readRows() {
   cy.get(by('record-catch')).should('be.visible');
-  cy.get('.discovery-loading').should('not.exist');
+  cy.get('[data-cy="discovery-loading"]').should('not.exist');
   return cy.request({ url: '/api/catches', log: false }).then((response) => {
     expect(response.status).to.equal(200);
     expect(response.body).to.be.an('array');
@@ -231,7 +231,7 @@ describe('釣行場所の地図と公開範囲', () => {
           cy.wait('@editLocation')
             .its('response.statusCode')
             .should('equal', 200);
-          cy.get('.form-dialog').should('not.exist');
+          cy.get('[data-cy="catch-dialog"]').should('not.exist');
           reload().then((rows) => {
             const saved = rows.find((x) => x.id === id);
             expect(saved.locationVisibility).to.equal(visibility);

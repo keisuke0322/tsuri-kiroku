@@ -15,45 +15,14 @@ export const gearLimits = {
   perCombination: 30,
 };
 
-export type GearSnapshot = {
-  id: number | null;
-  kind: GearKind;
-  name: string;
-  manufacturer: string;
-  model: string;
-  spec: string;
-};
-
-export type Gear = GearSnapshot & {
-  id: number;
-  memo: string;
-  favorite: boolean;
-  retired: boolean;
-};
-
-export type GearSet = {
-  id: number;
-  name: string;
-  targetSpecies: string;
-  method: string;
-  gear: GearSnapshot[];
-  favorite: boolean;
-  retired: boolean;
-};
-
-export type Combination = {
-  setId: number | null;
-  setName: string;
-  method: string;
-  gear: GearSnapshot[];
-  species: string[];
-};
-
-export type GearHistory = Combination & {
-  id: number;
-  catchId: number;
-  date: string;
-};
+export type {
+  GearSnapshot,
+  Gear,
+  GearSet,
+  Combination,
+  GearHistory,
+} from '../lib/api/generated/types.gen';
+import type { GearSnapshot, Combination } from '../lib/api/generated/types.gen';
 
 export function snapshot(item: GearSnapshot): GearSnapshot {
   return {

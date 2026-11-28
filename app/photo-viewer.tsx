@@ -11,6 +11,7 @@ import {
   DialogTrigger,
 } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
+import { appStyles } from '@/lib/app-styles';
 
 type Photo = { id: number; species: string };
 
@@ -98,7 +99,7 @@ export default function PhotoViewer({
         </button>
       </DialogTrigger>
       <DialogContent
-        className="photo-viewer"
+        className={appStyles.photoViewer}
         showCloseButton={false}
         onKeyDown={(e) => {
           if (
@@ -113,14 +114,14 @@ export default function PhotoViewer({
           }
         }}
       >
-        <header className="photo-viewer-header">
-          <DialogTitle className="photo-viewer-title">
+        <header className={appStyles.photoViewerHeader}>
+          <DialogTitle className={appStyles.photoViewerTitle}>
             {photo.species}の写真
           </DialogTitle>
           <DialogClose asChild>
             <Button
               variant="ghost"
-              className="photo-viewer-close"
+              className={appStyles.photoViewerClose}
               aria-label="写真を閉じる"
             >
               <X aria-hidden="true" />
@@ -131,7 +132,7 @@ export default function PhotoViewer({
           同じ釣果の写真を表示します。複数枚の場合は前後ボタン、左右キー、またはスワイプで切り替えられます。閉じるボタン、右上の×、またはEscキーで元の一覧に戻れます。
         </DialogDescription>
         <div
-          className="photo-viewer-stage"
+          className={appStyles.photoViewerStage}
           onPointerDown={startSwipe}
           onPointerUp={finishSwipe}
           onPointerCancel={() => {
@@ -151,23 +152,23 @@ export default function PhotoViewer({
             />
           )}
         </div>
-        <div className="photo-viewer-details" aria-live="polite">
-          <p className="photo-viewer-fish">
+        <div className={appStyles.photoViewerDetails} aria-live="polite">
+          <p className={appStyles.photoViewerFish}>
             <strong>{photo.species}</strong>
             {details && <span>{details.count}匹</span>}
             {details?.length != null && <span>最大 {details.length}cm</span>}
           </p>
-          <p className="photo-viewer-location">
+          <p className={appStyles.photoViewerLocation}>
             <time dateTime={date}>{date.replaceAll('-', '/')}</time>
             <span>{location}</span>
           </p>
         </div>
-        <footer className="photo-viewer-footer">
-          <div className="photo-viewer-navigation">
+        <footer className={appStyles.photoViewerFooter}>
+          <div className={appStyles.photoViewerNavigation}>
             {photos.length > 1 && (
               <Button
                 variant="outline"
-                className="photo-viewer-arrow"
+                className={appStyles.photoViewerArrow}
                 aria-label="前の写真"
                 onClick={() => move(-1)}
               >
@@ -175,7 +176,7 @@ export default function PhotoViewer({
               </Button>
             )}
             <span
-              className="photo-viewer-count"
+              className={appStyles.photoViewerCount}
               aria-live="polite"
               aria-atomic="true"
             >
@@ -184,7 +185,7 @@ export default function PhotoViewer({
             {photos.length > 1 && (
               <Button
                 variant="outline"
-                className="photo-viewer-arrow"
+                className={appStyles.photoViewerArrow}
                 aria-label="次の写真"
                 onClick={() => move(1)}
               >

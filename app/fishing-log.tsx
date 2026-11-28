@@ -1,5 +1,7 @@
 'use client';
 
+import { browserApi } from '../lib/api/generated/browser.gen';
+import { sessionRequest } from '../lib/api/session';
 import { useEffect, useEffectEvent, useMemo, useRef, useState } from 'react';
 import {
   Anchor,
@@ -41,7 +43,7 @@ import ProfileDialog, { Avatar, type Profile } from './profile-dialog';
 import FishingMap from './fishing-map';
 import PositionEditor from './position-editor';
 import LocationMapDialog from './location-map-dialog';
-import type { LocationEntry, LocationVisibility } from './location-privacy';
+import type { LocationVisibility } from './location-privacy';
 import type { Position, Spot } from './fishing-position';
 import GearManager, { emptySet } from './gear-manager';
 import {
@@ -58,13 +60,8 @@ import {
 } from './gear';
 import MyPage from './my-page';
 import { toast, Toaster } from 'sonner';
-
-type FishLine = {
-  id?: number;
-  species: string;
-  count: number;
-  length: number | null;
-};
+import { appStyles } from '@/lib/app-styles';
+import { cn } from '@/lib/utils';
 
 type FishForm = {
   id?: number;
@@ -75,21 +72,7 @@ type FishForm = {
 
 type CatchPhoto = { id: number; species: string };
 
-type Entry = LocationEntry & {
-  id: number;
-  date: string;
-  location: string;
-  fish: FishLine[];
-  photos: CatchPhoto[];
-  featured_photo_id: number | null;
-  memo: string;
-  created_at: string;
-  owner_id: string;
-  authorName: string;
-  likeCount: number;
-  liked: boolean;
-  combinations?: Combination[];
-};
+type Entry = import('../lib/api/generated/types.gen').Catch;
 
 type PendingPhoto = {
   key: string;
@@ -158,8 +141,8 @@ export default function FishingLog({
   async function refreshGear() {
     try {
       const [g, s] = await Promise.all([
-        gearRequest<Gear[]>('/api/gear'),
-        gearRequest<GearSet[]>('/api/gear-sets'),
+        gearRequest(browserApi.listGear()),
+        gearRequest(browserApi.listGearSets()),
       ]);
       if (!leaving.current) {
         setGear(g);
@@ -285,7 +268,7 @@ export default function FishingLog({
 
   function fieldError(key: string) {
     return fieldErrors[key] ? (
-      <span className="field-error" id={`catch-error-${key}`}>
+      <span className={appStyles.fieldError} id={`catch-error-${key}`}>
         {fieldErrors[key]}
       </span>
     ) : null;
@@ -339,19 +322,17 @@ export default function FishingLog({
     window.open(path, '_top');
   }
 
-  async function apiFetch(input: string, init?: RequestInit) {
-    if (leaving.current) throw Error('ログイン画面へ移動しています。');
-    const response = await fetch(input, { ...init, cache: 'no-store' });
-    if (response.status === 401) {
-      leave(signInPath);
-      throw Error('ログインしてください。');
-    }
-    return response;
+  function apiFetch(start: () => Promise<Response>) {
+    return sessionRequest(
+      start,
+      () => leaving.current,
+      () => leave(signInPath),
+    );
   }
 
   async function logout() {
     try {
-      const r = await apiFetch(signOutPath, { method: 'POST' });
+      const r = await apiFetch(() => browserApi.logout());
       if (!r.ok) throw Error();
       leave('/');
     } catch {
@@ -371,7 +352,8 @@ export default function FishingLog({
   });
   useEffect(() => {
     let active = true;
-    void fetch('/api/profile', { cache: 'no-store' })
+    void browserApi
+      .getProfile()
       .then((r) => {
         if (active) return applyProfileResponse(r);
       })
@@ -396,7 +378,9 @@ export default function FishingLog({
 
   async function showProfile(id: string) {
     try {
-      const r = await apiFetch('/api/profiles/' + encodeURIComponent(id));
+      const r = await apiFetch(() =>
+        browserApi.getUserProfile({ path: { userId: id } }),
+      );
       if (!r.ok) throw Error();
       const p = (await r.json()) as Profile;
       if (!leaving.current) setViewProfile(p);
@@ -406,11 +390,9 @@ export default function FishingLog({
   }
 
   async function saveProfile(displayName: string, bio: string) {
-    const r = await apiFetch('/api/profile', {
-        method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ displayName, bio }),
-      }),
+    const r = await apiFetch(() =>
+        browserApi.updateProfile({ body: { displayName, bio } }),
+      ),
       value = (await r.json()) as Profile & { error?: string };
     if (!r.ok) throw Error(value.error || '保存できませんでした。');
     setProfile(value);
@@ -441,9 +423,11 @@ export default function FishingLog({
         { liked: x.liked, likeCount: x.likeCount },
         publish,
         async (liked) => {
-          const r = await apiFetch(`/api/catches/${x.id}/like`, {
-            method: liked ? 'PUT' : 'DELETE',
-          });
+          const r = await apiFetch(() =>
+            (liked ? browserApi.likeCatch : browserApi.unlikeCatch)({
+              path: { id: String(x.id) },
+            }),
+          );
           if (!r.ok) throw Error();
           return (await r.json()) as { liked: boolean; likeCount: number };
         },
@@ -463,7 +447,7 @@ export default function FishingLog({
   async function refresh() {
     const version = ++refreshVersion.current;
     try {
-      const r = await apiFetch('/api/catches');
+      const r = await apiFetch(() => browserApi.listCatches());
       if (!r.ok) throw Error();
       const rows = (await r.json()) as Entry[];
       if (!leaving.current && version === refreshVersion.current) {
@@ -493,7 +477,7 @@ export default function FishingLog({
 
   async function refreshSpots() {
     try {
-      const r = await apiFetch('/api/spots');
+      const r = await apiFetch(() => browserApi.listSpots());
       if (!r.ok) throw Error();
       const rows = (await r.json()) as Spot[];
       if (!leaving.current) setSpots(rows);
@@ -503,11 +487,9 @@ export default function FishingLog({
   }
 
   async function saveSpot(spot: Spot) {
-    const r = await apiFetch(`/api/spots/${spot.id}`, {
-      method: 'PUT',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(spot),
-    });
+    const r = await apiFetch(() =>
+      browserApi.updateSpot({ path: { id: String(spot.id) }, body: spot }),
+    );
     if (!r.ok) throw Error('釣り場を保存できませんでした。');
     await refreshSpots();
   }
@@ -554,11 +536,16 @@ export default function FishingLog({
           },
           annotations: { readOnlyHint: false, untrustedContentHint: false },
           execute: async (input: unknown) => {
-            const response = await apiFetch('/api/catches', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify(input),
-              }),
+            const response = await apiFetch(() =>
+                browserApi.createCatch({
+                  body: (() => {
+                    const result = validateCatch(input);
+                    if (!result.success)
+                      throw Error('入力内容を確認してください。');
+                    return result.data;
+                  })(),
+                }),
+              ),
               result = (await response.json()) as {
                 id: number;
                 error?: string;
@@ -747,13 +734,13 @@ export default function FishingLog({
               ? featured
               : (current?.featured_photo_id ?? null),
         };
-      const r = await apiFetch(
-          '/api/catches' + (editing ? `/${editing}` : ''),
-          {
-            method: editing ? 'PUT' : 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify(payload),
-          },
+      const r = await apiFetch(() =>
+          editing
+            ? browserApi.updateCatch({
+                path: { id: String(editing) },
+                body: payload,
+              })
+            : browserApi.createCatch({ body: payload }),
         ),
         result = (await r.json()) as { id?: number; error?: string };
       if (!r.ok) throw Error(result.error || '保存できませんでした');
@@ -761,15 +748,17 @@ export default function FishingLog({
       let failed = 0;
       const uploadErrors = new Set<string>();
       for (const photo of files) {
-        const body = new FormData();
-        body.append('photo', photo.file);
-        body.append('species', photo.species.trim());
-        body.append('featured', String(featured === photo.key));
         try {
-          const upload = await apiFetch(`/api/catches/${id}/photos`, {
-            method: 'POST',
-            body,
-          });
+          const upload = await apiFetch(() =>
+            browserApi.uploadPhoto({
+              path: { id: String(id) },
+              body: {
+                photo: photo.file,
+                species: photo.species.trim(),
+                featured: String(featured === photo.key),
+              },
+            }),
+          );
           const response = (await upload.json().catch(() => ({}))) as {
             error?: string;
           };
@@ -856,9 +845,11 @@ export default function FishingLog({
   async function removePhoto(photoId: number) {
     if (!editing || !confirm('この写真を削除しますか？')) return;
     try {
-      const r = await apiFetch(`/api/catches/${editing}/photos/${photoId}`, {
-        method: 'DELETE',
-      });
+      const r = await apiFetch(() =>
+        browserApi.deletePhoto({
+          path: { id: String(editing), photoId: String(photoId) },
+        }),
+      );
       if (!r.ok) throw Error();
       const next = existingPhotos.filter((p) => p.id !== photoId);
       setExistingPhotos(next);
@@ -875,7 +866,9 @@ export default function FishingLog({
     const names = x.fish.map((f) => f.species).join('・');
     if (!confirm(`${x.date}の${names}の記録を削除しますか？`)) return;
     try {
-      const r = await apiFetch(`/api/catches/${x.id}`, { method: 'DELETE' });
+      const r = await apiFetch(() =>
+        browserApi.deleteCatch({ path: { id: String(x.id) } }),
+      );
       if (!r.ok) throw Error();
       await refresh();
       toast.success('記録を削除しました');
@@ -886,19 +879,19 @@ export default function FishingLog({
 
   if (signedOut)
     return (
-      <div className="empty" role="status">
+      <div className={appStyles.empty} role="status">
         ログイン画面へ移動しています…
       </div>
     );
 
   return (
-    <div className="app-shell">
+    <div className={appStyles.appShell}>
       <Toaster position="top-center" richColors />
-      <header className="topbar">
+      <header className={appStyles.topbar}>
         <Brand />
-        <nav className="account-nav" aria-label="アカウント">
+        <nav className={appStyles.accountNav} aria-label="アカウント">
           <button
-            className="profile-button"
+            className={appStyles.profileButton}
             onClick={() => navigate('profile')}
           >
             <Avatar name={profile.displayName} />
@@ -917,7 +910,7 @@ export default function FishingLog({
           </a>
         </nav>
       </header>
-      <nav className="primary-nav" aria-label="メインナビゲーション">
+      <nav className={appStyles.primaryNav} aria-label="メインナビゲーション">
         {[
           { key: 'records', label: '釣り記録', Icon: Fish },
           { key: 'gear', label: '道具', Icon: Backpack },
@@ -951,7 +944,7 @@ export default function FishingLog({
             });
           }}
         />
-        <div className="container">
+        <div className={appStyles.container}>
           <Dialog
             open={open && section === 'records'}
             onOpenChange={(value) => {
@@ -961,7 +954,8 @@ export default function FishingLog({
             }}
           >
             <DialogContent
-              className="form-dialog"
+              className={appStyles.formDialog}
+              data-cy="catch-dialog"
               onEscapeKeyDown={(e) => {
                 // Close a method's suggestions before dismissing the record dialog.
                 if (
@@ -974,12 +968,17 @@ export default function FishingLog({
               }}
             >
               <DialogHeader>
-                <DialogTitle>
+                <DialogTitle className={appStyles.dialogTitle}>
                   {editing ? '記録を編集' : '新しい釣果を記録'}
                 </DialogTitle>
               </DialogHeader>
-              <form noValidate onSubmit={submit} className="entry-form">
-                <p className="required-note">※は必須項目です</p>
+              <form
+                noValidate
+                onSubmit={submit}
+                className={appStyles.entryForm}
+                data-cy="entry-form"
+              >
+                <p className={appStyles.requiredNote}>※は必須項目です</p>
                 {fieldError('form')}
                 <Button
                   type="button"
@@ -996,7 +995,7 @@ export default function FishingLog({
                     </Button>
                   </p>
                 )}
-                <div className="form-grid">
+                <div className={appStyles.formGrid}>
                   <CatchDateField
                     value={form.date}
                     error={fieldErrors.date}
@@ -1006,10 +1005,15 @@ export default function FishingLog({
                     }
                   />
                 </div>
-                <fieldset className="catch-section" data-cy="location-section">
+                <fieldset
+                  className={appStyles.catchSection}
+                  data-cy="location-section"
+                >
                   <legend>釣りをした場所</legend>
                   <label>
-                    <span className="required-field-label">場所名 ※</span>
+                    <span className={appStyles.requiredFieldLabel}>
+                      場所名 ※
+                    </span>
                     <Input
                       data-cy="catch-location"
                       {...fieldProps('location')}
@@ -1022,7 +1026,7 @@ export default function FishingLog({
                     />
                     {fieldError('location')}
                   </label>
-                  <p className="photo-help">
+                  <p className={appStyles.photoHelp}>
                     地図の位置を指定しなくても保存できます。
                   </p>
                   <PositionEditor
@@ -1055,7 +1059,7 @@ export default function FishingLog({
                       <option value="private">場所を非公開</option>
                     </select>
                     <span
-                      className="photo-help"
+                      className={appStyles.photoHelp}
                       data-cy="location-visibility-help"
                     >
                       {form.locationVisibility === 'private'
@@ -1071,14 +1075,16 @@ export default function FishingLog({
                   </label>
                 </fieldset>
                 <fieldset
-                  className="fish-editor catch-section"
+                  className={cn(appStyles.fishEditor, appStyles.catchSection)}
                   data-cy="fish-section"
                 >
                   <legend>釣った魚</legend>
                   {form.fish.map((fish, index) => (
-                    <div className="fish-row" key={index}>
+                    <div className={appStyles.fishRow} key={index}>
                       <label>
-                        <span className="required-field-label">魚種 ※</span>
+                        <span className={appStyles.requiredFieldLabel}>
+                          魚種 ※
+                        </span>
                         <Input
                           data-cy="fish-species"
                           {...fieldProps(`fish.${index}.species`)}
@@ -1092,7 +1098,9 @@ export default function FishingLog({
                         {fieldError(`fish.${index}.species`)}
                       </label>
                       <label>
-                        <span className="required-field-label">匹数 ※</span>
+                        <span className={appStyles.requiredFieldLabel}>
+                          匹数 ※
+                        </span>
                         <Input
                           data-cy="fish-count"
                           {...fieldProps(`fish.${index}.count`)}
@@ -1126,7 +1134,7 @@ export default function FishingLog({
                       </label>
                       <button
                         type="button"
-                        className="fish-remove"
+                        className={appStyles.fishRemove}
                         aria-label={`${fish.species || `${index + 1}番目の魚種`}を削除`}
                         onClick={() => removeFish(index)}
                         disabled={form.fish.length === 1}
@@ -1152,17 +1160,20 @@ export default function FishingLog({
                   />
                   {fieldError('memo')}
                 </label>
-                <div className="photo-field">
-                  <span className="photo-label">
+                <div className={appStyles.photoField}>
+                  <span className={appStyles.photoLabel}>
                     釣った魚の写真（最大6枚・1枚8MiBまで）
                   </span>
-                  <p className="photo-help">
+                  <p className={appStyles.photoHelp}>
                     各写真の魚種を選び、最近の釣果に表示する代表写真を1枚選んでください。
                   </p>
                   {(existingPhotos.length > 0 || files.length > 0) && (
-                    <div className="photo-assignment-grid">
+                    <div className={appStyles.photoAssignmentGrid}>
                       {existingPhotos.map((photo) => (
-                        <div className="photo-assignment" key={photo.id}>
+                        <div
+                          className={appStyles.photoAssignment}
+                          key={photo.id}
+                        >
                           <img
                             src={`/api/photos/${photo.id}`}
                             alt={`${photo.species}の登録済み写真`}
@@ -1186,7 +1197,7 @@ export default function FishingLog({
                               ))}
                             </select>
                           </label>
-                          <label className="featured-choice">
+                          <label className={appStyles.featuredChoice}>
                             <input
                               type="radio"
                               name="featured-photo"
@@ -1205,7 +1216,10 @@ export default function FishingLog({
                         </div>
                       ))}
                       {files.map((photo) => (
-                        <div className="photo-assignment" key={photo.key}>
+                        <div
+                          className={appStyles.photoAssignment}
+                          key={photo.key}
+                        >
                           <img
                             src={photo.preview}
                             alt={`${photo.species}の追加予定写真`}
@@ -1229,7 +1243,7 @@ export default function FishingLog({
                               ))}
                             </select>
                           </label>
-                          <label className="featured-choice">
+                          <label className={appStyles.featuredChoice}>
                             <input
                               type="radio"
                               name="featured-photo"
@@ -1249,7 +1263,7 @@ export default function FishingLog({
                       ))}
                     </div>
                   )}
-                  <label className="photo-picker">
+                  <label className={appStyles.photoPicker}>
                     <Camera size={20} />
                     <span>
                       {compressing ? '写真を圧縮中…' : '写真を撮る・選ぶ'}
@@ -1285,7 +1299,7 @@ export default function FishingLog({
                   data-cy="save-catch"
                   disabled={saving || compressing}
                   type="submit"
-                  className="save-button"
+                  className={appStyles.saveButton}
                 >
                   {compressing
                     ? '写真を圧縮中…'
@@ -1303,7 +1317,7 @@ export default function FishingLog({
               setSpeciesFilter('すべて');
               setQuery('');
             }}
-            className="scope-tabs"
+            className={appStyles.scopeTabs}
           >
             <TabsList aria-label="釣果の表示範囲">
               <TabsTrigger value="all">みんなの釣果</TabsTrigger>
@@ -1326,16 +1340,20 @@ export default function FishingLog({
                 busyLikes={busyLikes}
               />
             ) : (
-              <div className="discovery-loading" role="status">
+              <div
+                className={appStyles.discoveryLoading}
+                data-cy="discovery-loading"
+                role="status"
+              >
                 {loading
                   ? '最近の釣果を読み込み中…'
                   : '最近の釣果を読み込めませんでした。'}
               </div>
             )
           ) : (
-            <section className="stats" aria-label="釣果の集計">
+            <section className={appStyles.stats} aria-label="釣果の集計">
               <div>
-                <span className="stat-icon">
+                <span className={appStyles.statIcon}>
                   <CalendarDays size={22} />
                 </span>
                 <p>釣行記録</p>
@@ -1345,7 +1363,7 @@ export default function FishingLog({
                 </strong>
               </div>
               <div>
-                <span className="stat-icon">
+                <span className={appStyles.statIcon}>
                   <Fish size={22} />
                 </span>
                 <p>釣った魚</p>
@@ -1355,7 +1373,7 @@ export default function FishingLog({
                 </strong>
               </div>
               <div>
-                <span className="stat-icon">
+                <span className={appStyles.statIcon}>
                   <Anchor size={22} />
                 </span>
                 <p>魚種</p>
@@ -1387,20 +1405,22 @@ export default function FishingLog({
               }}
             />
           )}
-          <section className="log-section">
-            <div className="section-heading">
+          <section className={appStyles.logSection}>
+            <div className={appStyles.sectionHeading}>
               <div>
-                <p className="eyebrow">
+                <p className={appStyles.eyebrow}>
                   {scope === 'all' ? 'ALL RECORDS' : 'YOUR RECORDS'}
                 </p>
                 <h2 ref={listHeading} tabIndex={-1}>
                   釣行一覧
                 </h2>
               </div>
-              <span className="result-count">{filtered.length} 件の記録</span>
+              <span className={appStyles.resultCount}>
+                {filtered.length} 件の記録
+              </span>
             </div>
-            <div className="filters">
-              <label className="search">
+            <div className={appStyles.filters}>
+              <label className={appStyles.search}>
                 <Search size={18} />
                 <input
                   aria-label="記録を検索"
@@ -1421,17 +1441,17 @@ export default function FishingLog({
               </select>
             </div>
             {error ? (
-              <div className="empty">
+              <div className={appStyles.empty}>
                 <p>{error}</p>
                 <Button variant="outline" onClick={refresh}>
                   再試行
                 </Button>
               </div>
             ) : loading ? (
-              <div className="empty">読み込み中…</div>
+              <div className={appStyles.empty}>読み込み中…</div>
             ) : filtered.length === 0 ? (
-              <div className="empty">
-                <span className="empty-icon">
+              <div className={appStyles.empty}>
+                <span className={appStyles.emptyIcon}>
                   <Fish size={34} />
                 </span>
                 <h3>
@@ -1445,23 +1465,23 @@ export default function FishingLog({
                     : '釣行日、場所、魚種を残しておくと、次の釣行にも役立ちます。'}
                 </p>
                 {!scoped.length && (
-                  <Button onClick={startNew} className="add-button">
+                  <Button onClick={startNew} className={appStyles.addButton}>
                     <Plus size={17} />
                     釣果を記録
                   </Button>
                 )}
               </div>
             ) : (
-              <div className="cards">
+              <div className={appStyles.cards}>
                 {filtered.map((x) => (
                   <article
                     data-cy="catch-card"
                     data-catch-id={x.id}
-                    className="catch-card"
+                    className={appStyles.catchCard}
                     key={x.id}
                   >
-                    <div className="card-main">
-                      <div className="date-badge">
+                    <div className={appStyles.cardMain} data-cy="card-main">
+                      <div className={appStyles.dateBadge}>
                         <strong>
                           {new Date(x.date + 'T00:00:00').getDate()}
                         </strong>
@@ -1472,21 +1492,27 @@ export default function FishingLog({
                           {new Date(x.date + 'T00:00:00').getMonth() + 1}月
                         </span>
                       </div>
-                      <div className="catch-info">
+                      <div className={appStyles.catchInfo}>
                         <button
-                          className="author-button"
+                          className={appStyles.authorButton}
                           onClick={() => showProfile(x.owner_id)}
                         >
                           <Avatar name={x.authorName} />
                           <span>{x.authorName}</span>
                         </button>
-                        <div className="catch-fish-list">
+                        <div className={appStyles.catchFishList}>
                           {x.fish.map((f) => (
-                            <div className="catch-title" key={f.species}>
+                            <div
+                              className={appStyles.catchTitle}
+                              data-cy="catch-title"
+                              key={f.species}
+                            >
                               <h3>{f.species}</h3>
-                              <span className="count-badge">{f.count} 匹</span>
+                              <span className={appStyles.countBadge}>
+                                {f.count} 匹
+                              </span>
                               {f.length != null && (
-                                <span className="fish-length">
+                                <span className={appStyles.fishLength}>
                                   最大 {f.length} cm
                                 </span>
                               )}
@@ -1496,7 +1522,7 @@ export default function FishingLog({
                         </div>
                         <LocationMapDialog entry={x} apiKey={mapsApiKey} />
                         {!!x.combinations?.length && (
-                          <details className="catch-combinations">
+                          <details className={appStyles.catchCombinations}>
                             <summary>
                               釣り方・使用した道具（{x.combinations.length}
                               組）
@@ -1506,9 +1532,14 @@ export default function FishingLog({
                             ))}
                           </details>
                         )}
-                        {x.memo && <p className="memo">{x.memo}</p>}
+                        {x.memo && <p className={appStyles.memo}>{x.memo}</p>}
                         {x.photos.length > 0 && (
-                          <div className="photo-grid card-photos">
+                          <div
+                            className={cn(
+                              appStyles.photoGrid,
+                              appStyles.cardPhotos,
+                            )}
+                          >
                             {x.photos.map((photo) => (
                               <PhotoViewer
                                 key={photo.id}
@@ -1517,7 +1548,7 @@ export default function FishingLog({
                                 fish={x.fish}
                                 date={x.date}
                                 location={x.location}
-                                className="photo-thumbnail"
+                                className={appStyles.photoThumbnail}
                               >
                                 <img
                                   src={`/api/photos/${photo.id}`}
@@ -1531,9 +1562,13 @@ export default function FishingLog({
                         )}
                       </div>
                     </div>
-                    <div className="card-actions">
+                    <div
+                      className={appStyles.cardActions}
+                      data-cy="card-actions"
+                    >
                       <button
-                        className={`like-button ${x.liked ? 'is-liked' : ''}`}
+                        className={`${appStyles.likeButton} ${x.liked ? appStyles.isLiked : ''}`}
+                        data-cy="like-catch"
                         aria-label={x.liked ? 'いいねを取り消す' : 'いいね'}
                         aria-pressed={x.liked}
                         disabled={busyLikes.has(x.id)}

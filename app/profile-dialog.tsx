@@ -9,12 +9,14 @@ import {
 } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
+import { appStyles } from '@/lib/app-styles';
 
-export type Profile = { userId: string; displayName: string; bio: string };
+export type { Profile } from '../lib/api/generated/types.gen';
+import type { Profile } from '../lib/api/generated/types.gen';
 
 export function Avatar({ name }: { name: string }) {
   return (
-    <span className="avatar" aria-hidden="true">
+    <span className={appStyles.avatar} aria-hidden="true">
       {Array.from(name.trim())[0] || '釣'}
     </span>
   );
@@ -44,17 +46,18 @@ export default function ProfileDialog({
     >
       <DialogContent>
         <DialogHeader>
-          <DialogTitle>
+          <DialogTitle className={appStyles.dialogTitle}>
             {editable ? 'プロフィールを編集' : 'プロフィール'}
           </DialogTitle>
         </DialogHeader>
-        <div className="profile-heading">
+        <div className={appStyles.profileHeading}>
           <Avatar name={editable ? name : profile.displayName} />
           <strong>{profile.displayName}</strong>
         </div>
         {editable ? (
           <form
-            className="entry-form"
+            className={appStyles.entryForm}
+            data-cy="entry-form"
             onSubmit={async (e) => {
               e.preventDefault();
               setSaving(true);
@@ -97,7 +100,7 @@ export default function ProfileDialog({
             </Button>
           </form>
         ) : (
-          <p className="profile-bio">
+          <p className={appStyles.profileBio}>
             {profile.bio || '自己紹介はまだありません。'}
           </p>
         )}

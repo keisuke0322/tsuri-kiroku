@@ -3,6 +3,7 @@
 import { useRef, useState, useEffect } from 'react';
 import GoogleMap from './google-map';
 import { type Position, type Spot } from './fishing-position';
+import { appStyles } from '@/lib/app-styles';
 
 export default function PositionEditor({
   apiKey,
@@ -67,7 +68,7 @@ export default function PositionEditor({
   }
 
   return (
-    <fieldset className="position-editor">
+    <fieldset className={appStyles.positionEditor} data-cy="position-editor">
       <legend>釣り場の位置（任意）</legend>
       {spots.length > 0 && (
         <label>
@@ -102,7 +103,6 @@ export default function PositionEditor({
       )}
       <button
         type="button"
-        className="map-action"
         data-cy="get-location"
         disabled={busy}
         onClick={locate}
@@ -126,7 +126,7 @@ export default function PositionEditor({
         </div>
       )}
       {allowUnspecified && (
-        <p className="photo-help">場所名だけでも保存できます。</p>
+        <p className={appStyles.photoHelp}>場所名だけでも保存できます。</p>
       )}
       <p role="status" data-cy="position-status">
         {position ? '位置指定済み' : '位置未指定'}
@@ -144,7 +144,7 @@ export default function PositionEditor({
           </button>
         </p>
       )}
-      <p className="photo-help">
+      <p className={appStyles.photoHelp}>
         保存する釣行の全魚種でこの位置を共有します。新しい場所は「過去の釣り場」に保存されます。
       </p>
     </fieldset>

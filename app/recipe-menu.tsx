@@ -7,6 +7,7 @@ import {
   PopoverTrigger,
 } from '@/components/ui/popover';
 import { recipeLinks } from './recipe-links';
+import { appStyles } from '@/lib/app-styles';
 
 function RecipeIcon() {
   return (
@@ -45,7 +46,7 @@ export default function RecipeMenu({ fishName }: { fishName: string }) {
       <PopoverTrigger asChild>
         <button
           type="button"
-          className="recipe-trigger"
+          className={appStyles.recipeTrigger}
           data-cy="recipe-trigger"
           aria-label={`${name}のレシピを探す`}
           title={`${name}のレシピを探す`}
@@ -61,7 +62,7 @@ export default function RecipeMenu({ fishName }: { fishName: string }) {
         </button>
       </PopoverTrigger>
       <PopoverContent
-        className="recipe-popover"
+        className={appStyles.recipePopover}
         align="start"
         collisionPadding={12}
         aria-labelledby={titleId}
@@ -71,10 +72,10 @@ export default function RecipeMenu({ fishName }: { fishName: string }) {
           firstLink.current?.focus();
         }}
       >
-        <p id={titleId} className="recipe-heading">
+        <p id={titleId} className={appStyles.recipeHeading}>
           {name}のレシピ
         </p>
-        <p className="recipe-hint">
+        <p className={appStyles.recipeHint}>
           「釣り {name}」で検索 · 新しいタブで開きます
         </p>
         {recipeLinks(name).map((link, index) => (
@@ -93,7 +94,7 @@ export default function RecipeMenu({ fishName }: { fishName: string }) {
         <button
           type="button"
           data-cy="recipe-close"
-          className="recipe-close"
+          className={appStyles.recipeClose}
           onClick={() => setOpen(false)}
         >
           閉じる

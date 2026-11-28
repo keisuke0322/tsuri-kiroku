@@ -4,10 +4,11 @@ import dynamic, { type DynamicOptionsLoadingProps } from 'next/dynamic';
 import type { ComponentProps } from 'react';
 import Brand from './brand';
 import type FishingLog from './fishing-log';
+import { appStyles } from '@/lib/app-styles';
 
 function Loading({ error }: DynamicOptionsLoadingProps) {
   return (
-    <main className="app-startup" data-cy="app-loading">
+    <main className={appStyles.appStartup} data-cy="app-loading">
       <Brand />
       {error ? (
         <>

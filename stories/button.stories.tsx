@@ -1,6 +1,7 @@
 import type { Meta, StoryObj } from '@storybook/react-vite';
 import { fn } from 'storybook/test';
 import { Button } from '@/components/ui/button';
+import { appStyles } from '@/lib/app-styles';
 
 const meta = {
   id: 'button',
@@ -55,7 +56,7 @@ type Story = StoryObj<typeof meta>;
 export const Default: Story = {};
 export const Variants: Story = {
   render: (args) => (
-    <div className="story-row">
+    <div className="flex flex-wrap items-center gap-3">
       {(
         [
           'default',
@@ -75,7 +76,7 @@ export const Variants: Story = {
 };
 export const Sizes: Story = {
   render: (args) => (
-    <div className="story-row">
+    <div className="flex flex-wrap items-center gap-3">
       {(['xs', 'sm', 'default', 'lg'] as const).map((size) => (
         <Button {...args} key={size} size={size}>
           {size}
@@ -87,11 +88,11 @@ export const Sizes: Story = {
 export const Disabled: Story = { args: { disabled: true } };
 export const AppActions: Story = {
   render: (args) => (
-    <div className="story-row">
-      <Button {...args} className="add-button">
+    <div className="flex flex-wrap items-center gap-3">
+      <Button {...args} className={appStyles.addButton}>
         釣果を記録する
       </Button>
-      <Button {...args} className="save-button">
+      <Button {...args} className={appStyles.saveButton}>
         保存する
       </Button>
     </div>

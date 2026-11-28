@@ -40,3 +40,14 @@ test('Tailwind scans every UI primitive reachable from app code', () => {
     }
   }
 });
+
+test('shared Tailwind recipes are included in both app and Storybook CSS', () => {
+  const css = readFileSync(path.join(root, 'app/globals.css'), 'utf8');
+  assert.ok(css.includes("@source '../lib/app-styles.ts';"));
+  const storybook = readFileSync(
+    path.join(root, '.storybook/storybook.css'),
+    'utf8',
+  );
+  assert.ok(storybook.includes("@import '../app/globals.css';"));
+  assert.ok(storybook.includes("@source '../stories';"));
+});

@@ -1,7 +1,7 @@
 import { env } from 'cloudflare:workers';
 import type { Bootstrap } from '../../bootstrap';
 import { authenticate, ensureProfile, json, apiError } from '../access';
-import { canManageDemo } from '../demo-data/route';
+import { canManageDemo } from '../demo-data/handlers';
 
 export async function GET(req: Request) {
   try {

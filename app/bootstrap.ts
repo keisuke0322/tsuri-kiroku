@@ -1,6 +1,1 @@
-export type Bootstrap = {
-  userId: string;
-  initialName: string;
-  mapsApiKey: string;
-  canManageDemo: boolean;
-};
+export type { Bootstrap } from '../lib/api/generated/types.gen';

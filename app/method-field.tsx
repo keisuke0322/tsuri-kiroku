@@ -11,6 +11,7 @@ import {
   ComboboxEmpty,
   ComboboxTrigger,
 } from '@/components/ui/combobox';
+import { appStyles } from '@/lib/app-styles';
 
 export default function MethodField({
   value,
@@ -48,7 +49,7 @@ export default function MethodField({
   );
 
   return (
-    <div className="method-field" data-method-field ref={container}>
+    <div className={appStyles.methodField} data-method-field ref={container}>
       <label htmlFor={id}>{label}</label>
       <Combobox
         items={options}
@@ -68,12 +69,15 @@ export default function MethodField({
           showTrigger={false}
         >
           <ComboboxTrigger
-            className="method-trigger"
+            className={appStyles.methodTrigger}
             aria-label={`${label}の候補を表示`}
             data-cy={`${dataCy}-trigger`}
           />
         </ComboboxInput>
-        <ComboboxContent container={container} className="method-options">
+        <ComboboxContent
+          container={container}
+          className={appStyles.methodOptions}
+        >
           <ComboboxEmpty>
             候補はありません。そのまま入力できます。
           </ComboboxEmpty>

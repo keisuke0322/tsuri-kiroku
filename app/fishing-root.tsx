@@ -1,10 +1,12 @@
 'use client';
 
+import { browserApi } from '../lib/api/generated/browser.gen';
 import { useEffect, useState, useSyncExternalStore } from 'react';
 import type { Bootstrap } from './bootstrap';
 import FishingApp from './fishing-app';
 import LoginScreen from './login-screen';
 import Brand from './brand';
+import { appStyles } from '@/lib/app-styles';
 
 const subscribe = () => () => {};
 const loginFailed = () =>
@@ -25,9 +27,7 @@ export default function FishingRoot() {
     const controller = new AbortController();
     async function load() {
       try {
-        const response = await fetch('/api/bootstrap', {
-          credentials: 'same-origin',
-          cache: 'no-store',
+        const response = await browserApi.getBootstrap({
           signal: controller.signal,
         });
         if (controller.signal.aborted) return;
@@ -57,7 +57,7 @@ export default function FishingRoot() {
   }
   if (state === 'error') {
     return (
-      <main className="app-startup" data-cy="app-loading">
+      <main className={appStyles.appStartup} data-cy="app-loading">
         <Brand />
         <p role="alert">読み込みに失敗しました。もう一度お試しください。</p>
         <button type="button" onClick={() => window.location.reload()}>

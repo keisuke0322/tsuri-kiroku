@@ -1,22 +1,2 @@
 @import '../app/globals.css';
 @source '../stories';
-
-.story-surface {
-  width: min(100%, 640px);
-  padding: 16px;
-}
-.story-row {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: 12px;
-}
-.story-stack {
-  display: grid;
-  gap: 16px;
-}
-.story-token {
-  padding: 16px;
-  border: 1px solid var(--border);
-  border-radius: var(--radius);
-}
