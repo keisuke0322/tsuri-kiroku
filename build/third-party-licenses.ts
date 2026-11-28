@@ -25,6 +25,24 @@ export function thirdPartyLicenses(publicDirectory = 'dist/client'): Plugin {
         for (const [id, module] of Object.entries(chunk.modules)) {
           if (module.renderedLength === 0) continue;
           const filename = id.replace(/^\0/, '').split('?')[0];
+          // The generated SDK embeds Hey API's runtime outside node_modules.
+          if (
+            filename.startsWith(
+              path.join(projectRoot, 'lib/api/generated') + path.sep,
+            )
+          ) {
+            const root = path.join(
+              projectRoot,
+              'node_modules/@hey-api/openapi-ts',
+            );
+            const metadata = JSON.parse(
+              readFileSync(path.join(root, 'package.json'), 'utf8'),
+            );
+            packages.set(`${metadata.name}@${metadata.version}`, {
+              root,
+              files: new Set([path.join(root, 'LICENSE.md')]),
+            });
+          }
           if (!filename.includes('/node_modules/') || !existsSync(filename))
             continue;
           let directory = path.dirname(realpathSync(filename));
