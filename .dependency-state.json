@@ -153,23 +153,24 @@
   },
   "lastDevelopmentValidation": {
     "environment": "staging",
-    "sha": "601949377bfd393bd9c12b8bacfa0d0ac8cf1317",
-    "runId": "46123094546",
+    "sha": "0fc2bedcf80abc26a35c966fe8bc7131381118d7",
+    "runId": "46127438736",
     "runAttempt": "1",
-    "actionsUrl": "https://github.com/keisuke0322/tsuri-kiroku/actions/runs/46123094546/attempts/1",
-    "builtAt": "2026-11-28T07:51:24.723Z",
+    "actionsUrl": "https://github.com/keisuke0322/tsuri-kiroku/actions/runs/46127438736/attempts/1",
+    "builtAt": "2026-11-28T08:52:50.478Z",
     "release": null,
     "staging": null,
     "changedMigrations": [],
     "pr": null,
     "sourceIssues": [
+      "Refs #148\n",
       "Refs #147\n"
     ],
     "toolchain": {
       "node": "v24.22.3",
       "packageManager": "pnpm@11.25.0"
     },
-    "lockfileSha256": "7b884644db2712584d26b9c490aa7cc9fc07d05a43ddd25d7e129052c1734037",
+    "lockfileSha256": "8746d64fc0be86a350ca8f3809b73d12ca85420ebfe31dfea8829871ab0eca17",
     "migrations": [
       {
         "name": "0000_slim_matthew_murdock.sql",
@@ -221,13 +222,13 @@
       }
     ],
     "result": "success",
-    "runtimeConfigSha256": "d62a1844bbf9ea2ec47c7c95b84520c179808a5741d65534f1a7da4dab962dcb",
-    "configSha256": "7b7c8fe88b5417d14ca353d533b466e5c065868cca78d6a29fac9444b1eab742",
-    "deployedAt": "2026-11-28T07:52:35.856718Z",
-    "verifiedAt": "2026-11-28T08:01:32.107Z",
+    "runtimeConfigSha256": "16e2c724bac5238a2873b8eef24c825648e8fb501cb68082bd90951318ad43f1",
+    "configSha256": "d896f1afb86f3f19c0d10762397cb9b5136885ba3754179dc1d7d538fd211d7f",
+    "deployedAt": "2026-11-28T08:54:20.173413Z",
+    "verifiedAt": "2026-11-28T09:03:51.345Z",
     "cloudflare": {
-      "deploymentId": "2cb8144a-0f1d-4f72-a674-cc00a0c7c10b",
-      "versionId": "bf6c427d-d887-4b6a-869a-4494552dab0d"
+      "deploymentId": "15ff39b3-3df4-43ce-bbe0-8d2841cdcf8d",
+      "versionId": "7ee8944d-a3b9-4f68-988d-757906a9cb5b"
     },
     "appliedMigrations": [
       "0000_slim_matthew_murdock.sql",
@@ -243,7 +244,7 @@
       "0010_gear.sql",
       "0011_remove_legacy_method.sql"
     ],
-    "sourceTree": "945369a140bdcfa5b4e29aed093c80cdc32a5e64"
+    "sourceTree": "2cf1faab2782d32028c852a299d2a8c7cbedb92d"
   },
   "stagingReuses": {
     "17962536dca11703db8b2b84096ebd88a887de83": {
