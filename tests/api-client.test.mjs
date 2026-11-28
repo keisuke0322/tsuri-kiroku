@@ -1,6 +1,7 @@
 import assert from 'node:assert/strict';
 import { build } from 'vite';
 import { test } from 'node:test';
+import { sessionRequest } from '../lib/api/session.ts';
 
 const compiled = await build({
   configFile: false,
@@ -22,6 +23,35 @@ const { browserApi } = await import(
       (Array.isArray(compiled) ? compiled[0] : compiled).output[0].code,
     ).toString('base64')
 );
+
+test('navigation stops API calls before they start and a 401 triggers login', async () => {
+  let started = 0;
+  let redirected = 0;
+  const start = async () => {
+    started++;
+    return new Response(null, { status: 401 });
+  };
+  await assert.rejects(
+    sessionRequest(
+      start,
+      () => true,
+      () => redirected++,
+    ),
+    /ログイン画面へ移動/,
+  );
+  assert.equal(started, 0);
+  assert.equal(redirected, 0);
+  await assert.rejects(
+    sessionRequest(
+      start,
+      () => false,
+      () => redirected++,
+    ),
+    /ログインしてください/,
+  );
+  assert.equal(started, 1);
+  assert.equal(redirected, 1);
+});
 
 test('generated client serializes JSON, paths, queries and multipart with existing response handling', async () => {
   const originalFetch = globalThis.fetch;

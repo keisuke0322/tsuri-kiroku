@@ -1,6 +1,7 @@
 'use client';
 
 import { browserApi } from '../lib/api/generated/browser.gen';
+import { sessionRequest } from '../lib/api/session';
 import { useEffect, useEffectEvent, useMemo, useRef, useState } from 'react';
 import {
   Anchor,
@@ -321,19 +322,17 @@ export default function FishingLog({
     window.open(path, '_top');
   }
 
-  async function apiFetch(pending: Promise<Response>) {
-    if (leaving.current) throw Error('ログイン画面へ移動しています。');
-    const response = await pending;
-    if (response.status === 401) {
-      leave(signInPath);
-      throw Error('ログインしてください。');
-    }
-    return response;
+  function apiFetch(start: () => Promise<Response>) {
+    return sessionRequest(
+      start,
+      () => leaving.current,
+      () => leave(signInPath),
+    );
   }
 
   async function logout() {
     try {
-      const r = await apiFetch(browserApi.logout());
+      const r = await apiFetch(() => browserApi.logout());
       if (!r.ok) throw Error();
       leave('/');
     } catch {
@@ -379,7 +378,7 @@ export default function FishingLog({
 
   async function showProfile(id: string) {
     try {
-      const r = await apiFetch(
+      const r = await apiFetch(() =>
         browserApi.getUserProfile({ path: { userId: id } }),
       );
       if (!r.ok) throw Error();
@@ -391,7 +390,7 @@ export default function FishingLog({
   }
 
   async function saveProfile(displayName: string, bio: string) {
-    const r = await apiFetch(
+    const r = await apiFetch(() =>
         browserApi.updateProfile({ body: { displayName, bio } }),
       ),
       value = (await r.json()) as Profile & { error?: string };
@@ -424,7 +423,7 @@ export default function FishingLog({
         { liked: x.liked, likeCount: x.likeCount },
         publish,
         async (liked) => {
-          const r = await apiFetch(
+          const r = await apiFetch(() =>
             (liked ? browserApi.likeCatch : browserApi.unlikeCatch)({
               path: { id: String(x.id) },
             }),
@@ -448,7 +447,7 @@ export default function FishingLog({
   async function refresh() {
     const version = ++refreshVersion.current;
     try {
-      const r = await apiFetch(browserApi.listCatches());
+      const r = await apiFetch(() => browserApi.listCatches());
       if (!r.ok) throw Error();
       const rows = (await r.json()) as Entry[];
       if (!leaving.current && version === refreshVersion.current) {
@@ -478,7 +477,7 @@ export default function FishingLog({
 
   async function refreshSpots() {
     try {
-      const r = await apiFetch(browserApi.listSpots());
+      const r = await apiFetch(() => browserApi.listSpots());
       if (!r.ok) throw Error();
       const rows = (await r.json()) as Spot[];
       if (!leaving.current) setSpots(rows);
@@ -488,7 +487,7 @@ export default function FishingLog({
   }
 
   async function saveSpot(spot: Spot) {
-    const r = await apiFetch(
+    const r = await apiFetch(() =>
       browserApi.updateSpot({ path: { id: String(spot.id) }, body: spot }),
     );
     if (!r.ok) throw Error('釣り場を保存できませんでした。');
@@ -537,7 +536,7 @@ export default function FishingLog({
           },
           annotations: { readOnlyHint: false, untrustedContentHint: false },
           execute: async (input: unknown) => {
-            const response = await apiFetch(
+            const response = await apiFetch(() =>
                 browserApi.createCatch({
                   body: (() => {
                     const result = validateCatch(input);
@@ -735,7 +734,7 @@ export default function FishingLog({
               ? featured
               : (current?.featured_photo_id ?? null),
         };
-      const r = await apiFetch(
+      const r = await apiFetch(() =>
           editing
             ? browserApi.updateCatch({
                 path: { id: String(editing) },
@@ -750,7 +749,7 @@ export default function FishingLog({
       const uploadErrors = new Set<string>();
       for (const photo of files) {
         try {
-          const upload = await apiFetch(
+          const upload = await apiFetch(() =>
             browserApi.uploadPhoto({
               path: { id: String(id) },
               body: {
@@ -846,7 +845,7 @@ export default function FishingLog({
   async function removePhoto(photoId: number) {
     if (!editing || !confirm('この写真を削除しますか？')) return;
     try {
-      const r = await apiFetch(
+      const r = await apiFetch(() =>
         browserApi.deletePhoto({
           path: { id: String(editing), photoId: String(photoId) },
         }),
@@ -867,7 +866,7 @@ export default function FishingLog({
     const names = x.fish.map((f) => f.species).join('・');
     if (!confirm(`${x.date}の${names}の記録を削除しますか？`)) return;
     try {
-      const r = await apiFetch(
+      const r = await apiFetch(() =>
         browserApi.deleteCatch({ path: { id: String(x.id) } }),
       );
       if (!r.ok) throw Error();
