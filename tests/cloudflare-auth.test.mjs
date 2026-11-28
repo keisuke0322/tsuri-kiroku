@@ -146,15 +146,17 @@ synthetic('jose', { ...jose, createRemoteJWKSet: () => localKeys });
 async function load(file) {
   if (modules.has(file)) return modules.get(file);
   const pending = (async () => {
-    const json = file.endsWith('.json') ? await readFile(file, 'utf8') : '';
-    if (file.endsWith('.json'))
+    const raw = file.endsWith('.sql?raw');
+    if (raw || file.endsWith('.json')) {
+      const contents = await readFile(raw ? file.slice(0, -4) : file, 'utf8');
       return new vm.SyntheticModule(
         ['default'],
         function () {
-          this.setExport('default', JSON.parse(json));
+          this.setExport('default', raw ? contents : JSON.parse(contents));
         },
         { context, identifier: file },
       );
+    }
     const code = ts.transpileModule(await readFile(file, 'utf8'), {
       compilerOptions: {
         module: ts.ModuleKind.ESNext,
@@ -181,7 +183,9 @@ async function rawModule(path) {
         load(
           resolve(
             dirname(ref.identifier),
-            spec + (spec.endsWith('.json') ? '' : '.ts'),
+            spec.endsWith('.json') || spec.endsWith('.sql?raw')
+              ? spec
+              : spec + '.ts',
           ),
         ),
     );

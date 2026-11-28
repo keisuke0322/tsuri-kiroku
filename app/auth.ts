@@ -2,6 +2,7 @@ import { env } from 'cloudflare:workers';
 import { headers } from 'next/headers';
 import { createRemoteJWKSet, jwtVerify } from 'jose';
 import { getDb } from './api/catches/db';
+import findSessionUserSql from './sql/find-session-user.sql?raw';
 
 export type AppUser = { userId: string; fullName: string | null };
 
@@ -96,10 +97,7 @@ export async function getUser(req?: Request): Promise<AppUser | null> {
   if (!/^[a-f0-9]{64}$/.test(value)) return null;
 
   return getDb()
-    .prepare(
-      `SELECT s.user_id AS userId,p.display_name AS fullName FROM auth_sessions s
-    JOIN profiles p ON p.user_id=s.user_id WHERE s.token_hash=? AND s.expires_at>?`,
-    )
+    .prepare(findSessionUserSql)
     .bind(await tokenHash(value), Math.floor(Date.now() / 1000))
     .first<AppUser>();
 }
