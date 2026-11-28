@@ -179,3 +179,25 @@ assert.equal(
   false,
   'Retired input must not be persisted',
 );
+
+// Retain the existing field messages when switching to generated schemas.
+const missing = validateCatch({
+  date: '',
+  location: '',
+  fish: [{ species: '', count: '' }],
+  memo: '',
+}).errors;
+assert.equal(missing.location, '場所を入力してください。');
+assert.equal(missing['fish.0.species'], '魚種を入力してください。');
+assert.equal(missing.date, '釣行日を選択してください。');
+assert.equal(missing['fish.0.count'], '匹数を入力してください。');
+assert.equal(
+  validateCatch({ ...valid, location: '海'.repeat(121) }).errors.location,
+  '場所は120文字以内で入力してください。',
+);
+assert.equal(
+  validateCatch({ ...valid, fish: [{ species: '魚', count: 0 }] }).errors[
+    'fish.0.count'
+  ],
+  '匹数は1〜9999で入力してください。',
+);

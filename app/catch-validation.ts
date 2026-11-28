@@ -1,5 +1,8 @@
 import * as v from 'valibot';
-import { vNormalizedCatch } from '../lib/api/generated/valibot.gen';
+import {
+  vNormalizedCatch,
+  vNormalizedFish,
+} from '../lib/api/generated/valibot.gen';
 import type { NormalizedFish } from '../lib/api/generated/types.gen';
 
 function validDate(value: string) {
@@ -86,23 +89,53 @@ export function validateCatch(input: unknown) {
   };
   const result = v.safeParse(catchSchema, normalized);
   const errors: CatchFieldErrors = {};
-  const messages: Record<string, string> = {
-    date: '釣行日には有効な日付を指定してください。',
-    location: '場所を入力し、文字数を確認してください。',
-    memo: 'メモの文字数を確認してください。',
-    species: '魚種を入力し、文字数を確認してください。',
-    count: '匹数は1〜9999の整数で入力してください。',
-    length: 'サイズは0〜999cmで入力してください。',
-    fish: '魚種は1つ以上登録し、件数を確認してください。',
-  };
+  const countRules = vNormalizedFish.entries.count.pipe;
+  const lengthRules = vNormalizedFish.entries.length.wrapped.pipe;
+  const countRange = `${countRules.find((rule) => rule.type === 'min_value')!.requirement}〜${countRules.find((rule) => rule.type === 'max_value')!.requirement}`;
+  const lengthRange = `${lengthRules.find((rule) => rule.type === 'min_value')!.requirement}〜${lengthRules.find((rule) => rule.type === 'max_value')!.requirement}`;
   if (!result.success)
     for (const issue of result.issues) {
       const key =
         issue.path?.map((part) => String(part.key)).join('.') || 'form';
       const field = key.split('.').at(-1)!;
+      const requirement = 'requirement' in issue ? issue.requirement : '';
+      const labels: Record<string, string> = {
+        location: '場所',
+        species: '魚種',
+        memo: 'メモ',
+      };
+      let message = '入力内容を確認してください。';
+      if (labels[field])
+        message =
+          issue.type === 'max_length'
+            ? `${labels[field]}は${requirement}文字以内で入力してください。`
+            : `${labels[field]}を入力してください。`;
+      if (field === 'date')
+        message = normalized.date
+          ? '釣行日には有効な日付を指定してください。'
+          : '釣行日を選択してください。';
+      if (field === 'count')
+        message =
+          issue.type === 'number'
+            ? '匹数を入力してください。'
+            : issue.type === 'integer'
+              ? '匹数は整数で入力してください。'
+              : `匹数は${countRange}で入力してください。`;
+      if (field === 'length')
+        message =
+          issue.type === 'number'
+            ? 'サイズは数値で入力してください。'
+            : !Number.isFinite(issue.input)
+              ? 'サイズは有限の数値で入力してください。'
+              : `サイズは${lengthRange}cmで入力してください。`;
+      if (field === 'fish')
+        message =
+          issue.type === 'max_length'
+            ? `魚種は${requirement}種類まで登録できます。`
+            : '魚種を1つ以上登録してください。';
       errors[key] ??= issue.message.startsWith('魚種が重複')
         ? issue.message
-        : messages[field] || '入力内容を確認してください。';
+        : message;
     }
   return result.success
     ? { success: true as const, data: { ...result.output, legacy }, errors }
