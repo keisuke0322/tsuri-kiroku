@@ -21,11 +21,13 @@ test('root GET/HEAD and RSC serve public assets without rendering or forwarding 
   );
   let listedRequest;
   const catches = new vm.SyntheticModule(
-    ['GET'],
+    ['api'],
     function () {
-      this.setExport('GET', (request) => {
-        listedRequest = request;
-        return new Response('authenticated catch list');
+      this.setExport('api', {
+        fetch: (request) => {
+          listedRequest = request;
+          return new Response('authenticated catch list');
+        },
       });
     },
     { context },
@@ -40,7 +42,7 @@ test('root GET/HEAD and RSC serve public assets without rendering or forwarding 
     .outputText.replaceAll('import.meta.env.PROD', 'true');
   const workerModule = new vm.SourceTextModule(source, { context });
   await workerModule.link((specifier) => {
-    if (specifier === './app/api/catches/route') return catches;
+    if (specifier === './server/api') return catches;
     assert.equal(specifier, 'vinext/server/fetch-handler');
     return handler;
   });
@@ -111,7 +113,7 @@ test('root GET/HEAD and RSC serve public assets without rendering or forwarding 
       env,
       {},
     );
-  assert.equal(renders, 3, 'Other methods retain framework handling.');
+  assert.equal(renders, 0, 'All API methods use Hono.');
   await worker.fetch(
     new Request('https://test.example/api/bootstrap'),
     env,
@@ -124,8 +126,8 @@ test('root GET/HEAD and RSC serve public assets without rendering or forwarding 
   );
   assert.equal(
     renders,
-    5,
-    'APIs and actions continue through the authenticated framework handlers.',
+    1,
+    'APIs use Hono and page actions retain framework handling.',
   );
   const missing = await worker.fetch(
     new Request('https://test.example/'),
@@ -137,7 +139,7 @@ test('root GET/HEAD and RSC serve public assets without rendering or forwarding 
   assert.equal(missing.status, 503);
   assert.equal(
     renders,
-    5,
+    1,
     'A missing build asset must not silently resume per-request SSR.',
   );
 });

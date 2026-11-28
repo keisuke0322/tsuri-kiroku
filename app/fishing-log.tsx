@@ -1,5 +1,6 @@
 'use client';
 
+import { browserApi } from '../lib/api/generated/browser.gen';
 import { useEffect, useEffectEvent, useMemo, useRef, useState } from 'react';
 import {
   Anchor,
@@ -41,7 +42,7 @@ import ProfileDialog, { Avatar, type Profile } from './profile-dialog';
 import FishingMap from './fishing-map';
 import PositionEditor from './position-editor';
 import LocationMapDialog from './location-map-dialog';
-import type { LocationEntry, LocationVisibility } from './location-privacy';
+import type { LocationVisibility } from './location-privacy';
 import type { Position, Spot } from './fishing-position';
 import GearManager, { emptySet } from './gear-manager';
 import {
@@ -61,13 +62,6 @@ import { toast, Toaster } from 'sonner';
 import { appStyles } from '@/lib/app-styles';
 import { cn } from '@/lib/utils';
 
-type FishLine = {
-  id?: number;
-  species: string;
-  count: number;
-  length: number | null;
-};
-
 type FishForm = {
   id?: number;
   species: string;
@@ -77,21 +71,7 @@ type FishForm = {
 
 type CatchPhoto = { id: number; species: string };
 
-type Entry = LocationEntry & {
-  id: number;
-  date: string;
-  location: string;
-  fish: FishLine[];
-  photos: CatchPhoto[];
-  featured_photo_id: number | null;
-  memo: string;
-  created_at: string;
-  owner_id: string;
-  authorName: string;
-  likeCount: number;
-  liked: boolean;
-  combinations?: Combination[];
-};
+type Entry = import('../lib/api/generated/types.gen').Catch;
 
 type PendingPhoto = {
   key: string;
@@ -160,8 +140,8 @@ export default function FishingLog({
   async function refreshGear() {
     try {
       const [g, s] = await Promise.all([
-        gearRequest<Gear[]>('/api/gear'),
-        gearRequest<GearSet[]>('/api/gear-sets'),
+        gearRequest(browserApi.listGear()),
+        gearRequest(browserApi.listGearSets()),
       ]);
       if (!leaving.current) {
         setGear(g);
@@ -341,9 +321,9 @@ export default function FishingLog({
     window.open(path, '_top');
   }
 
-  async function apiFetch(input: string, init?: RequestInit) {
+  async function apiFetch(pending: Promise<Response>) {
     if (leaving.current) throw Error('ログイン画面へ移動しています。');
-    const response = await fetch(input, { ...init, cache: 'no-store' });
+    const response = await pending;
     if (response.status === 401) {
       leave(signInPath);
       throw Error('ログインしてください。');
@@ -353,7 +333,7 @@ export default function FishingLog({
 
   async function logout() {
     try {
-      const r = await apiFetch(signOutPath, { method: 'POST' });
+      const r = await apiFetch(browserApi.logout());
       if (!r.ok) throw Error();
       leave('/');
     } catch {
@@ -373,7 +353,8 @@ export default function FishingLog({
   });
   useEffect(() => {
     let active = true;
-    void fetch('/api/profile', { cache: 'no-store' })
+    void browserApi
+      .getProfile()
       .then((r) => {
         if (active) return applyProfileResponse(r);
       })
@@ -398,7 +379,9 @@ export default function FishingLog({
 
   async function showProfile(id: string) {
     try {
-      const r = await apiFetch('/api/profiles/' + encodeURIComponent(id));
+      const r = await apiFetch(
+        browserApi.getUserProfile({ path: { userId: id } }),
+      );
       if (!r.ok) throw Error();
       const p = (await r.json()) as Profile;
       if (!leaving.current) setViewProfile(p);
@@ -408,11 +391,9 @@ export default function FishingLog({
   }
 
   async function saveProfile(displayName: string, bio: string) {
-    const r = await apiFetch('/api/profile', {
-        method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ displayName, bio }),
-      }),
+    const r = await apiFetch(
+        browserApi.updateProfile({ body: { displayName, bio } }),
+      ),
       value = (await r.json()) as Profile & { error?: string };
     if (!r.ok) throw Error(value.error || '保存できませんでした。');
     setProfile(value);
@@ -443,9 +424,11 @@ export default function FishingLog({
         { liked: x.liked, likeCount: x.likeCount },
         publish,
         async (liked) => {
-          const r = await apiFetch(`/api/catches/${x.id}/like`, {
-            method: liked ? 'PUT' : 'DELETE',
-          });
+          const r = await apiFetch(
+            (liked ? browserApi.likeCatch : browserApi.unlikeCatch)({
+              path: { id: String(x.id) },
+            }),
+          );
           if (!r.ok) throw Error();
           return (await r.json()) as { liked: boolean; likeCount: number };
         },
@@ -465,7 +448,7 @@ export default function FishingLog({
   async function refresh() {
     const version = ++refreshVersion.current;
     try {
-      const r = await apiFetch('/api/catches');
+      const r = await apiFetch(browserApi.listCatches());
       if (!r.ok) throw Error();
       const rows = (await r.json()) as Entry[];
       if (!leaving.current && version === refreshVersion.current) {
@@ -495,7 +478,7 @@ export default function FishingLog({
 
   async function refreshSpots() {
     try {
-      const r = await apiFetch('/api/spots');
+      const r = await apiFetch(browserApi.listSpots());
       if (!r.ok) throw Error();
       const rows = (await r.json()) as Spot[];
       if (!leaving.current) setSpots(rows);
@@ -505,11 +488,9 @@ export default function FishingLog({
   }
 
   async function saveSpot(spot: Spot) {
-    const r = await apiFetch(`/api/spots/${spot.id}`, {
-      method: 'PUT',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(spot),
-    });
+    const r = await apiFetch(
+      browserApi.updateSpot({ path: { id: String(spot.id) }, body: spot }),
+    );
     if (!r.ok) throw Error('釣り場を保存できませんでした。');
     await refreshSpots();
   }
@@ -556,11 +537,16 @@ export default function FishingLog({
           },
           annotations: { readOnlyHint: false, untrustedContentHint: false },
           execute: async (input: unknown) => {
-            const response = await apiFetch('/api/catches', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify(input),
-              }),
+            const response = await apiFetch(
+                browserApi.createCatch({
+                  body: (() => {
+                    const result = validateCatch(input);
+                    if (!result.success)
+                      throw Error('入力内容を確認してください。');
+                    return result.data;
+                  })(),
+                }),
+              ),
               result = (await response.json()) as {
                 id: number;
                 error?: string;
@@ -750,12 +736,12 @@ export default function FishingLog({
               : (current?.featured_photo_id ?? null),
         };
       const r = await apiFetch(
-          '/api/catches' + (editing ? `/${editing}` : ''),
-          {
-            method: editing ? 'PUT' : 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify(payload),
-          },
+          editing
+            ? browserApi.updateCatch({
+                path: { id: String(editing) },
+                body: payload,
+              })
+            : browserApi.createCatch({ body: payload }),
         ),
         result = (await r.json()) as { id?: number; error?: string };
       if (!r.ok) throw Error(result.error || '保存できませんでした');
@@ -763,15 +749,17 @@ export default function FishingLog({
       let failed = 0;
       const uploadErrors = new Set<string>();
       for (const photo of files) {
-        const body = new FormData();
-        body.append('photo', photo.file);
-        body.append('species', photo.species.trim());
-        body.append('featured', String(featured === photo.key));
         try {
-          const upload = await apiFetch(`/api/catches/${id}/photos`, {
-            method: 'POST',
-            body,
-          });
+          const upload = await apiFetch(
+            browserApi.uploadPhoto({
+              path: { id: String(id) },
+              body: {
+                photo: photo.file,
+                species: photo.species.trim(),
+                featured: String(featured === photo.key),
+              },
+            }),
+          );
           const response = (await upload.json().catch(() => ({}))) as {
             error?: string;
           };
@@ -858,9 +846,11 @@ export default function FishingLog({
   async function removePhoto(photoId: number) {
     if (!editing || !confirm('この写真を削除しますか？')) return;
     try {
-      const r = await apiFetch(`/api/catches/${editing}/photos/${photoId}`, {
-        method: 'DELETE',
-      });
+      const r = await apiFetch(
+        browserApi.deletePhoto({
+          path: { id: String(editing), photoId: String(photoId) },
+        }),
+      );
       if (!r.ok) throw Error();
       const next = existingPhotos.filter((p) => p.id !== photoId);
       setExistingPhotos(next);
@@ -877,7 +867,9 @@ export default function FishingLog({
     const names = x.fish.map((f) => f.species).join('・');
     if (!confirm(`${x.date}の${names}の記録を削除しますか？`)) return;
     try {
-      const r = await apiFetch(`/api/catches/${x.id}`, { method: 'DELETE' });
+      const r = await apiFetch(
+        browserApi.deleteCatch({ path: { id: String(x.id) } }),
+      );
       if (!r.ok) throw Error();
       await refresh();
       toast.success('記録を削除しました');

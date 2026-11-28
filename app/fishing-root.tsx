@@ -1,5 +1,6 @@
 'use client';
 
+import { browserApi } from '../lib/api/generated/browser.gen';
 import { useEffect, useState, useSyncExternalStore } from 'react';
 import type { Bootstrap } from './bootstrap';
 import FishingApp from './fishing-app';
@@ -26,9 +27,7 @@ export default function FishingRoot() {
     const controller = new AbortController();
     async function load() {
       try {
-        const response = await fetch('/api/bootstrap', {
-          credentials: 'same-origin',
-          cache: 'no-store',
+        const response = await browserApi.getBootstrap({
           signal: controller.signal,
         });
         if (controller.signal.aborted) return;

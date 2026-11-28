@@ -1,3 +1,6 @@
+import * as hono from 'hono';
+import * as scalar from '@scalar/hono-api-reference';
+import { routeFacade } from './api-harness.mjs';
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
 import { DatabaseSync } from 'node:sqlite';
@@ -179,6 +182,8 @@ async function fixture(legacy = false, pageSize = 1) {
   };
   const logs = [];
   const context = vm.createContext({
+    Error,
+    SyntaxError,
     console: { error: (...x) => logs.push(x) },
     Response,
     Request,
@@ -205,7 +210,22 @@ async function fixture(legacy = false, pageSize = 1) {
   const env = { DB: db, BUCKET: bucket };
   synthetic('cloudflare:workers', { env });
   synthetic('valibot', valibot);
+  synthetic('hono', hono);
+  synthetic('@scalar/hono-api-reference', scalar);
   synthetic(resolve('app/auth.ts'), {
+    authConfig: () => {
+      throw Error('Unexpected OAuth call in photo test');
+    },
+    authHeaders: {},
+    SESSION_SECONDS: 1,
+    cookie: () => '',
+    randomToken: () => '',
+    tokenHash: async () => '',
+    pkceChallenge: async () => '',
+    readCookie: () => '',
+    verifyGoogleIdToken: async () => {
+      throw Error('Unexpected OAuth call');
+    },
     getUser: async (req) => {
       const userId = req?.headers.get('Cookie');
       return ['u1', 'u2'].includes(userId)
@@ -218,6 +238,15 @@ async function fixture(legacy = false, pageSize = 1) {
   async function load(file) {
     if (modules.has(file)) return modules.get(file);
     const pending = (async () => {
+      const json = file.endsWith('.json') ? await readFile(file, 'utf8') : '';
+      if (file.endsWith('.json'))
+        return new vm.SyntheticModule(
+          ['default'],
+          function () {
+            this.setExport('default', JSON.parse(json));
+          },
+          { context, identifier: file },
+        );
       const code = ts.transpileModule(await readFile(file, 'utf8'), {
         compilerOptions: {
           module: ts.ModuleKind.ESNext,
@@ -231,23 +260,33 @@ async function fixture(legacy = false, pageSize = 1) {
   }
 
   async function module(path) {
+    if (path.endsWith('/handlers.ts')) return routeFacade(path, rawModule);
+    return rawModule(path);
+  }
+
+  async function rawModule(path) {
     const m = await load(resolve(path));
     if (m.status === 'unlinked')
       await m.link(
         (spec, ref) =>
           modules.get(spec) ||
-          load(resolve(dirname(ref.identifier), spec + '.ts')),
+          load(
+            resolve(
+              dirname(ref.identifier),
+              spec + (spec.endsWith('.json') ? '' : '.ts'),
+            ),
+          ),
       );
     if (m.status === 'linked') await m.evaluate();
     return m.namespace;
   }
 
   const storage = await module('app/api/catches/photo-storage.ts'),
-    post = await module('app/api/catches/[id]/photos/route.ts'),
-    del = await module('app/api/catches/[id]/photos/[photoId]/route.ts'),
-    entry = await module('app/api/catches/[id]/route.ts'),
-    get = await module('app/api/photos/[photoId]/route.ts'),
-    catches = await module('app/api/catches/route.ts');
+    post = await module('app/api/catches/[id]/photos/handlers.ts'),
+    del = await module('app/api/catches/[id]/photos/[photoId]/handlers.ts'),
+    entry = await module('app/api/catches/[id]/handlers.ts'),
+    get = await module('app/api/photos/[photoId]/handlers.ts'),
+    catches = await module('app/api/catches/handlers.ts');
   const params = (id, photoId) => ({
     params: Promise.resolve({ id: String(id), photoId: String(photoId) }),
   });

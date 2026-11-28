@@ -11,7 +11,8 @@ import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { appStyles } from '@/lib/app-styles';
 
-export type Profile = { userId: string; displayName: string; bio: string };
+export type { Profile } from '../lib/api/generated/types.gen';
+import type { Profile } from '../lib/api/generated/types.gen';
 
 export function Avatar({ name }: { name: string }) {
   return (

@@ -1,12 +1,14 @@
+import { readJson } from '../../../server/input';
+import { vCreateGearBody } from '../../../lib/api/generated/valibot.gen';
 import { authenticate, ensureProfile, json, apiError } from '../access';
 import { getDb } from '../catches/db';
-import { setInput, ownSets } from '../gear/storage';
+import { gearInput, ownGear } from './storage';
 import { gearLimits } from '../../gear';
 
 export async function GET(req: Request) {
   try {
     const user = await authenticate(req);
-    return json(await ownSets(user.userId));
+    return json(await ownGear(user.userId));
   } catch (e) {
     return apiError(e);
   }
@@ -15,26 +17,28 @@ export async function GET(req: Request) {
 export async function POST(req: Request) {
   try {
     const user = await authenticate(req),
-      v = await setInput(await req.json(), user.userId);
+      v = gearInput(await readJson(req, vCreateGearBody));
     await ensureProfile(user);
     const r = await getDb()
       .prepare(
-        'INSERT INTO gear_sets (owner_id,name,target_species,method,gear_json,favorite,retired) SELECT ?,?,?,?,?,?,? WHERE (SELECT COUNT(*) FROM gear_sets WHERE owner_id=?)<?',
+        'INSERT INTO gear (owner_id,kind,name,manufacturer,model,spec,memo,favorite,retired) SELECT ?,?,?,?,?,?,?,?,? WHERE (SELECT COUNT(*) FROM gear WHERE owner_id=?)<?',
       )
       .bind(
         user.userId,
+        v.kind,
         v.name,
-        v.targetSpecies,
-        v.method,
-        JSON.stringify(v.gear),
+        v.manufacturer,
+        v.model,
+        v.spec,
+        v.memo,
         Number(v.favorite),
         Number(v.retired),
         user.userId,
-        gearLimits.sets,
+        gearLimits.items,
       )
       .run();
     if (!r.meta.changes)
-      return json({ error: 'セットは100組まで登録できます。' }, 400);
+      return json({ error: '道具は1000点まで登録できます。' }, 400);
     return json({ id: Number(r.meta.last_row_id), ...v }, 201);
   } catch (e) {
     return apiError(e);

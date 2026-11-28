@@ -1,3 +1,6 @@
+import * as hono from 'hono';
+import * as scalar from '@scalar/hono-api-reference';
+import { routeFacade } from './api-harness.mjs';
 import assert from 'node:assert/strict';
 import { DatabaseSync } from 'node:sqlite';
 import { readFile, readdir } from 'node:fs/promises';
@@ -92,6 +95,8 @@ env.BUCKET = {
   },
 };
 const context = vm.createContext({
+  Error,
+  SyntaxError,
   console,
   Response,
   Request,
@@ -132,6 +137,8 @@ function synthetic(id, exports) {
 }
 
 synthetic('valibot', valibot);
+synthetic('hono', hono);
+synthetic('@scalar/hono-api-reference', scalar);
 synthetic('next/headers', { headers: async () => incoming });
 synthetic('cloudflare:workers', { env });
 synthetic('jose', { ...jose, createRemoteJWKSet: () => localKeys });
@@ -139,6 +146,15 @@ synthetic('jose', { ...jose, createRemoteJWKSet: () => localKeys });
 async function load(file) {
   if (modules.has(file)) return modules.get(file);
   const pending = (async () => {
+    const json = file.endsWith('.json') ? await readFile(file, 'utf8') : '';
+    if (file.endsWith('.json'))
+      return new vm.SyntheticModule(
+        ['default'],
+        function () {
+          this.setExport('default', JSON.parse(json));
+        },
+        { context, identifier: file },
+      );
     const code = ts.transpileModule(await readFile(file, 'utf8'), {
       compilerOptions: {
         module: ts.ModuleKind.ESNext,
@@ -152,30 +168,41 @@ async function load(file) {
 }
 
 async function module(path) {
+  if (path.endsWith('/handlers.ts')) return routeFacade(path, rawModule);
+  return rawModule(path);
+}
+
+async function rawModule(path) {
   const m = await load(resolve(path));
   if (m.status === 'unlinked')
     await m.link(
       (spec, ref) =>
         modules.get(spec) ||
-        load(resolve(dirname(ref.identifier), spec + '.ts')),
+        load(
+          resolve(
+            dirname(ref.identifier),
+            spec + (spec.endsWith('.json') ? '' : '.ts'),
+          ),
+        ),
     );
   if (m.status === 'linked') await m.evaluate();
   return m.namespace;
 }
 
 const auth = await module('app/auth.ts'),
-  start = await module('app/api/auth/google/route.ts'),
-  callback = await module('app/api/auth/google/callback/route.ts'),
-  logout = await module('app/api/auth/logout/route.ts');
-const catches = await module('app/api/catches/route.ts'),
-  entry = await module('app/api/catches/[id]/route.ts'),
-  likes = await module('app/api/catches/[id]/like/route.ts'),
-  profile = await module('app/api/profile/route.ts'),
-  bootstrap = await module('app/api/bootstrap/route.ts'),
-  publicProfile = await module('app/api/profiles/[userId]/route.ts');
+  start = await module('app/api/auth/google/handlers.ts'),
+  callback = await module('app/api/auth/google/callback/handlers.ts'),
+  logout = await module('app/api/auth/logout/handlers.ts');
+const catches = await module('app/api/catches/handlers.ts'),
+  entry = await module('app/api/catches/[id]/handlers.ts'),
+  likes = await module('app/api/catches/[id]/like/handlers.ts'),
+  profile = await module('app/api/profile/handlers.ts'),
+  bootstrap = await module('app/api/bootstrap/handlers.ts'),
+  publicProfile = await module('app/api/profiles/[userId]/handlers.ts');
 
 // Exercise list authentication and privacy through the deployed Worker entry,
-// including the direct GET dispatch, rather than only calling the route module.
+// including the Hono dispatch, rather than only calling individual handlers.
+await rawModule('server/api.ts');
 const workerModule = new vm.SourceTextModule(
   ts
     .transpileModule(await readFile('worker.ts', 'utf8'), {
@@ -188,8 +215,7 @@ const workerModule = new vm.SourceTextModule(
   { context },
 );
 await workerModule.link(async (specifier) => {
-  if (specifier === './app/api/catches/route')
-    return load(resolve('app/api/catches/route.ts'));
+  if (specifier === './server/api') return load(resolve('server/api.ts'));
   assert.equal(specifier, 'vinext/server/fetch-handler');
   return new vm.SyntheticModule(
     ['default'],
@@ -230,9 +256,11 @@ function request(
 const params = (id) => ({
   params: Promise.resolve({ id: String(id), photoId: String(id), userId: id }),
 });
-const photoGet = await module('app/api/photos/[photoId]/route.ts'),
-  photoPost = await module('app/api/catches/[id]/photos/route.ts'),
-  photoDelete = await module('app/api/catches/[id]/photos/[photoId]/route.ts');
+const photoGet = await module('app/api/photos/[photoId]/handlers.ts'),
+  photoPost = await module('app/api/catches/[id]/photos/handlers.ts'),
+  photoDelete = await module(
+    'app/api/catches/[id]/photos/[photoId]/handlers.ts',
+  );
 const valid = {
   date: '2026-09-27',
   location: '海岸',
@@ -730,8 +758,8 @@ const publicData = await (
 ).json();
 assert.ok(!('email' in publicData));
 // Map privacy and immutable trip snapshots are exercised against real SQLite migrations.
-const spotsApi = await module('app/api/spots/route.ts'),
-  spotApi = await module('app/api/spots/[id]/route.ts');
+const spotsApi = await module('app/api/spots/handlers.ts'),
+  spotApi = await module('app/api/spots/[id]/handlers.ts');
 assert.equal((await spotsApi.GET(request('/api/spots'))).status, 401);
 const point = { latitude: 35.123, longitude: 139.456, source: 'gps' };
 const mapped = await catches.POST(
@@ -1156,11 +1184,11 @@ console.log(
   'Fishing map API passed: private coordinates/spots, CSRF, ownership, coordinate validation, reuse, favorites, immutable snapshots, legacy edits, clear and delete.',
 );
 // Issue #7: real routes, SQLite migrations, two authenticated identities.
-const gearApi = await module('app/api/gear/route.ts'),
-  gearEditApi = await module('app/api/gear/[id]/route.ts'),
-  setsApi = await module('app/api/gear-sets/route.ts'),
-  setEditApi = await module('app/api/gear-sets/[id]/route.ts'),
-  historyApi = await module('app/api/gear-history/route.ts');
+const gearApi = await module('app/api/gear/handlers.ts'),
+  gearEditApi = await module('app/api/gear/[id]/handlers.ts'),
+  setsApi = await module('app/api/gear-sets/handlers.ts'),
+  setEditApi = await module('app/api/gear-sets/[id]/handlers.ts'),
+  historyApi = await module('app/api/gear-history/handlers.ts');
 const send = (api, method, path, value, identity = owner, id = 1) =>
   api[method](request(path, method, value, identity), params(id));
 for (const api of [gearApi, setsApi, historyApi]) {
@@ -1518,7 +1546,7 @@ assert.equal(
   ).status,
   200,
 );
-const storageApi = await module('app/api/profile/storage/route.ts');
+const storageApi = await module('app/api/profile/storage/handlers.ts');
 const groupedIds = [];
 for (const index of [0, 1]) {
   const response = await send(catches, 'POST', '/api/catches', {
@@ -1598,6 +1626,64 @@ assert.equal(
     )
   ).status,
   403,
+);
+// OpenAPI documentation uses the deployed Hono router and the existing session.
+const { api: honoApi } = await rawModule('server/api.ts');
+const { operations } = await rawModule('lib/api/generated/operations.gen.ts');
+const declared = operations.map((op) => `${op.method} ${op.path}`).sort();
+const routed = honoApi.routes
+  .filter(
+    (r) =>
+      !['ALL', 'OPTIONS'].includes(r.method) &&
+      !['/api/docs', '/api/openapi.json'].includes(r.path),
+  )
+  .map((r) => `${r.method} ${r.path}`)
+  .sort();
+assert.deepEqual(Array.from(routed), Array.from(declared));
+for (const stage of ['local', 'staging', 'production', undefined]) {
+  env.APP_ENV = stage;
+  for (const path of ['/api/docs', '/api/openapi.json']) {
+    const enabled = stage === 'local' || stage === 'staging';
+    assert.equal(
+      (await honoApi.fetch(request(path))).status,
+      enabled ? 401 : 404,
+    );
+    const response = await honoApi.fetch(
+      request(path, 'GET', undefined, owner),
+    );
+    assert.equal(response.status, enabled ? 200 : 404);
+    if (enabled && path.endsWith('.json')) {
+      const document = await response.json();
+      assert.equal(document.openapi, '3.1.0');
+      assert.equal(
+        Object.values(document.paths).flatMap(Object.values).length,
+        30,
+      );
+    } else if (enabled) {
+      assert.match(response.headers.get('content-type'), /text\/html/);
+      assert.match(await response.text(), /\/api\/openapi.json/);
+    }
+  }
+}
+assert.equal(
+  (
+    await honoApi.fetch(
+      request('/api/no-such-operation', 'GET', undefined, owner),
+    )
+  ).status,
+  404,
+);
+assert.equal(
+  (await honoApi.fetch(request('/api/catches', 'PATCH', undefined, owner)))
+    .status,
+  405,
+);
+assert.equal(
+  (await honoApi.fetch(request('/api/catches', 'OPTIONS'))).status,
+  204,
+);
+console.log(
+  'OpenAPI management passed: complete routes, authenticated docs, local/staging visibility and production 404.',
 );
 assert.equal(
   (await logout.POST(request('/api/auth/logout', 'POST', undefined, owner)))

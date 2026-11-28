@@ -1,3 +1,6 @@
+import type { Profile } from '../../../lib/api/generated/types.gen';
+import { readJson } from '../../../server/input';
+import { vUpdateProfileBody } from '../../../lib/api/generated/valibot.gen';
 import { authenticate, ensureProfile, json, apiError } from '../access';
 import { getDb } from '../catches/db';
 
@@ -5,7 +8,7 @@ export async function GET(req: Request) {
   try {
     const user = await authenticate(req),
       profile = await ensureProfile(user);
-    return json(profile);
+    return json<Profile>(profile);
   } catch (e) {
     return apiError(e);
   }
@@ -14,7 +17,10 @@ export async function GET(req: Request) {
 export async function PUT(req: Request) {
   try {
     const user = await authenticate(req),
-      value = (await req.json()) as { displayName?: unknown; bio?: unknown };
+      value = (await readJson(req, vUpdateProfileBody)) as {
+        displayName?: unknown;
+        bio?: unknown;
+      };
     if (
       !value ||
       typeof value.displayName !== 'string' ||
@@ -39,7 +45,7 @@ export async function PUT(req: Request) {
       .prepare('UPDATE profiles SET display_name=?,bio=? WHERE user_id=?')
       .bind(displayName, bio, user.userId)
       .run();
-    return json({ userId: user.userId, displayName, bio });
+    return json<Profile>({ userId: user.userId, displayName, bio });
   } catch (e) {
     return apiError(e);
   }

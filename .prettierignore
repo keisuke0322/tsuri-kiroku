@@ -22,3 +22,6 @@ cypress/videos/
 
 # Storybook generated output
 storybook-static/
+
+# OpenAPI-generated sources are owned by the pinned generator.
+lib/api/generated/

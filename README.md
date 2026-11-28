@@ -147,3 +147,8 @@ corepack pnpm build
 ## 画面部品のカタログ
 
 [stagingのStorybook](https://tsuri-kiroku-staging.keisuke0322.workers.dev/storybook/)で使用中の共通部品と主要な専用部品を確認できます。ログイン不要・架空データのみで、本番には公開しません。ローカルでは`corepack pnpm storybook`を使用します。追加・更新手順は[Storybook運用](docs/storybook.md)を参照してください。
+
+## API仕様
+
+[API仕様の管理](docs/api.md)に、OpenAPIを正とした変更・生成手順を記載しています。
+[stagingのAPIドキュメント](https://tsuri-kiroku-staging.keisuke0322.workers.dev/api/docs)でログイン後に仕様の閲覧と試し打ちができます。本番には公開しません。

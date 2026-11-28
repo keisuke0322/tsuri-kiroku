@@ -1,3 +1,5 @@
+import { readJson } from '../../../../server/input';
+import { vUpdateGearSetBody } from '../../../../lib/api/generated/valibot.gen';
 import { authenticate, json, apiError } from '../../access';
 import { getDb } from '../../catches/db';
 import { setInput } from '../../gear/storage';
@@ -16,7 +18,10 @@ export async function PUT(
       .bind(id, user.userId)
       .first();
     if (!owned) return json({ error: 'セットが見つかりません。' }, 404);
-    const v = await setInput(await req.json(), user.userId);
+    const v = await setInput(
+      await readJson(req, vUpdateGearSetBody),
+      user.userId,
+    );
     const r = await getDb()
       .prepare(
         'UPDATE gear_sets SET name=?,target_species=?,method=?,gear_json=?,favorite=?,retired=? WHERE id=? AND owner_id=?',

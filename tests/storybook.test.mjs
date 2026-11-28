@@ -29,10 +29,12 @@ test('only staging serves Storybook; assets cannot bypass the worker', async () 
     { context },
   );
   const catches = new vm.SyntheticModule(
-    ['GET'],
+    ['api'],
     function () {
-      this.setExport('GET', () => {
-        throw Error('Storybook must not access catch data');
+      this.setExport('api', {
+        fetch: () => {
+          throw Error('Storybook must not access catch data');
+        },
       });
     },
     { context },
@@ -45,7 +47,7 @@ test('only staging serves Storybook; assets cannot bypass the worker', async () 
   }).outputText;
   const module = new vm.SourceTextModule(source, { context });
   await module.link((specifier) =>
-    specifier.includes('catches') ? catches : handler,
+    specifier === './server/api' ? catches : handler,
   );
   await module.evaluate();
   const worker = module.namespace.default;
@@ -53,6 +55,8 @@ test('only staging serves Storybook; assets cannot bypass the worker', async () 
   assert.deepEqual(config.assets.run_worker_first, [
     '/storybook',
     '/storybook/*',
+    '/api',
+    '/api/*',
   ]);
   let calls = 0;
   const env = {

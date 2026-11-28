@@ -1,5 +1,6 @@
 'use client';
 
+import { browserApi } from '../lib/api/generated/browser.gen';
 import { useEffect, useEffectEvent, useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { toast } from 'sonner';
@@ -8,15 +9,12 @@ import { appStyles } from '@/lib/app-styles';
 type DemoState = { count: number; initialized: boolean };
 
 async function fetchDemoState() {
-  const r = await fetch('/api/demo-data', { cache: 'no-store' });
+  const r = await browserApi.getDemoState();
   if (!r.ok) throw Error();
   let value = (await r.json()) as DemoState;
   const seeded = !value.initialized;
   if (seeded) {
-    const r = await fetch('/api/demo-data', {
-      method: 'POST',
-      cache: 'no-store',
-    });
+    const r = await browserApi.createDemoData();
     if (!r.ok) throw Error();
     value = (await r.json()) as DemoState;
   }
@@ -78,7 +76,9 @@ export default function DemoControls({
       return;
     setBusy(true);
     try {
-      const r = await fetch('/api/demo-data', { method, cache: 'no-store' });
+      const r = await (method === 'POST'
+        ? browserApi.createDemoData()
+        : browserApi.deleteDemoData());
       if (!r.ok) throw Error();
       const next = (await r.json()) as { count: number; initialized: boolean };
       setState(next);

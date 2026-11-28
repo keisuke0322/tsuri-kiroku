@@ -1,10 +1,10 @@
 {
   "name": "tsuri-kiroku",
-  "version": "0.2.0",
+  "version": "0.3.0",
   "license": "MIT",
   "private": true,
   "engines": {
-    "node": ">=22.13.0"
+    "node": ">=22.18.0"
   },
   "scripts": {
     "install:ci": "corepack pnpm install --frozen-lockfile",
@@ -14,17 +14,20 @@
     "lint": "eslint . --ignore-pattern dist --ignore-pattern .next",
     "db:generate": "drizzle-kit generate",
     "typecheck": "tsc --noEmit",
-    "test": "node --experimental-vm-modules tests/photo-storage.test.mjs && node tests/catch-validation.test.mjs && node --test tests/deployment-policy.test.mjs tests/development-branch.test.mjs tests/dependency-updates.test.mjs tests/dependency-titles.test.mjs tests/release-completion.test.mjs tests/staging-reuse.test.mjs tests/floating-resize.test.mjs tests/update-tracking.test.mjs && node --test tests/cloudflare-smoke.test.mjs && node tests/multiple-fish-migration.test.mjs && node tests/location-privacy-migration.test.mjs && node --test tests/guest-removal.test.mjs tests/legacy-method-removal.test.mjs && node --experimental-vm-modules tests/cloudflare-auth.test.mjs && node tests/optimistic-like.test.mjs && node tests/discovery.test.mjs && node tests/recipe-links.test.mjs && node --test tests/e2e-policy.test.mjs && node --test tests/issue-status.test.mjs && node --test tests/contribution-policy.test.mjs && node --test tests/third-party-licenses.test.mjs && node --test tests/ui-css-sources.test.mjs && node tests/gear.test.mjs && node --experimental-vm-modules --test tests/release-policy.test.mjs tests/version-info.test.mjs tests/app-ssr.test.mjs tests/app-shell.test.mjs && node --experimental-vm-modules --test tests/storybook.test.mjs",
+    "test": "node --experimental-vm-modules tests/photo-storage.test.mjs && node --experimental-vm-modules tests/catch-validation.test.mjs && node --test tests/deployment-policy.test.mjs tests/development-branch.test.mjs tests/dependency-updates.test.mjs tests/dependency-titles.test.mjs tests/release-completion.test.mjs tests/staging-reuse.test.mjs tests/floating-resize.test.mjs tests/update-tracking.test.mjs && node --test tests/cloudflare-smoke.test.mjs && node tests/multiple-fish-migration.test.mjs && node tests/location-privacy-migration.test.mjs && node --test tests/guest-removal.test.mjs tests/legacy-method-removal.test.mjs && node --experimental-vm-modules tests/cloudflare-auth.test.mjs && node tests/optimistic-like.test.mjs && node tests/discovery.test.mjs && node tests/recipe-links.test.mjs && node --test tests/e2e-policy.test.mjs && node --test tests/issue-status.test.mjs && node --test tests/contribution-policy.test.mjs && node --test tests/third-party-licenses.test.mjs && node --test tests/ui-css-sources.test.mjs && node tests/gear.test.mjs && node --experimental-vm-modules --test tests/release-policy.test.mjs tests/version-info.test.mjs tests/app-ssr.test.mjs tests/app-shell.test.mjs && node --experimental-vm-modules --test tests/storybook.test.mjs && node --test tests/api-client.test.mjs",
     "e2e:staging": "node scripts/staging-e2e.mjs",
     "format": "prettier --write .",
     "format:check": "prettier --check .",
     "hooks:install": "node scripts/setup-git-hooks.mjs",
     "artwork:generate": "node scripts/optimize-artwork.mjs",
     "storybook": "storybook dev -p 6006 --host 127.0.0.1 --disable-telemetry",
-    "build-storybook": "storybook build --disable-telemetry && node scripts/storybook-licenses.mjs"
+    "build-storybook": "storybook build --disable-telemetry && node scripts/storybook-licenses.mjs",
+    "api:generate": "redocly lint openapi/openapi.yaml && openapi-ts && redocly bundle openapi/openapi.yaml --output lib/api/generated/openapi.json && node scripts/api-contracts.mjs",
+    "api:check": "node scripts/api-check.mjs"
   },
   "dependencies": {
     "@base-ui/react": "^1.7.0",
+    "@scalar/hono-api-reference": "^0.12.23",
     "@shadcn/react": "^0.3.1",
     "class-variance-authority": "0.7.1",
     "clsx": "2.1.1",
@@ -32,6 +35,7 @@
     "date-fns": "^4.4.0",
     "drizzle-orm": "0.45.2",
     "embla-carousel-react": "^8.6.0",
+    "hono": "^4.13.19",
     "input-otp": "^1.4.2",
     "jose": "^6.2.17",
     "lucide-react": "^1.70.0",
@@ -52,6 +56,8 @@
   "devDependencies": {
     "@cloudflare/vite-plugin": "1.67.0",
     "@cloudflare/workers-types": "5.20261113.1",
+    "@hey-api/openapi-ts": "^0.99.0",
+    "@redocly/cli": "^2.82.0",
     "@storybook/addon-docs": "10.6.7",
     "@storybook/react-vite": "10.6.7",
     "@tailwindcss/postcss": "4.3.3",
@@ -73,7 +79,8 @@
     "typescript": "6.0.3",
     "vinext": "1.0.0-beta.5",
     "vite": "8.3.4",
-    "wrangler": "4.162.0"
+    "wrangler": "4.162.0",
+    "yaml": "^2.9.1"
   },
   "type": "module",
   "overrides": {

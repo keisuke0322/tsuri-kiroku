@@ -1,115 +1,64 @@
 import * as v from 'valibot';
-
-const text = () =>
-  v.pipe(
-    v.optional(v.unknown(), ''),
-    v.transform((value) => String(value || '').trim()),
-  );
-const requiredText = (name: string, max: number) =>
-  v.pipe(
-    text(),
-    v.nonEmpty(`${name}を入力してください。`),
-    v.maxLength(max, `${name}は${max}文字以内で入力してください。`),
-  );
-const numeric = v.pipe(
-  v.optional(v.unknown(), null),
-  v.transform((value) =>
-    value == null || (typeof value === 'string' && !value.trim())
-      ? NaN
-      : Number(value),
-  ),
-);
-const countSchema = v.pipe(
-  numeric,
-  v.number('匹数を入力してください。'),
-  v.integer('匹数は整数で入力してください。'),
-  v.minValue(1, '匹数は1〜9999で入力してください。'),
-  v.maxValue(9999, '匹数は1〜9999で入力してください。'),
-);
-const lengthSchema = v.pipe(
-  v.optional(v.unknown(), null),
-  v.transform((value) =>
-    value === '' || value == null ? null : Number(value),
-  ),
-  v.nullable(
-    v.pipe(
-      v.number('サイズは数値で入力してください。'),
-      v.finite('サイズは有限の数値で入力してください。'),
-      v.minValue(0, 'サイズは0〜999cmで入力してください。'),
-      v.maxValue(999, 'サイズは0〜999cmで入力してください。'),
-    ),
-  ),
-);
-const fishSchema = v.object({
-  species: requiredText('魚種', 80),
-  count: countSchema,
-  length: lengthSchema,
-});
-const uniqueFishSchema = v.pipe(
-  v.array(v.object({ species: requiredText('魚種', 80) })),
-  v.rawCheck(({ dataset, addIssue }) => {
-    if (!dataset.typed) return;
-    const fish = dataset.value;
-    fish.forEach((row, index) => {
-      if (
-        row.species &&
-        fish.some((other, i) => i !== index && other.species === row.species)
-      )
-        addIssue({
-          message: '魚種が重複しています。別の魚種を入力してください。',
-          path: [
-            {
-              type: 'array',
-              origin: 'value',
-              input: fish,
-              key: index,
-              value: row,
-            },
-            {
-              type: 'object',
-              origin: 'value',
-              input: row,
-              key: 'species',
-              value: row.species,
-            },
-          ],
-        });
-    });
-  }),
-);
-const fishListSchema = v.intersect([
-  v.pipe(
-    v.array(fishSchema, '魚種を入力してください。'),
-    v.minLength(1, '魚種を1つ以上登録してください。'),
-    v.maxLength(20, '魚種は20種類まで登録できます。'),
-  ),
-  uniqueFishSchema,
-]);
+import { vNormalizedCatch } from '../lib/api/generated/valibot.gen';
+import type { NormalizedFish } from '../lib/api/generated/types.gen';
 
 function validDate(value: string) {
-  if (!/^\d{4}-\d{2}-\d{2}$/.test(value)) return false;
   const date = new Date(value + 'T00:00:00Z');
   return (
     Number.isFinite(date.getTime()) && date.toISOString().slice(0, 10) === value
   );
 }
 
-export const catchSchema = v.object({
-  date: v.pipe(
-    v.optional(v.unknown(), ''),
-    v.transform((value) => String(value || '')),
-    v.nonEmpty('釣行日を選択してください。'),
-    v.check(validDate, '釣行日には有効な日付を指定してください。'),
-  ),
-  location: requiredText('場所', 120),
-  fish: fishListSchema,
-  memo: v.pipe(
-    text(),
-    v.maxLength(2000, 'メモは2000文字以内で入力してください。'),
-  ),
-});
+// OpenAPI owns field constraints. These checks cover calendar and cross-row rules.
+export const catchSchema = v.intersect([
+  v.object({
+    ...vNormalizedCatch.entries,
+    date: v.pipe(vNormalizedCatch.entries.date, v.check(validDate)),
+  }),
+  v.object({
+    fish: v.pipe(
+      v.array(v.object({ species: v.string() })),
+      v.rawCheck(({ dataset, addIssue }) => {
+        if (!dataset.typed) return;
+        dataset.value.forEach((row, index, fish) => {
+          if (
+            row.species &&
+            fish.some(
+              (other, i) => i !== index && other.species === row.species,
+            )
+          )
+            addIssue({
+              message: '魚種が重複しています。別の魚種を入力してください。',
+              path: [
+                {
+                  type: 'array',
+                  origin: 'value',
+                  input: fish,
+                  key: index,
+                  value: row,
+                },
+                {
+                  type: 'object',
+                  origin: 'value',
+                  input: row,
+                  key: 'species',
+                  value: row.species,
+                },
+              ],
+            });
+        });
+      }),
+    ),
+  }),
+]);
 
 export type CatchFieldErrors = Record<string, string>;
+
+const text = (value: unknown) => String(value || '').trim();
+const numeric = (value: unknown) =>
+  value == null || (typeof value === 'string' && !value.trim())
+    ? NaN
+    : Number(value);
 
 export function validateCatch(input: unknown) {
   const value =
@@ -117,19 +66,43 @@ export function validateCatch(input: unknown) {
       ? (input as Record<string, unknown>)
       : {};
   const legacy = !Array.isArray(value.fish);
+  const rows = legacy
+    ? [{ species: value.species, count: value.count, length: value.length }]
+    : (value.fish as unknown[]);
   const normalized = {
-    ...value,
-    fish: legacy
-      ? [{ species: value.species, count: value.count, length: value.length }]
-      : value.fish,
+    date: String(value.date || ''),
+    location: text(value.location),
+    memo: text(value.memo),
+    fish: rows.map((raw) => {
+      const row =
+        raw && typeof raw === 'object' ? (raw as Record<string, unknown>) : {};
+      return {
+        species: text(row.species),
+        count: numeric(row.count),
+        length:
+          row.length === '' || row.length == null ? null : Number(row.length),
+      };
+    }),
   };
   const result = v.safeParse(catchSchema, normalized);
   const errors: CatchFieldErrors = {};
+  const messages: Record<string, string> = {
+    date: '釣行日には有効な日付を指定してください。',
+    location: '場所を入力し、文字数を確認してください。',
+    memo: 'メモの文字数を確認してください。',
+    species: '魚種を入力し、文字数を確認してください。',
+    count: '匹数は1〜9999の整数で入力してください。',
+    length: 'サイズは0〜999cmで入力してください。',
+    fish: '魚種は1つ以上登録し、件数を確認してください。',
+  };
   if (!result.success)
     for (const issue of result.issues) {
       const key =
         issue.path?.map((part) => String(part.key)).join('.') || 'form';
-      errors[key] ??= issue.message;
+      const field = key.split('.').at(-1)!;
+      errors[key] ??= issue.message.startsWith('魚種が重複')
+        ? issue.message
+        : messages[field] || '入力内容を確認してください。';
     }
   return result.success
     ? { success: true as const, data: { ...result.output, legacy }, errors }
@@ -141,4 +114,4 @@ export function parseCatch(input: unknown) {
   return result.success ? result.data : null;
 }
 
-export type FishInput = v.InferOutput<typeof fishSchema>;
+export type FishInput = NormalizedFish;

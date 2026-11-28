@@ -1,5 +1,6 @@
 'use client';
 
+import { browserApi } from '../lib/api/generated/browser.gen';
 import { useEffect, useEffectEvent, useRef, useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -40,26 +41,13 @@ import { appStyles } from '@/lib/app-styles';
 import { cn } from '@/lib/utils';
 
 export async function gearRequest<T>(
-  path: string,
-  value?: unknown,
-  method = 'POST',
-  signal?: AbortSignal,
+  pending: Promise<import('../lib/api/browser').ApiResponse<T>>,
 ): Promise<T> {
-  const response = await fetch(path, {
-    cache: 'no-store',
-    signal,
-    ...(value === undefined
-      ? {}
-      : {
-          method,
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify(value),
-        }),
-  });
+  const response = await pending;
   const result = (await response.json()) as T & { error?: string };
   if (!response.ok)
     throw Error(result.error || '読み込み・保存に失敗しました。');
-  return result as T;
+  return result;
 }
 
 export function GearPicker({
@@ -97,7 +85,7 @@ export function GearPicker({
       };
       const item = temporary
         ? { ...input, id: null }
-        : await gearRequest<Gear>('/api/gear', input);
+        : await gearRequest(browserApi.createGear({ body: input }));
       if (item.id !== null) onCreated(item as Gear);
       onChange([...value, snapshot(item)]);
       setName('');
@@ -307,11 +295,11 @@ export function GearHistoryPanel({
     if (gearId) q.set('gearId', gearId);
     if (setId) q.set('setId', setId);
     if (signature) q.set('combinationId', signature);
-    void gearRequest<{ items: GearHistory[]; more: boolean }>(
-      '/api/gear-history?' + q,
-      undefined,
-      'POST',
-      controller.signal,
+    void gearRequest(
+      browserApi.getGearHistory({
+        query: Object.fromEntries(q),
+        signal: controller.signal,
+      }),
     )
       .then((v) => {
         if (!controller.signal.aborted) apply(v, requestKey);

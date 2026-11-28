@@ -1,3 +1,5 @@
+import { readJson } from '../../../../server/input';
+import { vUpdateCatchBody } from '../../../../lib/api/generated/valibot.gen';
 import {
   combinationsInput,
   combinationStatements,
@@ -20,7 +22,10 @@ export async function PUT(
       id = validId((await ctx.params).id);
     if (!id) return json({ error: '記録が見つかりません。' }, 400);
     await ownedCatch(id, user.userId);
-    const body = (await req.json()) as Record<string, unknown>,
+    const body = (await readJson(req, vUpdateCatchBody)) as Record<
+        string,
+        unknown
+      >,
       v = parseCatch(body);
     if (!v) return json({ error: '入力内容を確認してください。' }, 400);
     let combinations = await combinationsInput(

@@ -104,3 +104,10 @@
 - Storyは実際の部品を読み込み、通常・エラー・無効状態など適用可能な状態とPC・スマートフォン幅を確認する。StoryのMetaには重複しない英数字の`id`を指定する。
 - 公開はstagingの`/storybook/`のみ。架空の固定データを使い、API・DB・R2を呼び出さない。詳しくは[Storybook運用](docs/storybook.md)を参照する。
 - UI変更時は`corepack pnpm run build-storybook`も実行する。本番の生成物にStorybookを含めない制御と404検証を維持する。
+
+## API仕様とコード生成
+
+- API仕様の編集元は`openapi/openapi.yaml`。変更時は仕様を先に編集し、`corepack pnpm run api:generate`で型・Valibot・クライアント・操作一覧を再生成する。`lib/api/generated`は手動編集しない。
+- API処理は共通のHonoアプリに登録し、画面の通信には生成クライアントを使用する。認証・所有権・入力の正規化と業務検証を維持する。
+- `corepack pnpm run api:check`と型チェック・契約テストで仕様との一致を確認する。運用と公開範囲は[API仕様の管理](docs/api.md)を参照する。
+- APIドキュメントはログイン後の開発・staging限定。本番では`/api/docs`と`/api/openapi.json`を404にする。

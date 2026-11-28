@@ -6,7 +6,7 @@ export const privateHeaders = {
   Vary: 'Cookie, Authorization',
 };
 
-export function json(value: unknown, status = 200) {
+export function json<T = unknown>(value: T, status = 200) {
   return Response.json(value, { status, headers: privateHeaders });
 }
 
@@ -42,7 +42,8 @@ export function apiError(error: unknown) {
   );
 }
 
-export type Profile = { userId: string; displayName: string; bio: string };
+export type { Profile } from '../../lib/api/generated/types.gen';
+import type { Profile } from '../../lib/api/generated/types.gen';
 
 export async function ensureProfile(user: AppUser): Promise<Profile> {
   const db = getDb();

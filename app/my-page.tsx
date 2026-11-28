@@ -1,5 +1,6 @@
 'use client';
 
+import { browserApi } from '../lib/api/generated/browser.gen';
 import { useEffect, useEffectEvent, useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -8,11 +9,7 @@ import { gearRequest } from './gear-controls';
 import { appStyles } from '@/lib/app-styles';
 import { cn } from '@/lib/utils';
 
-type StorageSummary = {
-  usedBytes: number;
-  limitBytes: number;
-  initialized: boolean;
-};
+import type { StorageSummary } from '../lib/api/generated/types.gen';
 
 export default function MyPage({
   profile,
@@ -40,7 +37,7 @@ export default function MyPage({
   useEffect(() => {
     if (!active) return;
     let current = true;
-    void gearRequest<StorageSummary>('/api/profile/storage')
+    void gearRequest(browserApi.getPhotoStorage())
       .then((v) => {
         if (current) apply(v);
       })

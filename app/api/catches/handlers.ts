@@ -1,3 +1,6 @@
+import type { Catch, Created } from '../../../lib/api/generated/types.gen';
+import { readJson } from '../../../server/input';
+import { vCreateCatchBody } from '../../../lib/api/generated/valibot.gen';
 import {
   combinationsInput,
   combinationStatements,
@@ -16,6 +19,26 @@ import {
   ApiError,
 } from '../access';
 import { initializePhotoStorage } from './photo-storage';
+
+type CatchRow = Omit<
+  Catch,
+  | 'fish'
+  | 'photos'
+  | 'photoIds'
+  | 'position'
+  | 'locationVisibility'
+  | 'locationHidden'
+  | 'publicArea'
+  | 'combinations'
+  | 'liked'
+> & {
+  liked: number;
+  location_visibility: Catch['locationVisibility'];
+  public_latitude: number | null;
+  public_longitude: number | null;
+  guest_public?: unknown;
+  method?: unknown;
+};
 
 function groupByCatch<T extends { catch_id: number }>(rows: T[]) {
   const groups = new Map<number, T[]>();
@@ -64,7 +87,7 @@ export async function GET(req: Request) {
         'SELECT * FROM catch_combinations ORDER BY catch_id,sort_order',
       ),
     ])) as [
-      D1Result<Record<string, unknown>>,
+      D1Result<CatchRow>,
       D1Result<{
         id: number;
         catch_id: number;
@@ -79,7 +102,7 @@ export async function GET(req: Request) {
         spot_id: number | null;
         latitude: number;
         longitude: number;
-        source: string;
+        source: NonNullable<Catch['position']>['source'];
       }>,
       D1Result<CombinationRow>,
     ];
@@ -90,7 +113,7 @@ export async function GET(req: Request) {
         positions.results.map((position) => [position.catch_id, position]),
       );
     return json(
-      r.results.map((row) => {
+      r.results.map((row): Catch => {
         const catchId = Number(row.id),
           rows = fishByCatch.get(catchId) || [],
           fallback = [
@@ -165,7 +188,7 @@ export async function GET(req: Request) {
 export async function POST(req: Request) {
   try {
     const user = await authenticate(req),
-      body = (await req.json()) as Record<string, unknown>,
+      body = (await readJson(req, vCreateCatchBody)) as Record<string, unknown>,
       v = parseCatch(body);
     if (!v) return json({ error: '入力内容を確認してください。' }, 400);
     const combinations = await combinationsInput(
@@ -213,7 +236,7 @@ export async function POST(req: Request) {
       ),
       ...(position ? [positionStatement(id, position, spotId)] : []),
     ]);
-    return json({ id }, 201);
+    return json<Created>({ id }, 201);
   } catch (e) {
     return apiError(e);
   }

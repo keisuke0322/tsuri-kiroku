@@ -6,7 +6,7 @@
     "binding": "ASSETS",
     "html_handling": "none",
     "not_found_handling": "none",
-    "run_worker_first": ["/storybook", "/storybook/*"]
+    "run_worker_first": ["/storybook", "/storybook/*", "/api", "/api/*"]
   },
   "compatibility_date": "2026-09-01",
   "compatibility_flags": ["nodejs_compat"],
@@ -27,6 +27,7 @@
     }
   ],
   "vars": {
-    "APP_ORIGIN": "http://localhost:5173"
+    "APP_ORIGIN": "http://localhost:5173",
+    "APP_ENV": "local"
   }
 }

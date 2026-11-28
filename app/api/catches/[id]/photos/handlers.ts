@@ -1,3 +1,5 @@
+import * as v from 'valibot';
+import { vUploadPhotoBody } from '../../../../../lib/api/generated/valibot.gen';
 import {
   authenticate,
   ownedCatch,
@@ -33,6 +35,12 @@ export async function POST(
       file = form.get('photo');
     const species = String(form.get('species') || '').trim(),
       featured = form.get('featured') === 'true';
+    const parsedForm = v.safeParse(
+      v.object({ ...vUploadPhotoBody.entries, photo: v.file() }),
+      Object.fromEntries(form),
+    );
+    if (!parsedForm.success && file instanceof File)
+      return json({ error: '写真の入力内容を確認してください。' }, 400);
     if (!(file instanceof File))
       return json({ error: '写真を選んでください。' }, 400);
     if (

@@ -24,6 +24,16 @@ test('the prebuilt root renders a public login screen without authentication or 
       { context },
     );
   modules.set('react', synthetic(react));
+  modules.set(
+    '../lib/api/generated/browser.gen',
+    synthetic({
+      browserApi: {
+        getBootstrap() {
+          throw Error('SSR must not request API');
+        },
+      },
+    }),
+  );
   modules.set('clsx', synthetic(clsx));
   modules.set('tailwind-merge', synthetic(tailwindMerge));
   modules.set('react/jsx-runtime', synthetic(jsxRuntime));

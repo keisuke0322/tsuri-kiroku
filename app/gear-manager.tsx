@@ -1,5 +1,6 @@
 'use client';
 
+import { browserApi } from '../lib/api/generated/browser.gen';
 import { useRef, useState, type ReactNode } from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -162,10 +163,13 @@ export default function GearManager({
     setBusy(true);
     setFormError('');
     try {
-      const g = await gearRequest<Gear>(
-        '/api/gear' + (value.id ? `/${value.id}` : ''),
-        value,
-        value.id ? 'PUT' : 'POST',
+      const g = await gearRequest(
+        value.id
+          ? browserApi.updateGear({
+              path: { id: String(value.id) },
+              body: value,
+            })
+          : browserApi.createGear({ body: value }),
       );
       onUpdated(g);
       if (fromEditor) {
@@ -188,10 +192,13 @@ export default function GearManager({
     setBusy(true);
     setFormError('');
     try {
-      const s = await gearRequest<GearSet>(
-        '/api/gear-sets' + (value.id ? `/${value.id}` : ''),
-        value,
-        value.id ? 'PUT' : 'POST',
+      const s = await gearRequest(
+        value.id
+          ? browserApi.updateGearSet({
+              path: { id: String(value.id) },
+              body: value,
+            })
+          : browserApi.createGearSet({ body: value }),
       );
       onSetUpdated(s);
       if (fromEditor) onSetDraft(null);
