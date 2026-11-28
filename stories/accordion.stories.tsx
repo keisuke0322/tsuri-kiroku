@@ -15,7 +15,7 @@ const meta = {
 export default meta;
 export const Default: StoryObj<typeof meta> = {
   render: () => (
-    <div className="story-surface">
+    <div className="w-[min(100%,640px)] p-4">
       <Accordion type="single" collapsible>
         <AccordionItem value="gear">
           <AccordionTrigger>道具の情報</AccordionTrigger>

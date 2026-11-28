@@ -13,6 +13,8 @@ import {
 } from '@/components/ui/dialog';
 import GoogleMap from './google-map';
 import type { LocationEntry } from './location-privacy';
+import { appStyles } from '@/lib/app-styles';
+import { cn } from '@/lib/utils';
 
 export default function LocationMapDialog({
   entry,
@@ -24,7 +26,7 @@ export default function LocationMapDialog({
   const trigger = useRef<HTMLButtonElement>(null);
   if (entry.locationHidden)
     return (
-      <p className="place" data-cy="location-hidden">
+      <p className={appStyles.place} data-cy="location-hidden">
         <MapPin size={16} />
         場所は非公開
       </p>
@@ -35,7 +37,7 @@ export default function LocationMapDialog({
         <button
           ref={trigger}
           type="button"
-          className="place location-map-trigger"
+          className={cn(appStyles.place, appStyles.locationMapTrigger)}
           data-cy="location-map-trigger"
           aria-label={`${entry.location}の地図を表示`}
         >
@@ -44,7 +46,7 @@ export default function LocationMapDialog({
         </button>
       </DialogTrigger>
       <DialogContent
-        className="location-map-dialog"
+        className={appStyles.locationMapDialog}
         data-cy="location-map-dialog"
         onCloseAutoFocus={(e) => {
           e.preventDefault();
@@ -52,7 +54,9 @@ export default function LocationMapDialog({
         }}
       >
         <DialogHeader>
-          <DialogTitle>{entry.location}</DialogTitle>
+          <DialogTitle className={appStyles.dialogTitle}>
+            {entry.location}
+          </DialogTitle>
           <DialogDescription>
             {entry.position
               ? '釣行場所'
@@ -82,7 +86,7 @@ export default function LocationMapDialog({
         ) : entry.publicArea ? (
           <div data-cy="location-area">
             <GoogleMap apiKey={apiKey} area={entry.publicArea} />
-            <p className="photo-help">
+            <p className={appStyles.photoHelp}>
               釣行場所を含むおおよそのエリアです。円の中心は実際に釣った地点を示すものではありません。
             </p>
           </div>
@@ -92,11 +96,7 @@ export default function LocationMapDialog({
           </p>
         )}
         <DialogClose asChild>
-          <button
-            type="button"
-            className="map-action"
-            data-cy="close-location-map"
-          >
+          <button type="button" data-cy="close-location-map">
             閉じる
           </button>
         </DialogClose>

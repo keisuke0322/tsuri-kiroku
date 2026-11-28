@@ -69,11 +69,11 @@ function visit(mode = 'ready', gps = 'denied') {
   });
   cy.visit('/');
   cy.get(by('record-catch')).should('be.visible');
-  cy.get('.discovery-loading').should('not.exist');
+  cy.get('[data-cy="discovery-loading"]').should('not.exist');
 }
 
 function headings(width) {
-  cy.get('.entry-form > .catch-section > legend').should(($legends) => {
+  cy.get('[data-cy="entry-form"] > fieldset > legend').should(($legends) => {
     expect([...$legends].map((el) => el.textContent)).to.deep.equal([
       '釣りをした場所',
       '釣った魚',
@@ -96,7 +96,7 @@ function headings(width) {
       .should('have.attr', 'required');
     cy.contains('地図の位置を指定しなくても保存できます。').should('exist');
     cy.get(by('catch-location')).then(($name) => {
-      cy.get('.position-editor').then(($position) => {
+      cy.get('[data-cy="position-editor"]').then(($position) => {
         cy.get(by('location-visibility')).then(($visibility) => {
           expect($name[0].compareDocumentPosition($position[0]) & 4).to.equal(
             4,
@@ -128,7 +128,7 @@ function save() {
   return cy.wait('@createForm').then(({ response }) => {
     expect(response.statusCode).to.equal(201);
     createdIds.push(response.body.id);
-    cy.get('.entry-form').should('not.exist');
+    cy.get('[data-cy="entry-form"]').should('not.exist');
     return cy.wrap(response.body.id);
   });
 }
@@ -181,11 +181,11 @@ describe('釣果フォームの区分・任意の位置指定', () => {
       cy.get(by('position-status')).should('contain', '位置未指定');
       cy.get(by('selected-position')).should('not.exist');
       cy.contains('検索だけでは位置は確定しません。').should('exist');
-      cy.get('.position-editor ' + by('google-map')).click();
+      cy.get('[data-cy="position-editor"] ' + by('google-map')).click();
       cy.get(by('position-status')).should('contain', '位置指定済み');
       cy.get(by('get-location')).click();
       cy.get(by('selected-position')).should('contain', '35.123000');
-      cy.get('.position-editor [role="alert"]').should(
+      cy.get('[data-cy="position-editor"] [role="alert"]').should(
         'contain',
         '地図をタップして位置を指定できます。',
       );
@@ -200,7 +200,7 @@ describe('釣果フォームの区分・任意の位置指定', () => {
             : '位置未指定',
         );
       }
-      cy.get('.position-editor ' + by('google-map')).click();
+      cy.get('[data-cy="position-editor"] ' + by('google-map')).click();
       cy.get(by('location-visibility')).select('exact');
       cy.get(by('location-visibility-help')).should(
         'contain',
@@ -239,7 +239,7 @@ describe('釣果フォームの区分・任意の位置指定', () => {
       cy.get(by('get-location')).click();
       cy.contains('この端末では現在地を取得できません。').should('be.visible');
       cy.contains('場所名だけでも保存できます。').should('be.visible');
-      cy.get('.position-editor [role="alert"]').should(
+      cy.get('[data-cy="position-editor"] [role="alert"]').should(
         'not.contain',
         '地図をタップ',
       );
@@ -301,7 +301,7 @@ describe('釣果フォームの区分・任意の位置指定', () => {
         card(id).find(by('edit-catch')).click();
         cy.contains('地図を読み込めません。').should('be.visible');
         cy.get(by('get-location')).click();
-        cy.get('.position-editor [role="alert"]')
+        cy.get('[data-cy="position-editor"] [role="alert"]')
           .should('contain', '現在地を取得できませんでした。')
           .and('not.contain', '地図をタップ');
         cy.get(by('position-status')).should('contain', '位置指定済み');

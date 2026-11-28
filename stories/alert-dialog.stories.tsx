@@ -12,6 +12,7 @@ import {
   AlertDialogCancel,
   AlertDialogAction,
 } from '@/components/ui/alert-dialog';
+import { appStyles } from '@/lib/app-styles';
 
 const meta = {
   id: 'alert-dialog',
@@ -28,7 +29,9 @@ export const Default: StoryObj<typeof meta> = {
       </AlertDialogTrigger>
       <AlertDialogContent>
         <AlertDialogHeader>
-          <AlertDialogTitle>記録を削除しますか？</AlertDialogTitle>
+          <AlertDialogTitle className={appStyles.dialogTitle}>
+            記録を削除しますか？
+          </AlertDialogTitle>
           <AlertDialogDescription>
             確認ダイアログの例です。実際の記録は削除しません。
           </AlertDialogDescription>

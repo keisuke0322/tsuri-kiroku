@@ -36,6 +36,8 @@ import {
   type Combination,
   type GearHistory,
 } from './gear';
+import { appStyles } from '@/lib/app-styles';
+import { cn } from '@/lib/utils';
 
 export async function gearRequest<T>(
   path: string,
@@ -121,15 +123,15 @@ export function GearPicker({
         a.name.localeCompare(b.name, 'ja'),
     );
   return (
-    <div className="gear-picker">
-      <div className="gear-chips">
+    <div className={appStyles.gearPicker}>
+      <div>
         {value.map((g, i) => (
-          <div key={i} className="gear-chip" data-cy="selected-gear">
+          <div key={i} className={appStyles.gearChip} data-cy="selected-gear">
             <span>
               {g.kind}：{g.name} {g.spec}
               {g.id === null && '（今回だけ）'}
               {gear.find((item) => item.id === g.id)?.retired && (
-                <strong className="retired-note">
+                <strong className={appStyles.retiredNote}>
                   {' '}
                   使用終了・差し替え／取り外しを確認してください
                 </strong>
@@ -152,7 +154,7 @@ export function GearPicker({
         value={query}
         onChange={(e) => setQuery(e.target.value)}
       />
-      <div className="gear-options">
+      <div className={appStyles.gearOptions}>
         {candidates.map((g) => (
           <label key={g.id}>
             <input
@@ -176,7 +178,7 @@ export function GearPicker({
         ))}
       </div>
       {!candidates.length && (
-        <p className="gear-help">選択できる道具がありません。</p>
+        <p className={appStyles.gearHelp}>選択できる道具がありません。</p>
       )}
       {allowCreate && (
         <Button
@@ -188,7 +190,7 @@ export function GearPicker({
         </Button>
       )}
       {adding && (
-        <div className="gear-inline-add">
+        <div className={appStyles.gearInlineAdd}>
           <label>
             種類
             <select
@@ -210,7 +212,7 @@ export function GearPicker({
               onChange={(e) => setName(e.target.value)}
             />
           </label>
-          <label className="gear-check">
+          <label className={appStyles.gearCheck}>
             <input
               type="checkbox"
               checked={temporary}
@@ -230,7 +232,7 @@ export function GearPicker({
 
 export function CombinationDisplay({ value }: { value: Combination }) {
   return (
-    <div className="combination-summary">
+    <div className={appStyles.combinationSummary}>
       <strong>
         {value.setName || '個別の組み合わせ'}
         {value.method && ` ／ ${value.method}`}
@@ -320,9 +322,9 @@ export function GearHistoryPanel({
     return () => controller.abort();
   }, [active, gearId, setId, species, signature, offset, revision, requestKey]);
   return (
-    <section className="gear-history" aria-label="使用履歴">
+    <section className={appStyles.gearHistory} aria-label="使用履歴">
       <h3>その組み合わせを使用した記録</h3>
-      <p className="gear-help">
+      <p className={appStyles.gearHelp}>
         匹数・サイズは記録全体の魚種別合計です。組み合わせだけの釣果としては集計しません。
       </p>
       <label>
@@ -364,13 +366,13 @@ export function GearHistoryPanel({
       ) : (
         items.map((c) => (
           <article
-            className="gear-history-card"
+            className={appStyles.gearHistoryCard}
             key={c.id}
             data-cy="gear-history-card"
           >
             <p>{c.date}</p>
             <CombinationDisplay value={c} />
-            <div className="gear-actions">
+            <div className={appStyles.gearActions}>
               <Button type="button" variant="outline" onClick={() => onCopy(c)}>
                 今回の記録へコピー
               </Button>
@@ -404,7 +406,7 @@ export function GearHistoryPanel({
           </article>
         ))
       )}
-      <div className="gear-actions">
+      <div className={appStyles.gearActions}>
         <Button
           type="button"
           variant="outline"
@@ -490,8 +492,12 @@ function CombinationCard({
   );
   return (
     <Collapsible open={expanded} onOpenChange={setExpanded} asChild>
-      <div className="combination-card" ref={card} data-cy="combination-editor">
-        <div className="combination-heading">
+      <div
+        className={appStyles.combinationCard}
+        ref={card}
+        data-cy="combination-editor"
+      >
+        <div className={appStyles.combinationHeading}>
           <strong>組み合わせ {index + 1}</strong>
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
@@ -555,10 +561,13 @@ function CombinationCard({
               ))}
           </select>
         </label>
-        <p className="gear-help">
+        <p className={appStyles.gearHelp}>
           基本セットは変更せず、この記録だけ道具を差し替えられます。
         </p>
-        <div className="combination-overview" data-cy="combination-overview">
+        <div
+          className={appStyles.combinationOverview}
+          data-cy="combination-overview"
+        >
           <p>
             道具：
             {c.gear
@@ -571,13 +580,13 @@ function CombinationCard({
           <p>対象魚種：{c.species.join('・') || '指定なし'}</p>
         </div>
         {!!retired.length && (
-          <p className="retired-note">
+          <p className={appStyles.retiredNote}>
             使用終了：{retired.map((g) => g.name).join('・')}
             。差し替え・取り外しを確認してください。
           </p>
         )}
         {c.setId && sets.find((s) => s.id === c.setId)?.retired && (
-          <p className="retired-note">
+          <p className={appStyles.retiredNote}>
             登録解除したセットです。使用内容は保持しています。
           </p>
         )}
@@ -594,8 +603,8 @@ function CombinationCard({
               aria-hidden="true"
               className={
                 expanded
-                  ? 'combination-chevron expanded'
-                  : 'combination-chevron'
+                  ? cn(appStyles.combinationChevron, appStyles.expanded)
+                  : appStyles.combinationChevron
               }
             />
           </Button>
@@ -603,7 +612,7 @@ function CombinationCard({
         <CollapsibleContent
           forceMount
           hidden={!expanded}
-          className="combination-details"
+          className={appStyles.combinationDetails}
           data-cy="combination-details"
         >
           <GearPicker
@@ -618,7 +627,7 @@ function CombinationCard({
             onChange={(method) => onChange({ method })}
             suggestions={[...sets.map((s) => s.method), ...methods]}
           />
-          <div className="gear-species">
+          <div className={appStyles.gearSpecies}>
             <span>魚種との紐づけ（任意）</span>
             {fish.map((name) => (
               <label key={name}>
@@ -653,7 +662,9 @@ function CombinationCard({
             }}
           >
             <AlertDialogHeader>
-              <AlertDialogTitle>基本セットを変更しますか？</AlertDialogTitle>
+              <AlertDialogTitle className={appStyles.dialogTitle}>
+                基本セットを変更しますか？
+              </AlertDialogTitle>
               <AlertDialogDescription>
                 道具と釣り方を「{pending?.setName}
                 」の内容に置き換えます。魚種の紐づけは維持します。
@@ -738,11 +749,11 @@ export function CombinationEditor({
   return (
     <fieldset
       ref={editor}
-      className="combination-editor catch-section"
+      className={cn(appStyles.combinationEditor, appStyles.catchSection)}
       data-cy="gear-section"
     >
       <legend>使用した釣り道具（任意）</legend>
-      <p className="gear-help">
+      <p className={appStyles.gearHelp}>
         この釣行で使った道具と釣り方を、組み合わせごとに記録できます。基本セットから選ぶか、「道具・詳細を変更」で入力してください。最大20組・各30点。
       </p>
       {value.map((c, index) => (
@@ -781,7 +792,7 @@ export function CombinationEditor({
           }}
         />
       ))}
-      <div className="gear-actions">
+      <div className={appStyles.gearActions}>
         <Button
           type="button"
           variant="outline"

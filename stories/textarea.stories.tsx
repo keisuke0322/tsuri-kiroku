@@ -1,5 +1,7 @@
 import type { Meta, StoryObj } from '@storybook/react-vite';
 import { Textarea } from '@/components/ui/textarea';
+import { appStyles } from '@/lib/app-styles';
+import { cn } from '@/lib/utils';
 
 const meta = {
   id: 'textarea',
@@ -18,9 +20,9 @@ export const Disabled: Story = { args: { disabled: true } };
 export const Error: Story = {
   args: { 'aria-invalid': true, 'aria-describedby': 'input-error' },
   render: (args) => (
-    <div className="entry-form story-surface">
+    <div className={cn(appStyles.entryForm, 'w-[min(100%,640px)] p-4')}>
       <Textarea {...args} />
-      <span id="input-error" className="field-error">
+      <span id="input-error" className={appStyles.fieldError}>
         入力内容を確認してください。
       </span>
     </div>

@@ -25,6 +25,8 @@ import {
   type Combination,
 } from './gear';
 import { toast } from 'sonner';
+import { appStyles } from '@/lib/app-styles';
+import { cn } from '@/lib/utils';
 
 const emptyGear = () => ({
   id: 0,
@@ -71,12 +73,12 @@ function GearEditDialog({
       }}
     >
       <DialogContent
-        className="gear-edit-dialog"
+        className={appStyles.gearEditDialog}
         showCloseButton={false}
         onCloseAutoFocus={onCloseAutoFocus}
       >
         <DialogHeader>
-          <DialogTitle>{title}</DialogTitle>
+          <DialogTitle className={appStyles.dialogTitle}>{title}</DialogTitle>
           <DialogDescription>
             ※は必須項目です。閉じても入力内容を保持します。
           </DialogDescription>
@@ -84,7 +86,7 @@ function GearEditDialog({
         <Button
           type="button"
           variant="ghost"
-          className="gear-dialog-close"
+          className={appStyles.gearDialogClose}
           data-cy="close-gear-dialog"
           disabled={busy}
           onClick={() => onOpenChange(false)}
@@ -211,7 +213,10 @@ export default function GearManager({
     (!favorite || v.favorite) &&
     (status === 'all' || v.retired === (status === 'retired'));
   return (
-    <section className="container gear-manager" aria-label="道具の管理">
+    <section
+      className={cn(appStyles.container, appStyles.gearManager)}
+      aria-label="道具の管理"
+    >
       <h1>道具と基本セット</h1>
       <p>
         自分の道具・お気に入りと使用履歴を管理できます。管理用メモは本人だけに表示されます。
@@ -224,7 +229,11 @@ export default function GearManager({
           </Button>
         </p>
       )}
-      <div className="gear-tabs" role="tablist" aria-label="道具の表示">
+      <div
+        className={appStyles.gearTabs}
+        role="tablist"
+        aria-label="道具の表示"
+      >
         <button
           role="tab"
           aria-selected={tab === 'gear'}
@@ -248,7 +257,7 @@ export default function GearManager({
         </button>
       </div>
       {tab !== 'history' && (
-        <div className="gear-filters">
+        <div className={appStyles.gearFilters}>
           <Input
             aria-label="道具・セットの名前検索"
             data-cy="gear-search"
@@ -271,7 +280,7 @@ export default function GearManager({
             <option value="retired">使用終了・登録解除</option>
             <option value="all">すべて</option>
           </select>
-          <label className="gear-check">
+          <label className={appStyles.gearCheck}>
             <input
               type="checkbox"
               checked={favorite}
@@ -315,7 +324,7 @@ export default function GearManager({
 
         <Accordion
           type="multiple"
-          className="gear-kind-list"
+          className={appStyles.gearKindList}
           value={expandedKinds}
           onValueChange={setExpandedKinds}
         >
@@ -328,18 +337,18 @@ export default function GearManager({
                   <AccordionItem
                     key={k}
                     value={k}
-                    className="gear-kind-group"
+                    className={appStyles.gearKindGroup}
                     data-cy="gear-kind-group"
                     data-gear-kind={k}
                   >
                     <AccordionTrigger
-                      className="gear-kind-toggle"
+                      className={appStyles.gearKindToggle}
                       data-cy="gear-kind-toggle"
                     >
-                      <span className="gear-kind-title">
+                      <span className={appStyles.gearKindTitle}>
                         <span>{k}</span>
                         <span
-                          className="gear-kind-count"
+                          className={appStyles.gearKindCount}
                           data-cy="gear-kind-count"
                         >
                           {rows.length}点
@@ -347,14 +356,14 @@ export default function GearManager({
                       </span>
                     </AccordionTrigger>
                     <AccordionContent
-                      className="gear-kind-content"
+                      className={appStyles.gearKindContent}
                       data-cy="gear-kind-content"
                     >
-                      <div className="gear-grid">
+                      <div className={appStyles.gearGrid}>
                         {rows.map((g) => (
                           <article
                             key={g.id}
-                            className="gear-card"
+                            className={appStyles.gearCard}
                             data-cy="gear-card"
                             data-gear-id={g.id}
                           >
@@ -368,9 +377,11 @@ export default function GearManager({
                                 .join(' ／ ')}
                             </p>
                             {g.memo && (
-                              <p className="gear-private-memo">{g.memo}</p>
+                              <p className={appStyles.gearPrivateMemo}>
+                                {g.memo}
+                              </p>
                             )}
-                            <div className="gear-actions">
+                            <div className={appStyles.gearActions}>
                               <button
                                 type="button"
                                 disabled={busy}
@@ -431,7 +442,7 @@ export default function GearManager({
         </Button>
         {sets.filter(visible).map((s) => (
           <article
-            className="gear-card"
+            className={appStyles.gearCard}
             data-cy="gear-set-card"
             key={s.id}
             data-set-id={s.id}
@@ -451,7 +462,7 @@ export default function GearManager({
                 )
                 .join('、') || '道具未選択'}
             </p>
-            <div className="gear-actions">
+            <div className={appStyles.gearActions}>
               <button
                 type="button"
                 disabled={busy}
@@ -508,15 +519,15 @@ export default function GearManager({
           onCloseAutoFocus={restoreFocus}
         >
           <form
-            className="entry-form gear-edit"
+            className={cn(appStyles.entryForm, appStyles.gearEdit)}
             data-cy="gear-form"
             onSubmit={(e) => {
               e.preventDefault();
               void saveGear(draft, true);
             }}
           >
-            <fieldset disabled={busy} className="gear-dialog-fieldset">
-              <div className="gear-dialog-fields">
+            <fieldset disabled={busy} className={appStyles.gearDialogFieldset}>
+              <div className={appStyles.gearDialogFields}>
                 <label>
                   種類 ※
                   <select
@@ -566,7 +577,7 @@ export default function GearManager({
                     }
                   />
                 </label>
-                <label className="gear-check">
+                <label className={appStyles.gearCheck}>
                   <input
                     type="checkbox"
                     checked={draft.favorite}
@@ -576,7 +587,7 @@ export default function GearManager({
                   />
                   ★ お気に入り
                 </label>
-                <label className="gear-check">
+                <label className={appStyles.gearCheck}>
                   <input
                     type="checkbox"
                     checked={draft.retired}
@@ -589,7 +600,9 @@ export default function GearManager({
               </div>
             </fieldset>
             {formError && <p role="alert">{formError}</p>}
-            <div className="gear-actions gear-dialog-footer">
+            <div
+              className={cn(appStyles.gearActions, appStyles.gearDialogFooter)}
+            >
               <Button data-cy="save-gear" disabled={busy}>
                 保存する
               </Button>
@@ -617,15 +630,15 @@ export default function GearManager({
           onCloseAutoFocus={restoreFocus}
         >
           <form
-            className="entry-form gear-edit"
+            className={cn(appStyles.entryForm, appStyles.gearEdit)}
             data-cy="set-form"
             onSubmit={(e) => {
               e.preventDefault();
               void saveSet(setDraft, true);
             }}
           >
-            <fieldset disabled={busy} className="gear-dialog-fieldset">
-              <div className="gear-dialog-fields">
+            <fieldset disabled={busy} className={appStyles.gearDialogFieldset}>
+              <div className={appStyles.gearDialogFields}>
                 <label>
                   セット名 ※
                   <Input
@@ -664,7 +677,7 @@ export default function GearManager({
                   onChange={(gear) => onSetDraft({ ...setDraft, gear })}
                   onCreated={onCreated}
                 />
-                <label className="gear-check">
+                <label className={appStyles.gearCheck}>
                   <input
                     type="checkbox"
                     checked={setDraft.favorite}
@@ -674,7 +687,7 @@ export default function GearManager({
                   />
                   ★ お気に入り
                 </label>
-                <label className="gear-check">
+                <label className={appStyles.gearCheck}>
                   <input
                     type="checkbox"
                     checked={setDraft.retired}
@@ -687,7 +700,9 @@ export default function GearManager({
               </div>
             </fieldset>
             {formError && <p role="alert">{formError}</p>}
-            <div className="gear-actions gear-dialog-footer">
+            <div
+              className={cn(appStyles.gearActions, appStyles.gearDialogFooter)}
+            >
               <Button data-cy="save-gear-set" disabled={busy}>
                 保存する
               </Button>

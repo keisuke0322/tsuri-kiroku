@@ -4,6 +4,7 @@ import { useMemo, useState } from 'react';
 import GoogleMap from './google-map';
 import PositionEditor from './position-editor';
 import type { Position, Spot } from './fishing-position';
+import { appStyles } from '@/lib/app-styles';
 
 export type MapEntry = {
   id: number;
@@ -106,12 +107,12 @@ export default function FishingMap({
   }
 
   return (
-    <section className="fishing-map-panel" data-cy="fishing-map">
+    <section className={appStyles.fishingMapPanel} data-cy="fishing-map">
       <h2>自分の釣果マップ</h2>
-      <p className="photo-help">
+      <p className={appStyles.photoHelp}>
         このマップには自分の正確な位置を表示します。他の人への表示は各釣行の公開範囲に従います。位置未登録の釣行は編集から追加できます。
       </p>
-      <div className="map-filters">
+      <div className={appStyles.mapFilters}>
         <label>
           魚種
           <select
@@ -144,7 +145,7 @@ export default function FishingMap({
             onChange={(e) => setEnd(e.target.value)}
           />
         </label>
-        <label className="map-check">
+        <label className={appStyles.mapCheck}>
           <input
             data-cy="map-favorites"
             type="checkbox"
@@ -154,7 +155,7 @@ export default function FishingMap({
           お気に入りだけ
         </label>
       </div>
-      <div className="map-actions">
+      <div className={appStyles.mapActions}>
         <button onClick={() => quick('month')}>今月</button>
         <button onClick={() => quick('three')}>過去3か月</button>
         <button onClick={() => quick('year')}>今年</button>
@@ -185,7 +186,7 @@ export default function FishingMap({
       <p role="status">
         {filtered.length}件の釣行・{groups.length}か所
       </p>
-      <div className="spot-list">
+      <div className={appStyles.spotList}>
         {groups.map((g) => (
           <button
             data-cy="map-spot"
@@ -205,7 +206,7 @@ export default function FishingMap({
       </div>
       {!groups.length && <p>この条件で位置が登録された釣行はありません。</p>}
       {detail && (
-        <div className="spot-detail" data-cy="spot-detail">
+        <div className={appStyles.spotDetail} data-cy="spot-detail">
           <h3>{detail.name}</h3>
           <p>
             釣行 {detail.entries.length}回 ／ 最近の釣行{' '}
@@ -219,7 +220,7 @@ export default function FishingMap({
               : '未登録'}
           </p>
           {spot && (
-            <div className="map-actions">
+            <div className={appStyles.mapActions}>
               <button
                 data-cy="favorite-spot"
                 disabled={saving}
@@ -236,7 +237,7 @@ export default function FishingMap({
               </button>
             </div>
           )}
-          <p className="photo-help">
+          <p className={appStyles.photoHelp}>
             釣り場を編集しても過去の釣行名・位置は変わりません。過去の記録は釣行ごとに編集してください。
           </p>
           {detail.entries.map((x) => (
@@ -263,7 +264,8 @@ export default function FishingMap({
       )}
       {editing && (
         <form
-          className="spot-edit"
+          className={appStyles.spotEdit}
+          data-cy="spot-edit"
           onSubmit={(e) => {
             e.preventDefault();
             void save(editing);

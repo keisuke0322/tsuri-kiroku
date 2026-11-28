@@ -9,6 +9,7 @@ import {
   DialogDescription,
   DialogFooter,
 } from '@/components/ui/dialog';
+import { appStyles } from '@/lib/app-styles';
 
 const meta = {
   id: 'dialog',
@@ -24,7 +25,9 @@ export const Default: StoryObj<typeof meta> = {
       </DialogTrigger>
       <DialogContent>
         <DialogHeader>
-          <DialogTitle>釣行の詳細</DialogTitle>
+          <DialogTitle className={appStyles.dialogTitle}>
+            釣行の詳細
+          </DialogTitle>
           <DialogDescription>
             共通ダイアログの表示例です。Escapeキーで閉じられます。
           </DialogDescription>

@@ -3,11 +3,13 @@ import type { ComponentProps } from 'react';
 import { useArgs } from 'storybook/preview-api';
 import { fn } from 'storybook/test';
 import MethodField from '@/app/method-field';
+import { appStyles } from '@/lib/app-styles';
+import { cn } from '@/lib/utils';
 
 function Example(args: ComponentProps<typeof MethodField>) {
   const [, updateArgs] = useArgs();
   return (
-    <div className="entry-form story-surface">
+    <div className={cn(appStyles.entryForm, 'w-[min(100%,640px)] p-4')}>
       <MethodField
         {...args}
         value={args.value}

@@ -3,6 +3,7 @@
 import { useEffect, useEffectEvent, useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { toast } from 'sonner';
+import { appStyles } from '@/lib/app-styles';
 
 type DemoState = { count: number; initialized: boolean };
 
@@ -97,7 +98,7 @@ export default function DemoControls({
 
   if (state?.initialized && !state.count) return null;
   return (
-    <aside className="demo-controls" aria-label="ダミーデータ管理">
+    <aside className={appStyles.demoControls} aria-label="ダミーデータ管理">
       <p>
         {state?.count
           ? `表示確認用のダミー釣果：${state.count}件。実際の釣果とは区別して削除できます。`

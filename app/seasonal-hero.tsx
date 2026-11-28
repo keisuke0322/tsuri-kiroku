@@ -2,6 +2,7 @@
 
 import { useSyncExternalStore } from 'react';
 import { Plus, ChevronRight } from 'lucide-react';
+import { appStyles } from '@/lib/app-styles';
 
 export function seasonForDate(date: Date) {
   const month = Number(
@@ -47,8 +48,8 @@ export default function SeasonalHero({
     serverSeason,
   );
   return (
-    <section className="seasonal-hero" aria-label="季節の釣り">
-      <div className="seasonal-hero-art">
+    <section className={appStyles.seasonalHero} aria-label="季節の釣り">
+      <div className={appStyles.seasonalHeroArt} data-cy="seasonal-hero-art">
         {season && (
           <img
             src={`/images/optimized/hero-${season}-1671.webp`}
@@ -66,17 +67,17 @@ export default function SeasonalHero({
           />
         )}
       </div>
-      <div className="seasonal-hero-actions">
+      <div className={appStyles.seasonalHeroActions}>
         <button
           data-cy="record-catch"
           type="button"
-          className="hero-record"
+          className={appStyles.heroRecord}
           onClick={onRecord}
         >
           <Plus aria-hidden="true" />
           釣果を記録する
         </button>
-        <button type="button" className="hero-view" onClick={onView}>
+        <button type="button" className={appStyles.heroView} onClick={onView}>
           釣果を見る
           <ChevronRight aria-hidden="true" />
         </button>

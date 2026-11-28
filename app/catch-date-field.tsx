@@ -8,6 +8,7 @@ import {
   PopoverContent,
   PopoverTrigger,
 } from '@/components/ui/popover';
+import { appStyles } from '@/lib/app-styles';
 
 const loadCalendar = () => import('./catch-calendar');
 const CatchCalendar = lazy(loadCalendar);
@@ -47,12 +48,12 @@ export default function CatchDateField({
 
   return (
     <div
-      className="catch-date-field"
+      className={appStyles.catchDateField}
       onBlur={(e) => {
         if (!e.currentTarget.contains(e.relatedTarget)) onBlur?.();
       }}
     >
-      <span id="catch-date-label" className="required-field-label">
+      <span id="catch-date-label" className={appStyles.requiredFieldLabel}>
         釣行日 ※
       </span>
       <Popover open={open} onOpenChange={changeOpen}>
@@ -60,7 +61,7 @@ export default function CatchDateField({
           <button
             data-cy="catch-date-trigger"
             type="button"
-            className="catch-date-trigger"
+            className={appStyles.catchDateTrigger}
             aria-required="true"
             aria-invalid={!!error}
             aria-describedby={error ? 'catch-error-date' : undefined}
@@ -73,14 +74,14 @@ export default function CatchDateField({
           </button>
         </PopoverTrigger>
         <PopoverContent
-          className="catch-date-popover"
+          className={appStyles.catchDatePopover}
           align="start"
           aria-label="釣行日を選択"
         >
           <Suspense
             fallback={
               <div
-                className="catch-date-loading"
+                className={appStyles.catchDateLoading}
                 data-cy="catch-date-loading"
                 role="status"
               >
@@ -96,7 +97,10 @@ export default function CatchDateField({
               defaultMonth={new Date(value + 'T12:00:00')}
               autoFocus
             />
-            <div className="catch-date-actions">
+            <div
+              className={appStyles.catchDateActions}
+              data-cy="catch-date-actions"
+            >
               <Button
                 type="button"
                 variant="outline"
@@ -117,7 +121,7 @@ export default function CatchDateField({
         </PopoverContent>
       </Popover>
       {error && (
-        <span className="field-error" id="catch-error-date">
+        <span className={appStyles.fieldError} id="catch-error-date">
           {error}
         </span>
       )}

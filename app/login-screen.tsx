@@ -2,6 +2,8 @@
 
 import { useSyncExternalStore } from 'react';
 import Brand from './brand';
+import { appStyles } from '@/lib/app-styles';
+import { cn } from '@/lib/utils';
 
 export function loginTheme(date: Date) {
   return date.getHours() >= 6 && date.getHours() < 18 ? 'day' : 'night';
@@ -25,13 +27,20 @@ export default function LoginScreen({
   );
   return (
     <main
-      className={`login-scene ${theme ? `login-${theme}` : 'login-pending'}`}
+      data-cy="login-screen"
+      data-theme={theme ?? 'pending'}
+      className={cn(
+        appStyles.loginScene,
+        theme === 'night' && appStyles.loginNight,
+        !theme && appStyles.loginPending,
+      )}
     >
-      <div className="login-composition">
-        <div className="login-art-frame">
+      <div className={appStyles.loginComposition}>
+        <div className={appStyles.loginArtFrame}>
           {theme && (
             <img
-              className="login-art"
+              className={appStyles.loginArt}
+              data-cy="login-art"
               width={1670}
               height={theme === 'day' ? 941 : 942}
               fetchPriority="high"
@@ -47,13 +56,17 @@ export default function LoginScreen({
             />
           )}
         </div>
-        <section className="google-login-card" aria-labelledby="login-title">
+        <section
+          className={appStyles.googleLoginCard}
+          aria-labelledby="login-title"
+        >
           <h1 id="login-title">
             <Brand variant="login" />
           </h1>
           <p>Googleアカウントでログイン</p>
           <a
-            className="google-login-button"
+            className={appStyles.googleLoginButton}
+            data-cy="google-login-button"
             href="/api/auth/google"
             target="_top"
             aria-disabled={checking || undefined}
@@ -83,7 +96,7 @@ export default function LoginScreen({
           </a>
           {checking && <p role="status">ログイン状態を確認しています…</p>}
           {loginFailed && (
-            <p className="google-login-error" role="alert">
+            <p className={appStyles.googleLoginError} role="alert">
               ログインできませんでした。もう一度お試しください。
             </p>
           )}

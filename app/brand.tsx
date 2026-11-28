@@ -1,21 +1,30 @@
+import { appStyles } from '@/lib/app-styles';
+import { cn } from '@/lib/utils';
+
 export default function Brand({
   variant = 'header',
 }: {
   variant?: 'header' | 'login';
 }) {
   return (
-    <span className={`brand brand-${variant}`} data-cy="brand">
+    <span
+      className={cn(
+        appStyles.brand,
+        variant === 'login' && appStyles.brandLogin,
+      )}
+      data-cy="brand"
+    >
       <img
-        className="brand-symbol"
+        className={appStyles.brandSymbol}
         src="/brand/mark-color.svg"
         width={144}
         height={104}
         alt=""
         aria-hidden="true"
       />
-      <span className="brand-wordmark">
-        <span className="brand-name">つりめぐり</span>
-        <span className="brand-english">TSURIMEGURI</span>
+      <span className={appStyles.brandWordmark}>
+        <span className={appStyles.brandName}>つりめぐり</span>
+        <span className={appStyles.brandEnglish}>TSURIMEGURI</span>
       </span>
     </span>
   );

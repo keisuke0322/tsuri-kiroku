@@ -22,13 +22,21 @@ describe('stagingの公開Storybook', () => {
   for (const width of [1280, 390]) {
     it(`${width}pxで入力・日付選択・ダイアログを操作できる`, () => {
       cy.viewport(width, 900);
+      cy.visit('/storybook/iframe.html?id=button--app-actions&viewMode=story');
+      cy.contains('button', '釣果を記録')
+        .should('have.css', 'background-color', 'rgb(8, 123, 135)')
+        .and('have.css', 'height', '46px');
+
       cy.visit(
         '/storybook/iframe.html?id=method-field--default&viewMode=story',
       );
       cy.get('#storybook-root input[data-cy="combination-method"]')
         .should('have.length', 1)
         .type('サビキ');
-      cy.get('[role="option"]').contains('サビキ').click();
+      cy.get('[role="option"]')
+        .contains('サビキ')
+        .should('have.css', 'min-height', '44px')
+        .click();
       cy.get('#storybook-root input[data-cy="combination-method"]').should(
         'have.value',
         'サビキ',
